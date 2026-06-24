@@ -76,6 +76,9 @@ Tipografia: `'Sora', sans-serif` para headings e labels de destaque. `'Inter', s
 | `DistanceRuler` | ~375 | Cotas entre torre selecionada, torres vizinhas e limites |
 | `TowerPanel` | ~455 | Propriedades, redução de 20% e remoção da torre |
 | `Tower3D` | ~480 | Extrusão SVG proporcional ao número de pavimentos |
+| `ReportCanvas` | ~505 | Planta limpa usada no preview do relatório |
+| `ExportModal` | ~525 | Preview A4 e download demonstrativo do relatório |
+| `PresentationHUD` | ~575 | HUD compacto do modo apresentação |
 | `ComparePanel` | ~515 | Comparação de versões com dois canvas e deltas |
 | `IdleScreen` | ~600 | Tela inicial, sugestões e upload mockado |
 | `ChatPanel` | ~725 | Chat em estados `mini` / `medium` / `full` |
@@ -100,6 +103,8 @@ versions    // snapshots independentes das três versões
 comparing   // bool — painel de comparação aberto
 showSetbacks // bool — recuos visíveis
 attachedFile // arquivo mockado aguardando envio
+exportOpen   // bool — modal de exportação aberto
+presenting   // bool — modo apresentação/fullscreen ativo
 ```
 
 ---
@@ -139,6 +144,10 @@ attachedFile // arquivo mockado aguardando envio
 - [x] Respostas contextuais por torre
 - [x] Ações do chat aplicadas ao canvas
 - [x] Skill cards com métricas antes/depois
+- [x] Preview A4 de relatório com métricas e planta
+- [x] Download demonstrativo do relatório em HTML
+- [x] Modo apresentação fullscreen
+- [x] HUD compacto para apresentação
 
 ---
 
@@ -183,10 +192,10 @@ O bubble de skill mostra um mini-card com o resultado da operação: preview num
 
 ---
 
-### Sprint 4 — Exportação e apresentação — próximo
+### Sprint 4 — Exportação e apresentação — concluído na V0
 
 **4.1 Export PDF mockado**
-Botão "Exportar" abre um modal com preview de relatório (imagem PNG do canvas + tabela de métricas) e botão de download fake.
+Botão "Exportar" abre um modal A4 com planta, tabela de métricas e download demonstrativo em HTML. A geração de PDF real fica para a arquitetura com backend/bundler.
 
 **4.2 Modo apresentação**
 Botão na topbar que entra em fullscreen, esconde todos os controles e mostra só o canvas + HUD compacto. Ideal para apresentar para cliente.

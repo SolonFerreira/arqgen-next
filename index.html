@@ -60,6 +60,8 @@
       Plus:      ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
       Ruler:      ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>,
       Paperclip:  ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>,
+      Download:   ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+      Present:    ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="13" rx="2"/><line x1="8" y1="21" x2="12" y2="16"/><line x1="16" y1="21" x2="12" y2="16"/></svg>,
     };
 
     /* ── Arqgen logo SVG (dark-mode: dark fill → white) ──────── */
@@ -496,6 +498,102 @@
       );
     }
 
+    /* ── ReportCanvas ─────────────────────────────────────────── */
+    function ReportCanvas({towers}) {
+      return (
+        <svg viewBox="0 0 640 440" style={{width:"100%",height:"100%",display:"block",background:"#f7fafc"}}>
+          <defs>
+            <pattern id="report-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(26,32,44,0.05)" strokeWidth="1"/>
+            </pattern>
+          </defs>
+          <rect width="640" height="440" fill="url(#report-grid)"/>
+          <polygon points={TERRAIN} fill="rgba(1,173,110,0.08)" stroke="#01AD6E" strokeWidth="1.5" strokeDasharray="6,4"/>
+          {towers.map(t=>(
+            <g key={t.id}>
+              <rect x={t.x+4} y={t.y+6} width={t.w} height={t.h} rx={4} fill="rgba(26,32,44,0.12)"/>
+              <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4} fill="#344357" stroke="#1A202C" strokeWidth="1.5"/>
+              <text x={t.x+t.w/2} y={t.y+t.h/2+4} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="700" fontFamily="'Sora',sans-serif">{t.id}</text>
+            </g>
+          ))}
+          <text x="315" y="232" textAnchor="middle" fill="#718096" fontSize="11" fontFamily="'Inter',sans-serif">847 m²</text>
+          <text x="602" y="70" textAnchor="middle" fill="#718096" fontSize="11" fontFamily="'Inter',sans-serif">N ↑</text>
+        </svg>
+      );
+    }
+
+    /* ── ExportModal ──────────────────────────────────────────── */
+    function ExportModal({towers,version,onClose,onDownload}) {
+      const m=calcMetrics(towers);
+      return (
+        <div onMouseDown={e=>e.target===e.currentTarget&&onClose()} style={{position:"fixed",inset:0,zIndex:200,background:"rgba(5,8,13,0.78)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeIn 0.18s ease"}}>
+          <div style={{width:"min(920px,94vw)",maxHeight:"92vh",background:C.card,border:"1px solid rgba(255,255,255,0.12)",borderRadius:14,boxShadow:"0 24px 80px rgba(0,0,0,0.55)",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+            <div style={{height:48,display:"flex",alignItems:"center",padding:"0 16px 0 20px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
+              <div>
+                <div style={{fontFamily:"'Sora',sans-serif",fontSize:13,fontWeight:700,color:"#fff"}}>Exportar relatório</div>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginTop:2}}>Preview mockado · formato A4 paisagem</div>
+              </div>
+              <div style={{flex:1}}/>
+              <button onClick={onClose} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",padding:6,display:"flex"}}><Icon.X s={14}/></button>
+            </div>
+            <div style={{padding:18,overflowY:"auto",background:C.ink2}}>
+              <div style={{width:"min(780px,100%)",aspectRatio:"1.414/1",margin:"0 auto",background:"#fff",borderRadius:4,boxShadow:"0 12px 40px rgba(0,0,0,0.35)",padding:"28px 32px",color:C.ink,display:"flex",flexDirection:"column"}}>
+                <div style={{display:"flex",alignItems:"flex-start",borderBottom:"2px solid #01AD6E",paddingBottom:14}}>
+                  <div>
+                    <div style={{fontFamily:"'Sora',sans-serif",fontSize:21,fontWeight:700}}>Estudo de viabilidade</div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:"#718096",marginTop:4}}>Lote Brooklin · 847 m² · {version}</div>
+                  </div>
+                  <div style={{flex:1}}/>
+                  <div style={{fontFamily:"'Sora',sans-serif",fontSize:18,fontWeight:700,color:"#01AD6E"}}>arqgen</div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:22,flex:1,minHeight:0,paddingTop:18}}>
+                  <div style={{border:"1px solid #E2E8F0",borderRadius:6,overflow:"hidden",minHeight:0}}><ReportCanvas towers={towers}/></div>
+                  <div style={{display:"flex",flexDirection:"column"}}>
+                    <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,marginBottom:10}}>Resumo do estudo</div>
+                    {[["Torres",towers.length],["Unidades",m.units],["Área construída",`${m.area.toLocaleString("pt-BR")} m²`],["Taxa de ocupação",`${m.occ}%`],["CA utilizado",m.ca]].map(([label,value])=>(
+                      <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #EDF2F7"}}>
+                        <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:"#718096"}}>{label}</span>
+                        <span style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700}}>{value}</span>
+                      </div>
+                    ))}
+                    <div style={{marginTop:14,padding:10,background:"#F0FFF8",border:"1px solid #C6F6D5",borderRadius:6,fontFamily:"'Inter',sans-serif",fontSize:9,color:"#276749",lineHeight:1.5}}>Estudo conceitual para avaliação preliminar. Dados e parâmetros urbanísticos são simulados nesta V0.</div>
+                  </div>
+                </div>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:"#A0AEC0",paddingTop:10,textAlign:"right"}}>Gerado pelo Arqgen Next</div>
+              </div>
+            </div>
+            <div style={{height:58,display:"flex",alignItems:"center",padding:"0 18px",borderTop:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
+              <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>O download gera uma demonstração HTML do relatório.</span>
+              <div style={{flex:1}}/>
+              <button onClick={onClose} style={{background:"none",border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"7px 14px",cursor:"pointer",marginRight:8}}>Cancelar</button>
+              <button onClick={onDownload} style={{display:"flex",alignItems:"center",gap:7,background:C.green,border:"none",borderRadius:6,color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"8px 15px",cursor:"pointer"}}><Icon.Download s={12} c="#fff"/> Baixar relatório</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── PresentationHUD ──────────────────────────────────────── */
+    function PresentationHUD({m,towerCount,version,onExit}) {
+      return (
+        <>
+          <div style={{position:"absolute",top:22,left:24,zIndex:70,display:"flex",alignItems:"center",gap:10}}>
+            <ArqgenLogo height={22}/>
+            <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>Lote Brooklin · {version}</span>
+          </div>
+          <div style={{position:"absolute",top:20,right:24,zIndex:70,display:"flex",alignItems:"center",gap:8}}>
+            {[["Torres",towerCount],["Unidades",m.units],["CA",m.ca],["TO",`${m.occ}%`]].map(([label,value])=>(
+              <div key={label} style={{background:"rgba(17,21,29,0.82)",backdropFilter:"blur(10px)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"7px 11px",minWidth:62}}>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:C.gray,textTransform:"uppercase",letterSpacing:"0.08em"}}>{label}</div>
+                <div style={{fontFamily:"'Sora',sans-serif",fontSize:14,fontWeight:700,color:"#fff",marginTop:1}}>{value}</div>
+              </div>
+            ))}
+            <button onClick={onExit} style={{height:42,background:"rgba(17,21,29,0.82)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:10,padding:"0 12px",cursor:"pointer"}}>Sair</button>
+          </div>
+        </>
+      );
+    }
+
     /* ── ComparePanel — 2.2 ──────────────────────────────────── */
     function ComparePanel({versions, currentVersion, onClose}) {
       const VERS = ["Versão 01","Versão 02","Versão 03"];
@@ -835,12 +933,20 @@
       const [transitioning,setTransitioning]= useState(false);
       const [comparing,    setComparing]    = useState(false);
       const [attachedFile, setAttachedFile] = useState(null);
+      const [exportOpen,   setExportOpen]   = useState(false);
+      const [presenting,   setPresenting]   = useState(false);
 
+      const appRef   = useRef(null);
       const svgRef   = useRef(null);
       const dragging = useRef(null);
       const resizing = useRef(null);
 
       useEffect(()=>{ const t=setTimeout(()=>setMounted(true),100); return ()=>clearTimeout(t); },[]);
+      useEffect(()=>{
+        const sync=()=>{ if(!document.fullscreenElement)setPresenting(false); };
+        document.addEventListener("fullscreenchange",sync);
+        return()=>document.removeEventListener("fullscreenchange",sync);
+      },[]);
 
       const m = useMemo(()=>calcMetrics(towers),[towers]);
 
@@ -1017,6 +1123,34 @@
         setSel(null);
       }
 
+      async function enterPresentation() {
+        setSel(null);
+        setChatSize("mini");
+        setPresenting(true);
+        try {
+          if(appRef.current?.requestFullscreen) await appRef.current.requestFullscreen();
+        } catch(e) {}
+      }
+
+      async function exitPresentation() {
+        setPresenting(false);
+        try {
+          if(document.fullscreenElement) await document.exitFullscreen();
+        } catch(e) {}
+      }
+
+      function downloadReport() {
+        const reportMetrics=calcMetrics(towers);
+        const rows=towers.map(t=>`<tr><td>Torre ${t.id}</td><td>${t.floors}</td><td>${t.units}</td><td>${t.area.toLocaleString("pt-BR")} m²</td><td>${t.type}</td></tr>`).join("");
+        const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório Arqgen · ${version}</title><style>body{font-family:Arial,sans-serif;color:#1A202C;margin:40px}h1{margin-bottom:4px}.sub{color:#718096}.kpis{display:flex;gap:12px;margin:28px 0}.kpi{border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px}.kpi b{display:block;font-size:22px;color:#01AD6E}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #E2E8F0}th{font-size:12px;color:#718096}.note{margin-top:28px;padding:14px;background:#F0FFF8;color:#276749;border-radius:8px}</style><body><h1>Estudo de viabilidade</h1><div class="sub">Lote Brooklin · 847 m² · ${version}</div><div class="kpis"><div class="kpi"><b>${towers.length}</b>Torres</div><div class="kpi"><b>${reportMetrics.units}</b>Unidades</div><div class="kpi"><b>${reportMetrics.ca}</b>CA</div><div class="kpi"><b>${reportMetrics.occ}%</b>Taxa de ocupação</div></div><table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table><div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados.</div></body></html>`;
+        const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;a.download=`arqgen-${version.toLowerCase().replaceAll(" ","-")}.html`;
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),500);
+      }
+
       function panelPos(t) {
         const svg=svgRef.current; if(!svg)return{px:0,py:0};
         const cr=svg.closest("[data-canvas]").getBoundingClientRect();
@@ -1041,11 +1175,11 @@
       const ib={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,color:C.gray2,width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0};
 
       return (
-        <div tabIndex={-1} onKeyDown={e=>e.key==="Escape"&&setSel(null)}
+        <div ref={appRef} tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){setSel(null);setExportOpen(false);}}}
           style={{width:"100vw",height:"100vh",background:C.ink2,display:"flex",flexDirection:"column",overflow:"hidden",opacity:mounted?1:0,transition:"opacity 0.5s ease",fontFamily:"'Inter',sans-serif"}}
         >
           {/* TOPBAR */}
-          <div style={{height:48,flexShrink:0,background:"rgba(17,21,29,0.9)",backdropFilter:"blur(10px)",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",padding:"0 18px",gap:16,position:"relative",zIndex:60}}>
+          {!presenting && <div style={{height:48,flexShrink:0,background:"rgba(17,21,29,0.9)",backdropFilter:"blur(10px)",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",padding:"0 18px",gap:16,position:"relative",zIndex:60}}>
             <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
               <ArqgenLogo height={20}/>
               <span style={{background:C.purple,color:"#fff",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:20,letterSpacing:"0.04em",lineHeight:1,flexShrink:0}}>Next</span>
@@ -1054,10 +1188,11 @@
               {mode==="active"?"Estudo · Lote Brooklin 847m²":""}
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-              {mode==="active"&&<button style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>}
+              {mode==="active"&&<button onClick={enterPresentation} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"1px solid rgba(255,255,255,0.12)",color:C.gray2,borderRadius:6,padding:"4px 11px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}><Icon.Present s={12}/> Apresentar</button>}
+              {mode==="active"&&<button onClick={()=>setExportOpen(true)} style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>}
               <div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#564FFF,#01AD6E)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>S</div>
             </div>
-          </div>
+          </div>}
 
           {/* BODY */}
           <div style={{flex:1,position:"relative",overflow:"hidden"}}>
@@ -1065,7 +1200,7 @@
             {/* CANVAS (always mounted, visible only in active mode) */}
             <div data-canvas style={{position:"absolute",inset:0,background:C.ink2,cursor:"crosshair",opacity:mode==="active"?1:0,transition:"opacity 0.6s ease 0.2s",pointerEvents:mode==="active"?"auto":"none"}}>
               {/* canvas controls */}
-              <div style={{position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",padding:"0 14px",gap:10}}>
+              {!presenting && <div style={{position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",padding:"0 14px",gap:10}}>
                 <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <div style={{width:6,height:6,borderRadius:"50%",background:C.green,flexShrink:0}}/>
                   <select value={version} onChange={e=>switchVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none"}}>
@@ -1095,10 +1230,11 @@
                   </div>
                   <button onClick={()=>setComparing(true)} style={{background:comparing?"rgba(86,79,255,0.15)":"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap",transition:"background 0.15s ease"}}>Comparar versões</button>
                 </div>
-              </div>
+              </div>}
 
               {/* metrics HUD */}
-              <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)} towerCount={towers.length}/>
+              {!presenting && <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)} towerCount={towers.length}/>}
+              {presenting && <PresentationHUD m={m} towerCount={towers.length} version={version} onExit={exitPresentation}/>}
 
               {/* SVG */}
               <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease"}}
@@ -1162,18 +1298,18 @@
                 {view==="2D" && selTower && <DistanceRuler tower={selTower} towers={towers}/>}
               </svg>
 
-              {selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)} onAdjust={()=>adjustTower(selTower.id)} onRemove={()=>removeTower(selTower.id)}/>; })()}
+              {!presenting&&selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)} onAdjust={()=>adjustTower(selTower.id)} onRemove={()=>removeTower(selTower.id)}/>; })()}
 
               {/* floating chat */}
-              <ChatPanel msgs={msgs} typing={typing} input={input} setInput={setInput}
+              {!presenting && <ChatPanel msgs={msgs} typing={typing} input={input} setInput={setInput}
                 onSend={()=>sendMessage()} size={chatSize} setSize={setChatSize}
                 attachedFile={attachedFile} onAttachFile={attachFile}
                 onRemoveFile={()=>setAttachedFile(null)}
                 onAction={applyChatAction}
-              />
+              />}
 
               {/* compare panel — 2.2 */}
-              {comparing && <ComparePanel
+              {!presenting&&comparing && <ComparePanel
                 versions={{...versions,[version]:towers}}
                 currentVersion={version}
                 onClose={()=>setComparing(false)}
@@ -1187,6 +1323,7 @@
               onRemoveFile={()=>setAttachedFile(null)}
             />}
           </div>
+          {exportOpen && <ExportModal towers={towers} version={version} onClose={()=>setExportOpen(false)} onDownload={downloadReport}/>}
         </div>
       );
     }
