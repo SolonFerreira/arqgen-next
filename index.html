@@ -17,13 +17,15 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
 
-    @keyframes bounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
-    @keyframes shake     { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-3px)} 40%{transform:translateX(3px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
-    @keyframes pulseT    { 0%,100%{transform:scale(1)} 50%{transform:scale(1.018)} }
-    @keyframes fadeUp    { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes fadeIn    { from{opacity:0} to{opacity:1} }
-    @keyframes slideUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes expandIn  { from{opacity:0;transform:scale(0.94)} to{opacity:1;transform:scale(1)} }
+    @keyframes bounce   { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+    @keyframes shake    { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-3px)} 40%{transform:translateX(3px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+    @keyframes pulseT   { 0%,100%{transform:scale(1)} 50%{transform:scale(1.018)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+    @keyframes fadeOut  { from{opacity:1} to{opacity:0} }
+    @keyframes slideUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes expandIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+    @keyframes canvasIn { from{opacity:0;transform:scale(1.02)} to{opacity:1;transform:scale(1)} }
 
     .shake   { animation: shake  300ms ease forwards; }
     .pulse-t { animation: pulseT 200ms ease 1; }
@@ -35,7 +37,7 @@
   <script id="app-src" type="text/plain">
     const { useState, useRef, useEffect, useCallback, useMemo } = React;
 
-    /* ── palette ──────────────────────────────────────────────────── */
+    /* ── palette ──────────────────────────────────────────────── */
     const C = {
       ink:    "#1A202C", ink2:   "#11151d", card:   "#20262f",
       green:  "#01AD6E", green2: "#33E0A1", purple: "#564FFF",
@@ -43,18 +45,43 @@
       gray2:  "#CBD5E0",
     };
 
-    /* ── icons (inline SVG) ───────────────────────────────────────── */
+    /* ── icons ────────────────────────────────────────────────── */
     const Icon = {
-      Send:    ({s=14,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
-      ZoomIn:  ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
-      ZoomOut: ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
-      X:       ({s=12,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-      Layers:  ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+      Send:      ({s=14,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+      ZoomIn:    ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
+      ZoomOut:   ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
+      X:         ({s=12,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+      Layers:    ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
       ChevronUp: ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
-      Msg:     ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+      Msg:       ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
     };
 
-    /* ── data ─────────────────────────────────────────────────────── */
+    /* ── Arqgen logo SVG (dark-mode: dark fill → white) ──────── */
+    function ArqgenLogo({height=36}) {
+      // original 160×32 viewBox; scale to desired height
+      return (
+        <svg height={height} viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{display:"block"}}>
+          <path d="M26.154 0.587903H17.1013C13.3144 0.587903 10.2305 3.68187 10.2305 7.48756V18.4694H14.2135V22.4692H26.154C29.9408 22.4692 33.0248 19.3752 33.0248 15.5695V7.48462C33.0248 3.68187 29.9438 0.584961 26.154 0.584961V0.587903ZM29.0388 15.5695C29.0388 17.1665 27.7443 18.4664 26.154 18.4664H26.1305H18.7882H14.2165V7.48462C14.2165 5.88764 15.511 4.5877 17.1013 4.5877H26.154C27.7443 4.5877 29.0388 5.88764 29.0388 7.48462V15.5695Z" fill="#01AD6E"/>
+          <path d="M6.8708 31.7336C3.08395 31.7336 0 28.6396 0 24.8339V16.749C0 12.9463 3.08102 9.84937 6.8708 9.84937H18.8112V13.8492H6.8708C5.2805 13.8492 3.986 15.1491 3.986 16.7461V24.831C3.986 26.428 5.2805 27.7279 6.8708 27.7279H15.9235C17.5138 27.7279 18.8083 26.428 18.8083 24.831V13.8492H22.7914V24.831C22.7914 28.6337 19.7104 31.7306 15.9206 31.7306H6.86787L6.8708 31.7336Z" fill="#ffffff"/>
+          <mask id="mask0" style={{maskType:"luminance"}} maskUnits="userSpaceOnUse" x="9" y="0" width="25" height="24">
+            <path d="M9.64453 0V23.0577H33.6074V0H9.64453ZM14.5062 13.8523H9.9374V9.85245H14.5062V13.8523Z" fill="white"/>
+          </mask>
+          <g mask="url(#mask0)">
+            <path d="M26.153 0.588147H17.1003C13.3134 0.588147 10.2295 3.68211 10.2295 7.4878V18.4696H14.2126V22.4694H26.153C29.9398 22.4694 33.0238 19.3755 33.0238 15.5698V7.48486C33.0238 3.68211 29.9428 0.585205 26.153 0.585205V0.588147ZM29.0378 15.5698C29.0378 17.1667 27.7433 18.4667 26.153 18.4667H26.1296H18.7872H14.2155V7.48486C14.2155 5.88788 15.51 4.58795 17.1003 4.58795H26.153C27.7433 4.58795 29.0378 5.88788 29.0378 7.48486V15.5698Z" fill="#01AD6E"/>
+          </g>
+          <path d="M78.6211 14.6346V14.214C78.6211 10.4348 76.7291 8.3584 72.3273 8.3584H63.6787V23.9606H67.5974V20.2019H71.8235L75.7187 19.9578C77.7864 19.1167 78.624 17.1727 78.624 14.6316L78.6211 14.6346ZM67.5944 16.6903V12.1141H71.9963C73.7125 12.1141 74.682 12.3582 74.682 14.2346V14.5875C74.682 16.4668 73.6481 16.6874 71.9963 16.6874H67.5944V16.6903Z" fill="#ffffff"/>
+          <path d="M51.926 8.3584H47.7702L40.7031 23.9606H45.0845L46.0715 21.5283H53.6218L54.6146 23.9606H58.996L51.926 8.3584ZM47.3924 18.3491L49.8583 12.3817L52.3243 18.3491H47.3953H47.3924Z" fill="#ffffff"/>
+          <path d="M73.2588 23.9609H77.6373L74.65 17.5847H70.3652L73.2588 23.9609Z" fill="#ffffff"/>
+          <path d="M100.127 18.5902V12.1141H96.2079V18.7226C96.2079 19.7578 95.6807 20.2049 94.9105 20.2049H89.1233C88.353 20.2049 87.8259 19.8108 87.8259 18.7226V13.617C87.8259 12.5288 88.3384 12.1141 89.1233 12.1141H96.2108V8.3584H89.1233C85.603 8.3584 83.9072 10.5671 83.9072 13.7522V18.5932C83.9072 21.7548 85.603 23.9635 89.1233 23.9635H93.3641L94.6762 26.8134H99.0048L97.4731 23.4488C99.2596 22.6195 100.127 20.846 100.127 18.5902Z" fill="#ffffff"/>
+          <path d="M138.733 8.3584H126.254V23.9606H139.392V20.2049H138.736C138.736 20.2049 138.736 20.2049 138.733 20.2049H130.149V17.8168H136.024V14.4228H135.491C135.45 14.4169 135.409 14.414 135.362 14.414H130.146V12.1141H139.389V8.3584H138.73H138.733Z" fill="#01AD6E"/>
+          <path d="M159.091 8.3584H155.834V17.9285L148.682 8.75544C148.682 8.75544 148.668 8.74073 148.659 8.73191L148.366 8.3584H144.676V23.9606H148.594V14.4346L155.12 22.7606L155.746 23.5635C155.773 23.5959 155.802 23.6194 155.831 23.6488L156.083 23.9606H159.753V8.3584H159.094H159.091Z" fill="#01AD6E"/>
+          <path d="M109.326 13.617C109.326 12.4994 109.789 12.1141 110.623 12.1141H117.049V8.3584H110.623C107.103 8.3584 105.407 10.5671 105.407 13.7522V20.2049H109.326V13.6199V13.617Z" fill="#01AD6E"/>
+          <path d="M113.189 14.4231V17.8053H117.052V18.7229C117.052 19.9875 116.44 20.2052 115.755 20.2052H109.329V23.9638H115.755C119.275 23.9638 120.971 21.3433 120.971 18.1817V14.4231H113.189Z" fill="#01AD6E"/>
+        </svg>
+      );
+    }
+
+    /* ── data ─────────────────────────────────────────────────── */
     const TERRAIN = "160,60 480,40 560,120 540,360 420,400 180,380 80,280 100,140";
     const LOT = 847;
 
@@ -74,7 +101,7 @@
 
     const AUTO_REPLY = "Entendido. Analisando o impacto no estudo atual. Posso ajustar as torres conforme solicitado — qual elemento quer priorizar: unidades, permeabilidade ou recuos?";
 
-    /* ── geometry ─────────────────────────────────────────────────── */
+    /* ── geometry ─────────────────────────────────────────────── */
     function pip(px, py, pts) {
       let inside = false;
       for (let i=0, j=pts.length-1; i<pts.length; j=i++) {
@@ -99,8 +126,8 @@
       return {units,area,occ,ca};
     }
 
-    /* ── FlipValue ────────────────────────────────────────────────── */
-    function FlipValue({val,suffix="",size=22,bold=700}) {
+    /* ── FlipValue ────────────────────────────────────────────── */
+    function FlipValue({val,suffix="",size=20}) {
       const [disp,setDisp]=useState(val);
       const [anim,setAnim]=useState(false);
       const prev=useRef(val);
@@ -113,19 +140,13 @@
         }
       },[val]);
       return (
-        <span style={{
-          fontFamily:"'Sora',sans-serif",fontSize:size,fontWeight:bold,color:"#fff",
-          display:"inline-block",
-          transform:anim?"translateY(-4px)":"translateY(0)",
-          opacity:anim?0:1,
-          transition:"transform 0.15s ease,opacity 0.15s ease",
-        }}>
+        <span style={{fontFamily:"'Sora',sans-serif",fontSize:size,fontWeight:700,color:"#fff",display:"inline-block",transform:anim?"translateY(-4px)":"translateY(0)",opacity:anim?0:1,transition:"transform 0.15s ease,opacity 0.15s ease"}}>
           {typeof disp==="number"?disp.toLocaleString("pt-BR"):disp}{suffix}
         </span>
       );
     }
 
-    /* ── MetricBar ────────────────────────────────────────────────── */
+    /* ── MetricBar ────────────────────────────────────────────── */
     function MetricBar({val,max,warn,danger}) {
       const pct=max?Math.min(100,val/max*100):100;
       const color=!max?C.green2:val>=(danger||Infinity)?C.red:val>=(warn||Infinity)?C.yellow:C.green2;
@@ -136,20 +157,18 @@
       );
     }
 
-    /* ── TypingDots ───────────────────────────────────────────────── */
+    /* ── TypingDots ───────────────────────────────────────────── */
     function TypingDots() {
       return (
         <div style={{display:"flex",gap:4,padding:"10px 14px",alignItems:"center"}}>
-          {[0,1,2].map(i=>(
-            <div key={i} style={{width:6,height:6,borderRadius:"50%",background:C.green2,animation:`bounce 1s ease ${i*0.2}s infinite`}}/>
-          ))}
+          {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:C.green2,animation:`bounce 1s ease ${i*0.2}s infinite`}}/>)}
         </div>
       );
     }
 
-    /* ── ChatBubble ───────────────────────────────────────────────── */
+    /* ── ChatBubble ───────────────────────────────────────────── */
     function Bubble({msg,idx}) {
-      const enter = {animation:`fadeUp 0.25s ease ${idx*0.04}s both`};
+      const enter={animation:`fadeUp 0.25s ease ${idx*0.04}s both`};
       if (msg.role==="user") return (
         <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8,...enter}}>
           <div style={{maxWidth:"80%"}}>
@@ -179,51 +198,29 @@
       );
     }
 
-    /* ── MetricsHUD ───────────────────────────────────────────────── */
+    /* ── MetricsHUD ───────────────────────────────────────────── */
     function MetricsHUD({m,open,onToggle}) {
       return (
-        <div style={{position:"absolute",top:52,right:14,zIndex:20,animation:"fadeIn 0.3s ease"}}>
-          {/* collapsed pill */}
-          <button
-            onClick={onToggle}
-            style={{
-              display:"flex",alignItems:"center",gap:8,
-              background:open?"rgba(32,38,47,0.95)":"rgba(32,38,47,0.85)",
-              border:`1px solid ${open?"rgba(51,224,161,0.25)":"rgba(255,255,255,0.1)"}`,
-              borderRadius:open?"10px 10px 0 0":10,
-              padding:"6px 12px",cursor:"pointer",
-              backdropFilter:"blur(10px)",
-              width:"100%",
-              transition:"all 0.2s ease",
-            }}
-          >
+        <div style={{position:"absolute",top:52,right:14,zIndex:20,width:230}}>
+          <button onClick={onToggle} style={{display:"flex",alignItems:"center",gap:8,background:open?"rgba(32,38,47,0.95)":"rgba(32,38,47,0.85)",border:`1px solid ${open?"rgba(51,224,161,0.25)":"rgba(255,255,255,0.1)"}`,borderRadius:open?"10px 10px 0 0":10,padding:"6px 12px",cursor:"pointer",backdropFilter:"blur(10px)",width:"100%",transition:"all 0.2s ease"}}>
             <Icon.Layers s={12} c={C.green2}/>
             <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,flex:1,textAlign:"left"}}>
               <span style={{color:"#fff",fontWeight:600}}>{m.units}</span> un &nbsp;·&nbsp; CA <span style={{color:m.ca>=11.5?C.yellow:"#fff",fontWeight:600}}>{m.ca}</span>
             </span>
-            <div style={{transform:open?"rotate(0)":"rotate(180deg)",transition:"transform 0.2s ease",display:"flex"}}>
-              <Icon.ChevronUp s={12} c={C.gray}/>
-            </div>
+            <div style={{transform:open?"rotate(0)":"rotate(180deg)",transition:"transform 0.2s ease",display:"flex"}}><Icon.ChevronUp s={12} c={C.gray}/></div>
           </button>
-
-          {/* expanded panel */}
           {open && (
-            <div style={{
-              background:"rgba(32,38,47,0.95)",backdropFilter:"blur(10px)",
-              border:"1px solid rgba(51,224,161,0.25)",borderTop:"none",
-              borderRadius:"0 0 10px 10px",padding:"12px 14px",
-              width:230,animation:"expandIn 0.15s ease",
-            }}>
+            <div style={{background:"rgba(32,38,47,0.95)",backdropFilter:"blur(10px)",border:"1px solid rgba(51,224,161,0.25)",borderTop:"none",borderRadius:"0 0 10px 10px",padding:"12px 14px",animation:"expandIn 0.15s ease"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 10px"}}>
                 {[
-                  {label:"Unidades totais",val:m.units,suffix:"",max:null},
-                  {label:"Área construída", val:m.area, suffix:" m²",max:null,size:16},
+                  {label:"Unidades totais",val:m.units,suffix:""},
+                  {label:"Área construída", val:m.area, suffix:" m²"},
                   {label:"Taxa de ocupação",val:m.occ, suffix:"%",max:50,warn:45,danger:50},
                   {label:"CA utilizado",    val:m.ca,  suffix:"",max:12,warn:11.5,danger:12},
-                ].map(({label,val,suffix,max,warn,danger,size})=>(
+                ].map(({label,val,suffix,max,warn,danger})=>(
                   <div key={label}>
                     <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginBottom:2}}>{label}</div>
-                    <FlipValue val={val} suffix={suffix} size={size||20}/>
+                    <FlipValue val={val} suffix={suffix}/>
                     <MetricBar val={val} max={max} warn={warn} danger={danger}/>
                   </div>
                 ))}
@@ -234,23 +231,16 @@
       );
     }
 
-    /* ── TowerPanel (on-canvas prop card) ────────────────────────── */
+    /* ── TowerPanel ───────────────────────────────────────────── */
     function TowerPanel({tower,px,py,onClose}) {
       return (
-        <div style={{
-          position:"absolute",left:px,top:py,zIndex:30,
-          background:"rgba(26,32,44,0.96)",backdropFilter:"blur(12px)",
-          border:"1px solid rgba(51,224,161,0.25)",borderRadius:10,padding:14,width:185,
-          animation:"expandIn 0.15s ease",boxShadow:"0 8px 32px rgba(0,0,0,0.5)",
-        }}>
+        <div style={{position:"absolute",left:px,top:py,zIndex:30,background:"rgba(26,32,44,0.96)",backdropFilter:"blur(12px)",border:"1px solid rgba(51,224,161,0.25)",borderRadius:10,padding:14,width:185,animation:"expandIn 0.15s ease",boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <div style={{width:24,height:24,borderRadius:6,background:"rgba(1,173,110,0.2)",border:"1px solid rgba(51,224,161,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:C.green2}}>{tower.id}</div>
               <span style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,color:"#fff"}}>Torre {tower.id}</span>
             </div>
-            <button onClick={onClose} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",display:"flex",padding:2}}>
-              <Icon.X s={12}/>
-            </button>
+            <button onClick={onClose} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",display:"flex",padding:2}}><Icon.X s={12}/></button>
           </div>
           <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:9}}>
             {[["Pavimentos",tower.floors],["Unidades",tower.units],["Área total",`${tower.area.toLocaleString("pt-BR")} m²`],["Tipologia",tower.type]].map(([l,v])=>(
@@ -268,146 +258,115 @@
       );
     }
 
-    /* ── IdleInput ────────────────────────────────────────────────── */
-    function IdleInput({onSend}) {
+    /* ── IdleScreen ───────────────────────────────────────────── */
+    function IdleScreen({onSend,leaving}) {
       const [val,setVal]=useState("");
       const ref=useRef(null);
-      useEffect(()=>{ setTimeout(()=>ref.current?.focus(),400); },[]);
-      function send(){
-        if(!val.trim()) return;
-        onSend(val);
-        setVal("");
+      useEffect(()=>{ const t=setTimeout(()=>ref.current?.focus(),600); return ()=>clearTimeout(t); },[]);
+
+      const SUGGESTIONS = [
+        "Lote de 600m² no Brooklin, quero explorar densidade máxima",
+        "Terreno irregular 900m² — três alternativas de implantação",
+        "Studio 44m² vs 1 dorm 52m² — qual maximiza CA 12?",
+      ];
+
+      function send(text) {
+        const msg = text || val;
+        if (!msg.trim()) return;
+        onSend(msg);
       }
+
       return (
         <div style={{
-          position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",
-          width:"min(640px,80%)",zIndex:20,
-          animation:"slideUp 0.4s ease",
+          position:"absolute",inset:0,
+          background:C.ink2,
+          display:"flex",flexDirection:"column",
+          alignItems:"center",justifyContent:"center",
+          zIndex:50,
+          opacity: leaving ? 0 : 1,
+          transform: leaving ? "scale(1.02)" : "scale(1)",
+          transition: leaving ? "opacity 0.5s ease, transform 0.5s ease" : "none",
+          pointerEvents: leaving ? "none" : "auto",
         }}>
-          <div style={{
-            background:"rgba(32,38,47,0.92)",backdropFilter:"blur(16px)",
-            border:"1px solid rgba(255,255,255,0.12)",borderRadius:16,
-            padding:"6px 6px 6px 16px",
-            display:"flex",alignItems:"flex-end",gap:8,
-            boxShadow:"0 20px 60px rgba(0,0,0,0.5)",
-            transition:"border-color 0.2s ease",
-          }}
-          onFocus={e=>e.currentTarget.style.borderColor="rgba(1,173,110,0.5)"}
-          onBlur={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.12)"}
-          >
-            <textarea
-              ref={ref}
-              rows={2}
-              value={val}
-              onChange={e=>setVal(e.target.value)}
-              onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();} }}
-              placeholder="Descreva o projeto ou o terreno que quer avaliar…"
-              style={{
-                flex:1,background:"transparent",border:"none",outline:"none",
-                color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:14,
-                resize:"none",lineHeight:1.6,padding:"6px 0",
-              }}
-            />
-            <button
-              onClick={send}
-              style={{
-                width:38,height:38,borderRadius:"50%",
-                background:val.trim()?C.green:"rgba(255,255,255,0.08)",
-                border:"none",display:"flex",alignItems:"center",justifyContent:"center",
-                cursor:"pointer",flexShrink:0,transition:"background 0.2s ease",
-                marginBottom:2,
-              }}
-            >
-              <Icon.Send s={15} c="#fff"/>
-            </button>
+          {/* logo */}
+          <div style={{animation:"fadeUp 0.5s ease 0.1s both"}}>
+            <ArqgenLogo height={40}/>
           </div>
-          <p style={{textAlign:"center",marginTop:10,fontFamily:"'Inter',sans-serif",fontSize:11,color:"rgba(113,128,150,0.6)"}}>
-            Enter para enviar · Shift+Enter para nova linha
-          </p>
+
+          {/* badge */}
+          <div style={{marginTop:12,animation:"fadeUp 0.5s ease 0.2s both"}}>
+            <span style={{background:"rgba(86,79,255,0.18)",border:"1px solid rgba(86,79,255,0.35)",color:"rgba(203,200,255,0.9)",fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"3px 10px",borderRadius:20,letterSpacing:"0.04em"}}>Next · Protótipo V0</span>
+          </div>
+
+          {/* tagline */}
+          <div style={{marginTop:28,textAlign:"center",animation:"fadeUp 0.5s ease 0.3s both"}}>
+            <h1 style={{fontFamily:"'Sora',sans-serif",fontSize:26,fontWeight:700,color:"#fff",letterSpacing:"-0.03em",lineHeight:1.2,marginBottom:8}}>
+              Do terreno à decisão,<br/>em segundos.
+            </h1>
+            <p style={{fontFamily:"'Inter',sans-serif",fontSize:14,color:C.gray,maxWidth:400,lineHeight:1.6}}>
+              Descreva o lote, as premissas e o que quer explorar.<br/>O canvas gera e ajusta em tempo real.
+            </p>
+          </div>
+
+          {/* input */}
+          <div style={{marginTop:36,width:"min(600px,82vw)",animation:"fadeUp 0.5s ease 0.4s both"}}>
+            <div style={{background:"rgba(32,38,47,0.8)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"8px 8px 8px 18px",display:"flex",alignItems:"flex-end",gap:8,transition:"border-color 0.2s ease"}}
+              onFocusCapture={e=>e.currentTarget.style.borderColor="rgba(1,173,110,0.45)"}
+              onBlurCapture={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.1)"}
+            >
+              <textarea
+                ref={ref}
+                rows={2}
+                value={val}
+                onChange={e=>setVal(e.target.value)}
+                onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();} }}
+                placeholder="Descreva o projeto ou o terreno que quer avaliar…"
+                style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:14,resize:"none",lineHeight:1.6,padding:"6px 0"}}
+              />
+              <button onClick={()=>send()} style={{width:40,height:40,borderRadius:"50%",background:val.trim()?C.green:"rgba(255,255,255,0.07)",border:`1px solid ${val.trim()?"transparent":"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all 0.2s ease",marginBottom:2}}>
+                <Icon.Send s={15} c="#fff"/>
+              </button>
+            </div>
+            <p style={{textAlign:"center",marginTop:8,fontFamily:"'Inter',sans-serif",fontSize:11,color:"rgba(113,128,150,0.5)"}}>
+              Enter para enviar · Shift+Enter para nova linha
+            </p>
+          </div>
+
+          {/* suggestion chips */}
+          <div style={{marginTop:20,display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",maxWidth:620,padding:"0 16px",animation:"fadeUp 0.5s ease 0.5s both"}}>
+            {SUGGESTIONS.map((s,i)=>(
+              <button key={i} onClick={()=>send(s)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:"6px 14px",fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray,cursor:"pointer",transition:"all 0.15s ease",whiteSpace:"nowrap"}}
+                onMouseEnter={e=>{e.target.style.background="rgba(1,173,110,0.1)";e.target.style.borderColor="rgba(1,173,110,0.3)";e.target.style.color=C.green2;}}
+                onMouseLeave={e=>{e.target.style.background="rgba(255,255,255,0.04)";e.target.style.borderColor="rgba(255,255,255,0.08)";e.target.style.color=C.gray;}}
+              >{s}</button>
+            ))}
+          </div>
         </div>
       );
     }
 
-    /* ── FloatingChat ─────────────────────────────────────────────── */
+    /* ── FloatingChat ─────────────────────────────────────────── */
     function FloatingChat({msgs,typing,input,setInput,onSend,open,onToggle}) {
       const scrollRef=useRef(null);
       useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing]);
-
       return (
-        <div style={{
-          position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",
-          width:"min(580px,72%)",zIndex:20,
-          display:"flex",flexDirection:"column",
-          animation:"slideUp 0.3s ease",
-        }}>
-          {/* chat history (conditionally shown) */}
+        <div style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:"min(580px,72%)",zIndex:20,display:"flex",flexDirection:"column",animation:"slideUp 0.3s ease"}}>
           {open && (
-            <div style={{
-              background:"rgba(17,21,29,0.94)",backdropFilter:"blur(14px)",
-              border:"1px solid rgba(255,255,255,0.08)",borderRadius:"12px 12px 0 0",
-              borderBottom:"none",
-              maxHeight:320,overflowY:"auto",
-              padding:"14px 14px 6px",
-              animation:"expandIn 0.2s ease",
-            }} ref={scrollRef}>
+            <div ref={scrollRef} style={{background:"rgba(17,21,29,0.94)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"12px 12px 0 0",borderBottom:"none",maxHeight:320,overflowY:"auto",padding:"14px 14px 6px",animation:"expandIn 0.2s ease"}}>
               {msgs.map((msg,i)=><Bubble key={i} msg={msg} idx={i}/>)}
               {typing && (
                 <div style={{marginBottom:8}}>
-                  <div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}>
-                    <TypingDots/>
-                  </div>
+                  <div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}><TypingDots/></div>
                 </div>
               )}
             </div>
           )}
-
-          {/* input bar */}
-          <div style={{
-            background:"rgba(32,38,47,0.95)",backdropFilter:"blur(14px)",
-            border:"1px solid rgba(255,255,255,0.1)",
-            borderRadius: open ? "0 0 12px 12px" : 12,
-            padding:"8px 8px 8px 14px",
-            display:"flex",alignItems:"flex-end",gap:8,
-            boxShadow:"0 8px 40px rgba(0,0,0,0.4)",
-            marginBottom:12,
-          }}>
-            {/* toggle history */}
-            <button
-              onClick={onToggle}
-              title={open?"Fechar conversa":"Ver conversa"}
-              style={{
-                width:32,height:32,borderRadius:8,flexShrink:0,
-                background:open?"rgba(1,173,110,0.15)":"rgba(255,255,255,0.05)",
-                border:`1px solid ${open?"rgba(1,173,110,0.3)":"rgba(255,255,255,0.1)"}`,
-                display:"flex",alignItems:"center",justifyContent:"center",
-                cursor:"pointer",transition:"all 0.15s ease",marginBottom:1,
-              }}
-            >
+          <div style={{background:"rgba(32,38,47,0.95)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:open?"0 0 12px 12px":12,padding:"8px 8px 8px 14px",display:"flex",alignItems:"flex-end",gap:8,boxShadow:"0 8px 40px rgba(0,0,0,0.4)",marginBottom:12}}>
+            <button onClick={onToggle} title={open?"Fechar conversa":"Ver conversa"} style={{width:32,height:32,borderRadius:8,flexShrink:0,background:open?"rgba(1,173,110,0.15)":"rgba(255,255,255,0.05)",border:`1px solid ${open?"rgba(1,173,110,0.3)":"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all 0.15s ease",marginBottom:1}}>
               <Icon.Msg s={13} c={open?C.green2:C.gray}/>
             </button>
-
-            <textarea
-              rows={1}
-              value={input}
-              onChange={e=>setInput(e.target.value)}
-              onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();} }}
-              placeholder="Descreva o que quer ajustar…"
-              style={{
-                flex:1,background:"transparent",border:"none",outline:"none",
-                color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:13,
-                resize:"none",lineHeight:1.6,padding:"5px 0",
-                maxHeight:80,
-              }}
-            />
-            <button
-              onClick={onSend}
-              style={{
-                width:34,height:34,borderRadius:"50%",
-                background:C.green,border:"none",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                cursor:"pointer",flexShrink:0,marginBottom:1,
-              }}
-            >
+            <textarea rows={1} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}} placeholder="Descreva o que quer ajustar…" style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:13,resize:"none",lineHeight:1.6,padding:"5px 0",maxHeight:80}}/>
+            <button onClick={onSend} style={{width:34,height:34,borderRadius:"50%",background:C.green,border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,marginBottom:1}}>
               <Icon.Send s={14} c="#fff"/>
             </button>
           </div>
@@ -415,21 +374,22 @@
       );
     }
 
-    /* ── Main ─────────────────────────────────────────────────────── */
+    /* ── Main ─────────────────────────────────────────────────── */
     function ArqgenNext() {
-      const [towers,   setTowers]   = useState(INIT_TOWERS);
-      const [sel,      setSel]      = useState(null);
-      const [zoom,     setZoom]     = useState(100);
-      const [version,  setVersion]  = useState("Versão 01");
-      const [view,     setView]     = useState("2D");
-      const [msgs,     setMsgs]     = useState(HISTORY);
-      const [input,    setInput]    = useState("");
-      const [typing,   setTyping]   = useState(false);
-      const [mounted,  setMounted]  = useState(false);
-      const [shakeId,  setShakeId]  = useState(null);
-      const [hoverId,  setHoverId]  = useState(null);
-      const [mode,     setMode]     = useState("idle");   // "idle" | "active"
-      const [chatOpen, setChatOpen] = useState(false);
+      const [towers,      setTowers]      = useState(INIT_TOWERS);
+      const [sel,         setSel]         = useState(null);
+      const [zoom,        setZoom]        = useState(100);
+      const [version,     setVersion]     = useState("Versão 01");
+      const [view,        setView]        = useState("2D");
+      const [msgs,        setMsgs]        = useState(HISTORY);
+      const [input,       setInput]       = useState("");
+      const [typing,      setTyping]      = useState(false);
+      const [mounted,     setMounted]     = useState(false);
+      const [shakeId,     setShakeId]     = useState(null);
+      const [hoverId,     setHoverId]     = useState(null);
+      const [mode,        setMode]        = useState("idle");
+      const [leaving,     setLeaving]     = useState(false);
+      const [chatOpen,    setChatOpen]    = useState(false);
       const [metricsOpen, setMetricsOpen] = useState(true);
 
       const svgRef   = useRef(null);
@@ -441,8 +401,7 @@
       const m = useMemo(()=>calcMetrics(towers),[towers]);
 
       function svgPt(e) {
-        const svg=svgRef.current;
-        const p=svg.createSVGPoint();
+        const svg=svgRef.current; const p=svg.createSVGPoint();
         p.x=e.clientX; p.y=e.clientY;
         return p.matrixTransform(svg.getScreenCTM().inverse());
       }
@@ -454,35 +413,30 @@
       }
 
       function onTowerDown(e,id) {
-        e.stopPropagation();
-        setSel(id);
-        const t=towers.find(t=>t.id===id);
-        const p=svgPt(e);
+        e.stopPropagation(); setSel(id);
+        const t=towers.find(t=>t.id===id); const p=svgPt(e);
         dragging.current={id,ox:p.x-t.x,oy:p.y-t.y,orig:{x:t.x,y:t.y}};
       }
 
       function onHandleDown(e,id,corner) {
         e.stopPropagation();
-        const t=towers.find(t=>t.id===id);
-        const p=svgPt(e);
+        const t=towers.find(t=>t.id===id); const p=svgPt(e);
         resizing.current={id,corner,sp:p,ow:t.w,oh:t.h,ox:t.x,oy:t.y};
       }
 
-      const onMove = useCallback(e=>{
-        if (dragging.current) {
-          const {id,ox,oy}=dragging.current;
-          const p=svgPt(e);
+      const onMove=useCallback(e=>{
+        if(dragging.current){
+          const{id,ox,oy}=dragging.current; const p=svgPt(e);
           setTowers(prev=>prev.map(t=>t.id===id?{...t,x:p.x-ox,y:p.y-oy}:t));
         }
-        if (resizing.current) {
-          const {id,corner,sp,ow,oh,ox,oy}=resizing.current;
-          const p=svgPt(e);
-          const dx=p.x-sp.x, dy=p.y-sp.y;
+        if(resizing.current){
+          const{id,corner,sp,ow,oh,ox,oy}=resizing.current; const p=svgPt(e);
+          const dx=p.x-sp.x,dy=p.y-sp.y;
           setTowers(prev=>prev.map(t=>{
-            if(t.id!==id) return t;
-            let {x,y,w,h}={x:ox,y:oy,w:ow,h:oh};
-            if(corner.includes("e")) w=Math.max(30,ow+dx);
-            if(corner.includes("s")) h=Math.max(20,oh+dy);
+            if(t.id!==id)return t;
+            let{x,y,w,h}={x:ox,y:oy,w:ow,h:oh};
+            if(corner.includes("e"))w=Math.max(30,ow+dx);
+            if(corner.includes("s"))h=Math.max(20,oh+dy);
             if(corner.includes("w")){x=ox+dx;w=Math.max(30,ow-dx);}
             if(corner.includes("n")){y=oy+dy;h=Math.max(20,oh-dy);}
             const r=(w*h)/(ow*oh);
@@ -491,14 +445,13 @@
         }
       },[]);
 
-      const onUp = useCallback(()=>{
-        if (dragging.current) {
-          const {id,orig}=dragging.current;
+      const onUp=useCallback(()=>{
+        if(dragging.current){
+          const{id,orig}=dragging.current;
           setTowers(prev=>{
             const t=prev.find(t=>t.id===id);
             if(!rectInPoly(t.x,t.y,t.w,t.h,TERRAIN)){
-              setShakeId(id);
-              setTimeout(()=>setShakeId(null),400);
+              setShakeId(id); setTimeout(()=>setShakeId(null),400);
               return prev.map(tt=>tt.id===id?{...tt,x:orig.x,y:orig.y}:tt);
             }
             return prev;
@@ -509,220 +462,144 @@
       },[]);
 
       function sendMessage(text) {
-        const msg = text || input;
-        if (!msg.trim()) return;
+        const msg=text||input;
+        if(!msg.trim())return;
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
         setMsgs(m=>[...m,{role:"user",text:msg,time:now}]);
         setInput("");
-        setMode("active");
-        setChatOpen(true);
+        // transition: fade idle out, then show canvas
+        setLeaving(true);
+        setTimeout(()=>{ setMode("active"); setLeaving(false); setChatOpen(true); },500);
         setTyping(true);
         setTimeout(()=>{
           setTyping(false);
           const now2=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
           setMsgs(m=>[...m,{role:"agent",text:AUTO_REPLY,time:now2}]);
-        },1200);
+        },1700);
       }
 
-      // calculate tower panel position (absolute in canvas div)
       function panelPos(t) {
-        const svg=svgRef.current;
-        if(!svg) return {px:0,py:0};
+        const svg=svgRef.current; if(!svg)return{px:0,py:0};
         const r=svg.getBoundingClientRect();
-        const sx=r.width/640, sy=r.height/440;
+        const sx=r.width/640,sy=r.height/440;
         const cr=svg.closest("[data-canvas]").getBoundingClientRect();
-        let px=(t.x+t.w)*sx + r.left - cr.left + 12;
-        let py=t.y*sy + r.top - cr.top;
-        if(px+190>cr.width) px=(t.x*sx + r.left - cr.left) - 200;
-        if(py+220>cr.height) py=cr.height-224;
-        return {px:Math.max(4,px),py:Math.max(52,py)};
+        let px=(t.x+t.w)*sx+r.left-cr.left+12;
+        let py=t.y*sy+r.top-cr.top;
+        if(px+190>cr.width)px=t.x*sx+r.left-cr.left-200;
+        if(py+220>cr.height)py=cr.height-224;
+        return{px:Math.max(4,px),py:Math.max(52,py)};
       }
 
-      const selTower = towers.find(t=>t.id===sel);
-
-      /* icon btn style */
+      const selTower=towers.find(t=>t.id===sel);
       const ib={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,color:C.gray2,width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0};
 
       return (
-        <div
-          tabIndex={-1}
-          onKeyDown={e=>e.key==="Escape"&&setSel(null)}
-          style={{
-            width:"100vw",height:"100vh",background:C.ink2,
-            display:"flex",flexDirection:"column",overflow:"hidden",
-            opacity:mounted?1:0,transition:"opacity 0.5s ease",
-            fontFamily:"'Inter',sans-serif",
-          }}
+        <div tabIndex={-1} onKeyDown={e=>e.key==="Escape"&&setSel(null)}
+          style={{width:"100vw",height:"100vh",background:C.ink2,display:"flex",flexDirection:"column",overflow:"hidden",opacity:mounted?1:0,transition:"opacity 0.5s ease",fontFamily:"'Inter',sans-serif"}}
         >
-          {/* ── TOPBAR ──────────────────────────────────────────── */}
-          <div style={{
-            height:48,flexShrink:0,background:"rgba(17,21,29,0.9)",backdropFilter:"blur(10px)",
-            borderBottom:"1px solid rgba(255,255,255,0.06)",
-            display:"flex",alignItems:"center",padding:"0 18px",gap:16,
-            position:"relative",zIndex:10,
-          }}>
+          {/* TOPBAR */}
+          <div style={{height:48,flexShrink:0,background:"rgba(17,21,29,0.9)",backdropFilter:"blur(10px)",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",padding:"0 18px",gap:16,position:"relative",zIndex:60}}>
             <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-              <span style={{fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:700,color:C.green,letterSpacing:"-0.02em"}}>arqgen</span>
-              <span style={{background:C.purple,color:"#fff",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:20,letterSpacing:"0.04em",lineHeight:1}}>Next</span>
+              <ArqgenLogo height={20}/>
+              <span style={{background:C.purple,color:"#fff",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:20,letterSpacing:"0.04em",lineHeight:1,flexShrink:0}}>Next</span>
             </div>
             <div style={{flex:1,textAlign:"center",fontSize:12,color:C.gray,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>
-              Estudo · Lote Brooklin 847m²
+              {mode==="active"?"Estudo · Lote Brooklin 847m²":""}
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-              <button style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>
+              {mode==="active"&&<button style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>}
               <div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#564FFF,#01AD6E)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>S</div>
             </div>
           </div>
 
-          {/* ── CANVAS (full width) ─────────────────────────────── */}
-          <div
-            data-canvas
-            style={{flex:1,position:"relative",background:C.ink2,cursor:"crosshair",overflow:"hidden"}}
-          >
-            {/* canvas controls */}
-            <div style={{
-              position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,
-              background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",
-              borderBottom:"1px solid rgba(255,255,255,0.05)",
-              display:"flex",alignItems:"center",padding:"0 14px",gap:10,
-            }}>
-              {/* version selector */}
-              <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
-                <div style={{width:6,height:6,borderRadius:"50%",background:C.green,flexShrink:0}}/>
-                <select value={version} onChange={e=>setVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none",flexShrink:0}}>
-                  {["Versão 01","Versão 02","Versão 03"].map(v=>(
-                    <option key={v} value={v} style={{background:C.card}}>{v}</option>
-                  ))}
-                </select>
-              </div>
+          {/* BODY */}
+          <div style={{flex:1,position:"relative",overflow:"hidden"}}>
 
-              {/* zoom */}
-              <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6}}>
-                <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><Icon.ZoomOut/></button>
-                <span style={{fontSize:11,color:C.gray,minWidth:34,textAlign:"center"}}>{zoom}%</span>
-                <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><Icon.ZoomIn/></button>
-              </div>
-
-              {/* 2D/3D + compare */}
-              <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                <div style={{display:"flex",background:"rgba(255,255,255,0.05)",borderRadius:6,overflow:"hidden"}}>
-                  {["2D","3D"].map(v=>(
-                    <button key={v} onClick={()=>setView(v)} style={{background:view===v?C.green:"transparent",border:"none",color:view===v?"#fff":C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"4px 11px",cursor:"pointer",transition:"all 0.15s ease"}}>{v}</button>
-                  ))}
+            {/* CANVAS (always mounted, visible only in active mode) */}
+            <div data-canvas style={{position:"absolute",inset:0,background:C.ink2,cursor:"crosshair",opacity:mode==="active"?1:0,transition:"opacity 0.6s ease 0.2s",pointerEvents:mode==="active"?"auto":"none"}}>
+              {/* canvas controls */}
+              <div style={{position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",padding:"0 14px",gap:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
+                  <div style={{width:6,height:6,borderRadius:"50%",background:C.green,flexShrink:0}}/>
+                  <select value={version} onChange={e=>setVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none"}}>
+                    {["Versão 01","Versão 02","Versão 03"].map(v=><option key={v} value={v} style={{background:C.card}}>{v}</option>)}
+                  </select>
                 </div>
-                <button style={{background:"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap"}}>Comparar versões</button>
+                <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6}}>
+                  <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><Icon.ZoomOut/></button>
+                  <span style={{fontSize:11,color:C.gray,minWidth:34,textAlign:"center"}}>{zoom}%</span>
+                  <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><Icon.ZoomIn/></button>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                  <div style={{display:"flex",background:"rgba(255,255,255,0.05)",borderRadius:6,overflow:"hidden"}}>
+                    {["2D","3D"].map(v=><button key={v} onClick={()=>setView(v)} style={{background:view===v?C.green:"transparent",border:"none",color:view===v?"#fff":C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"4px 11px",cursor:"pointer",transition:"all 0.15s ease"}}>{v}</button>)}
+                  </div>
+                  <button style={{background:"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap"}}>Comparar versões</button>
+                </div>
               </div>
+
+              {/* metrics HUD */}
+              <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)}/>
+
+              {/* SVG */}
+              <svg ref={svgRef} width="100%" height="100%" viewBox="0 0 640 440" style={{position:"absolute",top:0,left:0,userSelect:"none"}}
+                onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+                onClick={()=>{if(!dragging.current)setSel(null);}}
+              >
+                <defs>
+                  <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
+                  </pattern>
+                </defs>
+                <rect width="640" height="440" fill="url(#g)"/>
+                <polygon points={TERRAIN} fill="rgba(1,173,110,0.055)" stroke="rgba(1,173,110,0.38)" strokeWidth="1.5" strokeDasharray="6,4"/>
+                <text x="315" y="232" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">847 m²</text>
+                <text x="602" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">N ↑</text>
+
+                {towers.map((t,i)=>{
+                  const st=towerState(t);
+                  const isSel=sel===t.id,isHov=hoverId===t.id&&!isSel,isShk=shakeId===t.id;
+                  const fill=st==="conflict"?"rgba(253,72,72,0.2)":st==="overlap"?"rgba(255,188,0,0.12)":isSel?"rgba(1,173,110,0.3)":isHov?"rgba(52,67,87,0.9)":"#344357";
+                  const stroke=st==="conflict"?C.red:st==="overlap"?C.yellow:isSel?C.green2:isHov?"#8899aa":"#526171";
+                  const sw=isSel?2:isHov?1.8:1.5;
+                  return (
+                    <g key={t.id} className={isShk?"shake":isSel?"pulse-t":""}
+                      style={{cursor:dragging.current?.id===t.id?"grabbing":"grab",transition:"all 0.12s ease"}}
+                      onMouseDown={e=>onTowerDown(e,t.id)}
+                      onMouseEnter={()=>setHoverId(t.id)}
+                      onMouseLeave={()=>setHoverId(null)}
+                      onClick={e=>{e.stopPropagation();setSel(t.id);}}
+                    >
+                      <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4} fill={fill} stroke={stroke} strokeWidth={sw}
+                        style={{filter:isSel?"drop-shadow(0 0 8px rgba(51,224,161,0.4))":isHov?"drop-shadow(0 0 4px rgba(255,255,255,0.1))":"none",transition:"all 0.12s ease"}}
+                      />
+                      <text x={t.x+t.w/2} y={t.y+t.h/2+(isHov||isSel?-4:5)} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="bold" fontFamily="'Sora',sans-serif" style={{pointerEvents:"none",transition:"all 0.12s ease"}}>{t.id}</text>
+                      {(isHov||isSel)&&<text x={t.x+t.w/2} y={t.y+t.h/2+9} textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize={9} fontFamily="'Inter',sans-serif" style={{pointerEvents:"none"}}>{t.floors}pav · {t.units}un</text>}
+                      {st==="overlap"&&<>
+                        <rect x={t.x+t.w/2-27} y={t.y-19} width={54} height={16} rx={4} fill={C.yellow}/>
+                        <text x={t.x+t.w/2} y={t.y-8} textAnchor="middle" fill="#000" fontSize={9} fontWeight="bold" fontFamily="'Inter',sans-serif">Conflito</text>
+                      </>}
+                      {isSel&&[["nw",t.x-4,t.y-4],["ne",t.x+t.w-4,t.y-4],["sw",t.x-4,t.y+t.h-4],["se",t.x+t.w-4,t.y+t.h-4]].map(([corner,hx,hy])=>(
+                        <rect key={corner} x={hx} y={hy} width={8} height={8} rx={1} fill="#fff" stroke={C.green2} strokeWidth={1}
+                          style={{cursor:`${corner}-resize`}}
+                          onMouseDown={e=>{e.stopPropagation();onHandleDown(e,t.id,corner);}}
+                        />
+                      ))}
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)}/>; })()}
+
+              {/* floating chat */}
+              <FloatingChat msgs={msgs} typing={typing} input={input} setInput={setInput}
+                onSend={()=>sendMessage()} open={chatOpen} onToggle={()=>setChatOpen(o=>!o)}
+              />
             </div>
 
-            {/* metrics HUD */}
-            {mode==="active" && (
-              <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)}/>
-            )}
-
-            {/* SVG */}
-            <svg
-              ref={svgRef}
-              width="100%" height="100%"
-              viewBox="0 0 640 440"
-              style={{position:"absolute",top:0,left:0,userSelect:"none"}}
-              onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
-              onClick={()=>{ if(!dragging.current) setSel(null); }}
-            >
-              <defs>
-                <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
-                </pattern>
-              </defs>
-              <rect width="640" height="440" fill="url(#g)"/>
-
-              {/* terrain */}
-              <polygon points={TERRAIN} fill="rgba(1,173,110,0.055)" stroke="rgba(1,173,110,0.38)" strokeWidth="1.5" strokeDasharray="6,4"/>
-              <text x="315" y="232" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">847 m²</text>
-              <text x="602" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">N ↑</text>
-
-              {/* towers */}
-              {towers.map((t,i)=>{
-                const st     = towerState(t);
-                const isSel  = sel===t.id;
-                const isHov  = hoverId===t.id && !isSel;
-                const isShk  = shakeId===t.id;
-                const cls    = isShk?"shake":isSel?"pulse-t":"";
-
-                const fill   = st==="conflict"?"rgba(253,72,72,0.2)":st==="overlap"?"rgba(255,188,0,0.12)":isSel?"rgba(1,173,110,0.3)":isHov?"rgba(52,67,87,0.9)":"#344357";
-                const stroke = st==="conflict"?C.red:st==="overlap"?C.yellow:isSel?C.green2:isHov?"#8899aa":"#526171";
-                const sw     = isSel?2:isHov?1.8:1.5;
-
-                return (
-                  <g key={t.id} className={cls}
-                    style={{cursor:dragging.current?.id===t.id?"grabbing":"grab",transition:"all 0.12s ease"}}
-                    onMouseDown={e=>onTowerDown(e,t.id)}
-                    onMouseEnter={()=>setHoverId(t.id)}
-                    onMouseLeave={()=>setHoverId(null)}
-                    onClick={e=>{e.stopPropagation();setSel(t.id);}}
-                  >
-                    <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4}
-                      fill={fill} stroke={stroke} strokeWidth={sw}
-                      style={{filter:isSel?"drop-shadow(0 0 8px rgba(51,224,161,0.4))":isHov?"drop-shadow(0 0 4px rgba(255,255,255,0.1))":"none",transition:"all 0.12s ease"}}
-                    />
-                    {/* tower label */}
-                    <text x={t.x+t.w/2} y={t.y+t.h/2+(isHov||isSel?-4:5)} textAnchor="middle"
-                      fill="#fff" fontSize={13} fontWeight="bold" fontFamily="'Sora',sans-serif"
-                      style={{pointerEvents:"none",transition:"all 0.12s ease"}}
-                    >{t.id}</text>
-
-                    {/* hover/selected mini-stats */}
-                    {(isHov||isSel) && (
-                      <text x={t.x+t.w/2} y={t.y+t.h/2+9} textAnchor="middle"
-                        fill="rgba(255,255,255,0.5)" fontSize={9} fontFamily="'Inter',sans-serif"
-                        style={{pointerEvents:"none"}}
-                      >{t.floors}pav · {t.units}un</text>
-                    )}
-
-                    {/* overlap badge */}
-                    {st==="overlap"&&<>
-                      <rect x={t.x+t.w/2-27} y={t.y-19} width={54} height={16} rx={4} fill={C.yellow}/>
-                      <text x={t.x+t.w/2} y={t.y-8} textAnchor="middle" fill="#000" fontSize={9} fontWeight="bold" fontFamily="'Inter',sans-serif">Conflito</text>
-                    </>}
-
-                    {/* resize handles */}
-                    {isSel&&[["nw",t.x-4,t.y-4],["ne",t.x+t.w-4,t.y-4],["sw",t.x-4,t.y+t.h-4],["se",t.x+t.w-4,t.y+t.h-4]].map(([corner,hx,hy])=>(
-                      <rect key={corner} x={hx} y={hy} width={8} height={8} rx={1}
-                        fill="#fff" stroke={C.green2} strokeWidth={1}
-                        style={{cursor:`${corner}-resize`}}
-                        onMouseDown={e=>{e.stopPropagation();onHandleDown(e,t.id,corner);}}
-                      />
-                    ))}
-                  </g>
-                );
-              })}
-            </svg>
-
-            {/* tower prop panel */}
-            {selTower&&(()=>{
-              const {px,py}=panelPos(selTower);
-              return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)}/>;
-            })()}
-
-            {/* ── IDLE: centered input ── */}
-            {mode==="idle" && (
-              <>
-                {/* subtle prompt */}
-                <div style={{position:"absolute",top:"30%",left:"50%",transform:"translateX(-50%)",textAlign:"center",pointerEvents:"none",animation:"fadeIn 0.6s ease 0.4s both"}}>
-                  <div style={{fontFamily:"'Sora',sans-serif",fontSize:22,fontWeight:600,color:"rgba(255,255,255,0.12)",letterSpacing:"-0.02em"}}>O que vamos projetar?</div>
-                </div>
-                <IdleInput onSend={sendMessage}/>
-              </>
-            )}
-
-            {/* ── ACTIVE: floating chat at bottom ── */}
-            {mode==="active" && (
-              <FloatingChat
-                msgs={msgs} typing={typing}
-                input={input} setInput={setInput}
-                onSend={()=>sendMessage()}
-                open={chatOpen} onToggle={()=>setChatOpen(o=>!o)}
-              />
-            )}
+            {/* IDLE SCREEN */}
+            {mode==="idle" && <IdleScreen onSend={sendMessage} leaving={leaving}/>}
           </div>
         </div>
       );
@@ -736,9 +613,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       const src = document.getElementById('app-src').textContent;
       try {
-        const compiled = Babel.transform(src, {
-          presets: [['react', { runtime: 'classic' }]]
-        }).code;
+        const compiled = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code;
         (new Function(compiled))();
       } catch(e) {
         document.getElementById('root').innerHTML =
