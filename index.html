@@ -57,6 +57,9 @@
       Minus:     ({s=12,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>,
       Square:    ({s=12,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>,
       Expand:    ({s=12,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>,
+      Plus:      ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+      Ruler:      ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>,
+      Paperclip:  ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>,
     };
 
     /* ── Arqgen logo SVG (dark-mode: dark fill → white) ──────── */
@@ -94,9 +97,29 @@
       { id:"C", x:390, y:270, w:64,  h:48, floors:10, units:40, area:1920, type:"1 dorm 52m²" },
     ];
 
+    const VERSIONS_INIT = {
+      "Versão 01": [
+        { id:"A", x:185, y:145, w:72, h:52, floors:12, units:48,  area:2304, type:"Studio 44m²"  },
+        { id:"B", x:310, y:165, w:88, h:60, floors:15, units:75,  area:5100, type:"Studio 44m²"  },
+        { id:"C", x:390, y:270, w:64, h:48, floors:10, units:40,  area:1920, type:"1 dorm 52m²" },
+      ],
+      "Versão 02": [
+        { id:"A", x:178, y:138, w:82, h:60, floors:16, units:96,  area:4224, type:"Studio 44m²"  },
+        { id:"B", x:305, y:155, w:96, h:66, floors:18, units:108, area:4752, type:"Studio 44m²"  },
+        { id:"C", x:382, y:262, w:72, h:54, floors:13, units:65,  area:3380, type:"1 dorm 52m²" },
+      ],
+      "Versão 03": [
+        { id:"A", x:175, y:138, w:64, h:50, floors:11, units:44,  area:1936, type:"Studio 44m²"  },
+        { id:"B", x:300, y:140, w:78, h:56, floors:13, units:65,  area:2860, type:"Studio 44m²"  },
+        { id:"C", x:385, y:218, w:65, h:48, floors:11, units:55,  area:2420, type:"Studio 44m²"  },
+        { id:"D", x:238, y:265, w:58, h:44, floors:10, units:40,  area:2080, type:"1 dorm 52m²" },
+      ],
+    };
+
     const HISTORY = [
+      { role:"file", name:"lote_brooklin_topografia.kmz", ext:"kmz", size:"128 KB", meta:"Google Earth · São Paulo · Brooklin · 847m²", time:"14:21" },
       { role:"user",  text:"Quero avaliar este terreno no Brooklin.\nGera três alternativas priorizando unidades, mantendo CA abaixo de 12.", time:"14:22" },
-      { role:"agent", text:"Entendido. Identifiquei duas premissas ausentes antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m², 1 dorm 52m² ou ambas?", time:"14:22" },
+      { role:"agent", text:"Arquivo recebido. Identifiquei o contorno do lote: 847m² em forma irregular, testada de ~22m.\nDuas premissas antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m², 1 dorm 52m² ou ambas?", time:"14:22" },
       { role:"user",  text:"Confirmo 1 vaga. Usa ambas as tipologias.", time:"14:23" },
       { role:"skill", fn:"gerar_solucoes_implantacao()", sub:"3 alternativas geradas · Versão 01 ativa",
         text:"Solução com 163 unidades posicionada. Torre B concentra maior densidade.\nTaxa de ocupação em 38% — dentro do limite.\nQuer explorar reduzir Torre A para abrir área de permeabilidade?", time:"14:23" },
@@ -127,6 +150,33 @@
       const occ   = Math.min(99,Math.round(base/LOT*100));
       const ca    = Math.round(area/LOT*10)/10;
       return {units,area,occ,ca};
+    }
+
+    /* ── geometry extra ───────────────────────────────────────── */
+    const M_TO_SVG = 13.06; // 1m ≈ 13.06 SVG units (847m² = 144400 SVG²)
+
+    function insetPoly(pts, d) {
+      const n = pts.length;
+      function inNorm(a, b) {
+        const dx=b[0]-a[0], dy=b[1]-a[1], len=Math.sqrt(dx*dx+dy*dy);
+        return [-dy/len, dx/len]; // CCW rotation = inward for CW polygon in SVG Y-down
+      }
+      const norms = pts.map((p,i)=>inNorm(p,pts[(i+1)%n]));
+      function offPt(i, end) {
+        const pi=pts[end?((i+1)%n):i];
+        return [pi[0]+norms[i][0]*d, pi[1]+norms[i][1]*d];
+      }
+      function xsect(a,b,c,e) {
+        const dx1=b[0]-a[0],dy1=b[1]-a[1],dx2=e[0]-c[0],dy2=e[1]-c[1];
+        const den=dx1*dy2-dy1*dx2;
+        if(Math.abs(den)<0.001) return [(b[0]+c[0])/2,(b[1]+c[1])/2];
+        const t=((c[0]-a[0])*dy2-(c[1]-a[1])*dx2)/den;
+        return [a[0]+t*dx1, a[1]+t*dy1];
+      }
+      return pts.map((_,i)=>{
+        const prev=(i-1+n)%n;
+        return xsect(offPt(prev,false),offPt(prev,true),offPt(i,false),offPt(i,true));
+      });
     }
 
     /* ── FlipValue ────────────────────────────────────────────── */
@@ -169,9 +219,31 @@
       );
     }
 
+    /* ── FileBubble ───────────────────────────────────────────── */
+    function FileBubble({msg,enter}) {
+      const EC = {dwg:"#7B68EE",ifc:C.green,dxf:C.yellow,kmz:"#E05252",rvt:"#00B4D8",nwc:"#FF8C42"};
+      const ec = EC[msg.ext] || C.gray;
+      return (
+        <div style={{marginBottom:8,...enter}}>
+          <div style={{background:"rgba(32,38,47,0.85)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:10,padding:"10px 12px",maxWidth:"92%",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:36,borderRadius:5,background:`${ec}1a`,border:`1px solid ${ec}44`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontFamily:"monospace",fontSize:8,fontWeight:800,color:ec,textTransform:"uppercase",letterSpacing:"0.06em"}}>{msg.ext}</span>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:"#fff",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.name}</div>
+              <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginTop:1}}>{msg.size} · {msg.meta}</div>
+            </div>
+            <span style={{background:"rgba(1,173,110,0.12)",border:"1px solid rgba(51,224,161,0.28)",color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:10,flexShrink:0}}>✓</span>
+          </div>
+          <div style={{marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
+        </div>
+      );
+    }
+
     /* ── ChatBubble ───────────────────────────────────────────── */
-    function Bubble({msg,idx}) {
+    function Bubble({msg,idx,onAttachFile}) {
       const enter={animation:`fadeUp 0.25s ease ${idx*0.04}s both`};
+      if (msg.role==="file") return <FileBubble msg={msg} enter={enter}/>;
       if (msg.role==="user") return (
         <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8,...enter}}>
           <div style={{maxWidth:"80%"}}>
@@ -195,20 +267,35 @@
       );
       return (
         <div style={{marginBottom:8,...enter}}>
-          <div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",padding:"9px 13px",maxWidth:"92%",fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2,whiteSpace:"pre-line",lineHeight:1.5}}>{msg.text}</div>
+          <div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",padding:"9px 13px",maxWidth:"92%",fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2,whiteSpace:"pre-line",lineHeight:1.5}}>
+            {msg.text}
+            {msg.action==="attach" && (
+              <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <label style={{display:"flex",alignItems:"center",gap:6,background:"rgba(1,173,110,0.12)",border:"1px solid rgba(1,173,110,0.35)",borderRadius:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"6px 13px",cursor:"pointer",flexShrink:0}}>
+                  <Icon.Paperclip s={11} c={C.green2}/>
+                  Anexar arquivo
+                  <input type="file" accept=".dwg,.ifc,.dxf,.kmz,.rvt,.nwc" style={{display:"none"}}
+                    onChange={e=>e.target.files[0]&&onAttachFile&&onAttachFile(e.target.files[0])}/>
+                </label>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>DWG · IFC · DXF · KMZ · RVT</span>
+              </div>
+            )}
+          </div>
           <div style={{marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
         </div>
       );
     }
 
     /* ── MetricsHUD ───────────────────────────────────────────── */
-    function MetricsHUD({m,open,onToggle}) {
+    function MetricsHUD({m,open,onToggle,towerCount}) {
       return (
         <div style={{position:"absolute",top:52,right:14,zIndex:20,width:230}}>
           <button onClick={onToggle} style={{display:"flex",alignItems:"center",gap:8,background:open?"rgba(32,38,47,0.95)":"rgba(32,38,47,0.85)",border:`1px solid ${open?"rgba(51,224,161,0.25)":"rgba(255,255,255,0.1)"}`,borderRadius:open?"10px 10px 0 0":10,padding:"6px 12px",cursor:"pointer",backdropFilter:"blur(10px)",width:"100%",transition:"all 0.2s ease"}}>
             <Icon.Layers s={12} c={C.green2}/>
             <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,flex:1,textAlign:"left"}}>
-              <span style={{color:"#fff",fontWeight:600}}>{m.units}</span> un &nbsp;·&nbsp; CA <span style={{color:m.ca>=11.5?C.yellow:"#fff",fontWeight:600}}>{m.ca}</span>
+              <span style={{color:"#fff",fontWeight:600}}>{towerCount}</span> torres &nbsp;·&nbsp;
+              <span style={{color:"#fff",fontWeight:600}}>{m.units}</span> un &nbsp;·&nbsp;
+              CA <span style={{color:m.ca>=11.5?C.yellow:"#fff",fontWeight:600}}>{m.ca}</span>
             </span>
             <div style={{transform:open?"rotate(0)":"rotate(180deg)",transition:"transform 0.2s ease",display:"flex"}}><Icon.ChevronUp s={12} c={C.gray}/></div>
           </button>
@@ -216,10 +303,11 @@
             <div style={{background:"rgba(32,38,47,0.95)",backdropFilter:"blur(10px)",border:"1px solid rgba(51,224,161,0.25)",borderTop:"none",borderRadius:"0 0 10px 10px",padding:"12px 14px",animation:"expandIn 0.15s ease"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 10px"}}>
                 {[
-                  {label:"Unidades totais",val:m.units,suffix:""},
-                  {label:"Área construída", val:m.area, suffix:" m²"},
-                  {label:"Taxa de ocupação",val:m.occ, suffix:"%",max:50,warn:45,danger:50},
-                  {label:"CA utilizado",    val:m.ca,  suffix:"",max:12,warn:11.5,danger:12},
+                  {label:"Torres ativas",   val:towerCount,suffix:""},
+                  {label:"Unidades totais", val:m.units,   suffix:""},
+                  {label:"Área construída", val:m.area,    suffix:" m²"},
+                  {label:"Taxa de ocupação",val:m.occ,     suffix:"%",max:50,warn:45,danger:50},
+                  {label:"CA utilizado",    val:m.ca,      suffix:"",max:12,warn:11.5,danger:12},
                 ].map(({label,val,suffix,max,warn,danger})=>(
                   <div key={label}>
                     <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginBottom:2}}>{label}</div>
@@ -231,6 +319,103 @@
             </div>
           )}
         </div>
+      );
+    }
+
+    /* ── SetbackOverlay ───────────────────────────────────────── */
+    function SetbackOverlay() {
+      const terrain = parsePoly(TERRAIN);
+      const inner = insetPoly(terrain, 20);
+      const outerPath = terrain.map(p=>p.join(" ")).join(" L ");
+      const innerPath = inner.map(p=>p.map(v=>v.toFixed(1)).join(" ")).join(" L ");
+      const innerPts  = inner.map(p=>p.map(v=>v.toFixed(1)).join(",")).join(" ");
+      return (
+        <g style={{pointerEvents:"none"}}>
+          <path d={`M ${outerPath} Z M ${innerPath} Z`} fillRule="evenodd" fill="rgba(255,188,0,0.09)"/>
+          <polygon points={innerPts} fill="none" stroke="rgba(255,188,0,0.6)" strokeWidth="1" strokeDasharray="5,4"/>
+          <text x={322} y={36} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif">Recuo frontal · 5m</text>
+          <text x={574} y={242} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif" transform="rotate(76,574,242)">Lateral · 1.5m</text>
+          <text x={305} y={414} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif">Fundos · 3m</text>
+          <text x={64} y={218} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif" transform="rotate(-68,64,218)">Lateral · 1.5m</text>
+        </g>
+      );
+    }
+
+    /* ── DistanceRuler ────────────────────────────────────────── */
+    function DistanceRuler({tower, towers}) {
+      const BBOX = {l:80,r:560,t:40,b:400};
+      const dl = {stroke:"rgba(51,224,161,0.5)",strokeWidth:"0.8",strokeDasharray:"4,3"};
+      const tl = {stroke:"rgba(51,224,161,0.65)",strokeWidth:"1"};
+      const cx = tower.x+tower.w/2, cy = tower.y+tower.h/2;
+      const fm = d => (d/M_TO_SVG).toFixed(1)+"m";
+
+      function DLab({x,y,text}) {
+        const w=Math.max(22,text.length*5.4);
+        return <g>
+          <rect x={x-w/2} y={y-9} width={w+4} height={11} rx={2} fill="rgba(17,21,29,0.88)"/>
+          <text x={x} y={y} textAnchor="middle" fill={C.green2} fontSize={9} fontFamily="'Inter',sans-serif">{text}</text>
+        </g>;
+      }
+      function SLab({x,y,text}) {
+        const w=Math.max(22,text.length*5.4);
+        return <g>
+          <rect x={x+5} y={y-9} width={w+4} height={11} rx={2} fill="rgba(17,21,29,0.88)"/>
+          <text x={x+8} y={y} textAnchor="start" fill={C.green2} fontSize={9} fontFamily="'Inter',sans-serif">{text}</text>
+        </g>;
+      }
+
+      return (
+        <g style={{pointerEvents:"none"}}>
+          {/* terrain edge lines */}
+          <line x1={BBOX.l} y1={cy} x2={tower.x} y2={cy} {...dl}/>
+          <line x1={BBOX.l} y1={cy-5} x2={BBOX.l} y2={cy+5} {...tl}/>
+          <DLab x={(BBOX.l+tower.x)/2} y={cy-2} text={fm(tower.x-BBOX.l)}/>
+
+          <line x1={tower.x+tower.w} y1={cy} x2={BBOX.r} y2={cy} {...dl}/>
+          <line x1={BBOX.r} y1={cy-5} x2={BBOX.r} y2={cy+5} {...tl}/>
+          <DLab x={(tower.x+tower.w+BBOX.r)/2} y={cy-2} text={fm(BBOX.r-tower.x-tower.w)}/>
+
+          <line x1={cx} y1={BBOX.t} x2={cx} y2={tower.y} {...dl}/>
+          <line x1={cx-5} y1={BBOX.t} x2={cx+5} y2={BBOX.t} {...tl}/>
+          <SLab x={cx} y={(BBOX.t+tower.y)/2} text={fm(tower.y-BBOX.t)}/>
+
+          <line x1={cx} y1={tower.y+tower.h} x2={cx} y2={BBOX.b} {...dl}/>
+          <line x1={cx-5} y1={BBOX.b} x2={cx+5} y2={BBOX.b} {...tl}/>
+          <SLab x={cx} y={(tower.y+tower.h+BBOX.b)/2} text={fm(BBOX.b-tower.y-tower.h)}/>
+
+          {/* inter-tower gaps */}
+          {towers.filter(o=>o.id!==tower.id).map(o=>{
+            const yOvl=tower.y<o.y+o.h&&tower.y+tower.h>o.y;
+            const xOvl=tower.x<o.x+o.w&&tower.x+tower.w>o.x;
+            if(yOvl){
+              const lx=tower.x+tower.w<o.x?tower.x+tower.w:o.x+o.w;
+              const rx=tower.x+tower.w<o.x?o.x:tower.x;
+              if(rx-lx<=0)return null;
+              const my=(Math.max(tower.y,o.y)+Math.min(tower.y+tower.h,o.y+o.h))/2;
+              return <g key={o.id}>
+                <line x1={lx} y1={my} x2={rx} y2={my} stroke={C.yellow} strokeWidth="0.8" strokeDasharray="4,3"/>
+                <line x1={lx} y1={my-4} x2={lx} y2={my+4} stroke={C.yellow} strokeWidth="1"/>
+                <line x1={rx} y1={my-4} x2={rx} y2={my+4} stroke={C.yellow} strokeWidth="1"/>
+                <rect x={(lx+rx)/2-13} y={my-9} width={26} height={11} rx={2} fill="rgba(17,21,29,0.88)"/>
+                <text x={(lx+rx)/2} y={my} textAnchor="middle" fill={C.yellow} fontSize={9} fontFamily="'Inter',sans-serif">{(Math.max(0,rx-lx)/M_TO_SVG).toFixed(1)}m</text>
+              </g>;
+            }
+            if(xOvl){
+              const ty=tower.y+tower.h<o.y?tower.y+tower.h:o.y+o.h;
+              const by=tower.y+tower.h<o.y?o.y:tower.y;
+              if(by-ty<=0)return null;
+              const mx=(Math.max(tower.x,o.x)+Math.min(tower.x+tower.w,o.x+o.w))/2;
+              return <g key={o.id}>
+                <line x1={mx} y1={ty} x2={mx} y2={by} stroke={C.yellow} strokeWidth="0.8" strokeDasharray="4,3"/>
+                <line x1={mx-4} y1={ty} x2={mx+4} y2={ty} stroke={C.yellow} strokeWidth="1"/>
+                <line x1={mx-4} y1={by} x2={mx+4} y2={by} stroke={C.yellow} strokeWidth="1"/>
+                <rect x={mx+5} y={(ty+by)/2-6} width={26} height={11} rx={2} fill="rgba(17,21,29,0.88)"/>
+                <text x={mx+8} y={(ty+by)/2+4} textAnchor="start" fill={C.yellow} fontSize={9} fontFamily="'Inter',sans-serif">{(Math.max(0,by-ty)/M_TO_SVG).toFixed(1)}m</text>
+              </g>;
+            }
+            return null;
+          })}
+        </g>
       );
     }
 
@@ -261,11 +446,109 @@
       );
     }
 
+    /* ── ComparePanel — 2.2 ──────────────────────────────────── */
+    function ComparePanel({versions, currentVersion, onClose}) {
+      const VERS = ["Versão 01","Versão 02","Versão 03"];
+      const [left,  setLeft]  = useState(currentVersion);
+      const [right, setRight] = useState(VERS.find(v=>v!==currentVersion)||"Versão 02");
+
+      const tL = versions[left]  || [];
+      const tR = versions[right] || [];
+      const mL = calcMetrics(tL);
+      const mR = calcMetrics(tR);
+
+      function MiniCanvas({towers}) {
+        return (
+          <svg viewBox="0 0 640 440" style={{width:"100%",display:"block"}}>
+            <polygon points={TERRAIN} fill="rgba(1,173,110,0.06)" stroke="rgba(1,173,110,0.35)" strokeWidth="1.5" strokeDasharray="6,4"/>
+            {towers.map(t=>(
+              <g key={t.id}>
+                <rect x={t.x+3} y={t.y+5} width={t.w} height={t.h} rx={4} fill="rgba(0,0,0,0.3)" style={{filter:"blur(4px)"}}/>
+                <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4} fill="#2d3748" stroke="#526171" strokeWidth={1.5}/>
+                <text x={t.x+t.w/2} y={t.y+t.h/2+5} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="bold" fontFamily="'Sora',sans-serif">{t.id}</text>
+              </g>
+            ))}
+          </svg>
+        );
+      }
+
+      const METRICS = [
+        {label:"Torres",   lv:tL.length, rv:tR.length, fmt:v=>`${v}`,                          higher:true},
+        {label:"Unidades", lv:mL.units,  rv:mR.units,  fmt:v=>v.toLocaleString("pt-BR"),        higher:true},
+        {label:"Área m²",  lv:mL.area,   rv:mR.area,   fmt:v=>v.toLocaleString("pt-BR"),        higher:true},
+        {label:"CA",       lv:mL.ca,     rv:mR.ca,     fmt:v=>`${v}`,                           higher:false, limit:12},
+        {label:"TO %",     lv:mL.occ,    rv:mR.occ,    fmt:v=>`${v}%`,                          higher:false, limit:50},
+      ];
+
+      return (
+        <div style={{position:"absolute",inset:0,zIndex:100,background:C.ink2,display:"flex",flexDirection:"column",animation:"fadeIn 0.18s ease"}}>
+          {/* header */}
+          <div style={{display:"flex",alignItems:"center",padding:"12px 20px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
+            <span style={{fontFamily:"'Sora',sans-serif",fontSize:14,fontWeight:700,color:"#fff"}}>Comparar Versões</span>
+            <div style={{flex:1}}/>
+            <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,width:28,height:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Icon.X s={12}/>
+            </button>
+          </div>
+
+          {/* two mini-canvases */}
+          <div style={{display:"flex",flex:1,gap:12,padding:"14px 20px 12px",overflow:"hidden",minHeight:0}}>
+            {[{ver:left,setVer:setLeft,tw:tL,m:mL,accent:"rgba(51,224,161,0.2)"},{ver:right,setVer:setRight,tw:tR,m:mR,accent:"rgba(86,79,255,0.2)"}].map(({ver,setVer,tw,m,accent},si)=>(
+              <div key={si} style={{flex:1,display:"flex",flexDirection:"column",gap:8,minHeight:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                  <select value={ver} onChange={e=>setVer(e.target.value)}
+                    style={{background:"rgba(32,38,47,0.95)",border:`1px solid ${accent}`,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,borderRadius:6,padding:"4px 10px",cursor:"pointer",outline:"none"}}>
+                    {VERS.map(v=><option key={v} value={v} style={{background:C.card}}>{v}</option>)}
+                  </select>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
+                    {tw.length} torres · {m.units} un · CA <span style={{color:m.ca>=12?C.yellow:"#fff",fontWeight:600}}>{m.ca}</span>
+                  </span>
+                </div>
+                <div style={{flex:1,border:`1px solid ${accent}`,borderRadius:10,overflow:"hidden",background:C.ink2,minHeight:0}}>
+                  <MiniCanvas towers={tw}/>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* metrics delta strip */}
+          <div style={{flexShrink:0,borderTop:"1px solid rgba(255,255,255,0.07)",background:"rgba(17,21,29,0.7)",padding:"12px 20px"}}>
+            <div style={{display:"flex",justifyContent:"center",gap:0}}>
+              {METRICS.map(({label,lv,rv,fmt,higher,limit},mi)=>{
+                const diff = rv-lv;
+                const overLimit = limit && rv>=limit;
+                const col = diff===0 ? C.gray
+                  : higher
+                    ? (diff>0 ? C.green2 : C.red)
+                    : (diff>0 ? (overLimit?C.red:C.yellow) : C.green2);
+                const arrow = diff>0?"↑":diff<0?"↓":"";
+                return (
+                  <div key={label} style={{flex:1,textAlign:"center",padding:"0 8px",borderLeft:mi>0?"1px solid rgba(255,255,255,0.05)":"none"}}>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginBottom:3}}>{label}</div>
+                    <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,color:"#fff"}}>{fmt(lv)}</div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:700,color:col,margin:"3px 0",minHeight:16}}>
+                      {diff===0?"—":`${diff>0?"+":""}${fmt(Math.round(Math.abs(diff)*10)/10)} ${arrow}`}
+                    </div>
+                    <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,color:"#fff"}}>{fmt(rv)}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{marginTop:8,textAlign:"center",fontFamily:"'Inter',sans-serif",fontSize:10,color:"rgba(113,128,150,0.5)"}}>
+              {left} → {right}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ── IdleScreen ───────────────────────────────────────────── */
-    function IdleScreen({onSend,leaving}) {
+    function IdleScreen({onSend,leaving,attachedFile,onAttachFile,onRemoveFile}) {
       const [val,setVal]=useState("");
       const ref=useRef(null);
       useEffect(()=>{ const t=setTimeout(()=>ref.current?.focus(),600); return ()=>clearTimeout(t); },[]);
+
+      const FILE_EXT_COLOR = {dwg:"#7B68EE",ifc:C.green,dxf:C.yellow,kmz:"#E05252",rvt:"#00B4D8",nwc:"#FF8C42"};
 
       const SUGGESTIONS = [
         "Lote de 600m² no Brooklin, quero explorar densidade máxima",
@@ -275,9 +558,11 @@
 
       function send(text) {
         const msg = text || val;
-        if (!msg.trim()) return;
-        onSend(msg);
+        if (!msg.trim() && !attachedFile) return;
+        onSend(msg || "");
       }
+
+      const canSend = val.trim() || attachedFile;
 
       return (
         <div style={{
@@ -302,17 +587,52 @@
           </div>
 
           {/* tagline */}
-          <div style={{marginTop:28,textAlign:"center",animation:"fadeUp 0.5s ease 0.3s both"}}>
-            <h1 style={{fontFamily:"'Sora',sans-serif",fontSize:26,fontWeight:700,color:"#fff",letterSpacing:"-0.03em",lineHeight:1.2,marginBottom:8}}>
+          <div style={{marginTop:24,textAlign:"center",animation:"fadeUp 0.5s ease 0.3s both"}}>
+            <h1 style={{fontFamily:"'Sora',sans-serif",fontSize:26,fontWeight:700,color:"#fff",letterSpacing:"-0.03em",lineHeight:1.2,marginBottom:6}}>
               Do terreno à decisão,<br/>em segundos.
             </h1>
-            <p style={{fontFamily:"'Inter',sans-serif",fontSize:14,color:C.gray,maxWidth:400,lineHeight:1.6}}>
-              Descreva o lote, as premissas e o que quer explorar.<br/>O canvas gera e ajusta em tempo real.
+            <p style={{fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray,maxWidth:380,lineHeight:1.55,margin:"0 auto"}}>
+              Comece anexando o arquivo do projeto ou descrevendo o que quer explorar.
             </p>
           </div>
 
+          {/* file zone */}
+          <div style={{marginTop:24,width:"min(600px,82vw)",animation:"fadeUp 0.5s ease 0.35s both"}}>
+            {attachedFile ? (
+              <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(32,38,47,0.85)",border:"1px solid rgba(51,224,161,0.3)",borderRadius:12,padding:"10px 14px"}}>
+                <div style={{width:34,height:38,borderRadius:6,background:`${FILE_EXT_COLOR[attachedFile.ext]||C.gray}1a`,border:`1px solid ${FILE_EXT_COLOR[attachedFile.ext]||C.gray}44`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <span style={{fontFamily:"monospace",fontSize:8,fontWeight:800,color:FILE_EXT_COLOR[attachedFile.ext]||C.gray,textTransform:"uppercase",letterSpacing:"0.06em"}}>{attachedFile.ext}</span>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:"#fff",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{attachedFile.name}</div>
+                  <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,marginTop:1}}>{attachedFile.size} · {attachedFile.meta}</div>
+                </div>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,color:C.green2,flexShrink:0}}>✓ Pronto</span>
+                <button onClick={onRemoveFile} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",fontSize:16,lineHeight:1,padding:"0 4px",flexShrink:0}}>×</button>
+              </div>
+            ) : (
+              <label style={{display:"flex",flexDirection:"column",alignItems:"center",gap:7,border:"1.5px dashed rgba(255,255,255,0.1)",borderRadius:12,padding:"18px 20px",cursor:"pointer",transition:"all 0.2s ease"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(1,173,110,0.4)";e.currentTarget.style.background="rgba(1,173,110,0.04)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.1)";e.currentTarget.style.background="transparent";}}
+              >
+                <Icon.Paperclip s={20} c={C.gray}/>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2}}>Arraste ou selecione o arquivo do projeto</span>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,opacity:0.65}}>DWG · IFC · DXF · KMZ · RVT · NWC</span>
+                <input type="file" accept=".dwg,.ifc,.dxf,.kmz,.rvt,.nwc" style={{display:"none"}}
+                  onChange={e=>e.target.files[0]&&onAttachFile(e.target.files[0])}/>
+              </label>
+            )}
+          </div>
+
+          {/* divider */}
+          <div style={{width:"min(600px,82vw)",display:"flex",alignItems:"center",gap:12,margin:"14px 0 0",animation:"fadeUp 0.5s ease 0.38s both"}}>
+            <div style={{flex:1,height:1,background:"rgba(255,255,255,0.06)"}}/>
+            <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:"rgba(113,128,150,0.45)"}}>ou descreva o projeto</span>
+            <div style={{flex:1,height:1,background:"rgba(255,255,255,0.06)"}}/>
+          </div>
+
           {/* input */}
-          <div style={{marginTop:36,width:"min(600px,82vw)",animation:"fadeUp 0.5s ease 0.4s both"}}>
+          <div style={{marginTop:14,width:"min(600px,82vw)",animation:"fadeUp 0.5s ease 0.42s both"}}>
             <div style={{background:"rgba(32,38,47,0.8)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"8px 8px 8px 18px",display:"flex",alignItems:"flex-end",gap:8,transition:"border-color 0.2s ease"}}
               onFocusCapture={e=>e.currentTarget.style.borderColor="rgba(1,173,110,0.45)"}
               onBlurCapture={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.1)"}
@@ -326,7 +646,7 @@
                 placeholder="Descreva o projeto ou o terreno que quer avaliar…"
                 style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:14,resize:"none",lineHeight:1.6,padding:"6px 0"}}
               />
-              <button onClick={()=>send()} style={{width:40,height:40,borderRadius:"50%",background:val.trim()?C.green:"rgba(255,255,255,0.07)",border:`1px solid ${val.trim()?"transparent":"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all 0.2s ease",marginBottom:2}}>
+              <button onClick={()=>send()} style={{width:40,height:40,borderRadius:"50%",background:canSend?C.green:"rgba(255,255,255,0.07)",border:`1px solid ${canSend?"transparent":"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all 0.2s ease",marginBottom:2}}>
                 <Icon.Send s={15} c="#fff"/>
               </button>
             </div>
@@ -336,7 +656,7 @@
           </div>
 
           {/* suggestion chips */}
-          <div style={{marginTop:20,display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",maxWidth:620,padding:"0 16px",animation:"fadeUp 0.5s ease 0.5s both"}}>
+          <div style={{marginTop:16,display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",maxWidth:620,padding:"0 16px",animation:"fadeUp 0.5s ease 0.5s both"}}>
             {SUGGESTIONS.map((s,i)=>(
               <button key={i} onClick={()=>send(s)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:"6px 14px",fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray,cursor:"pointer",transition:"all 0.15s ease",whiteSpace:"nowrap"}}
                 onMouseEnter={e=>{e.target.style.background="rgba(1,173,110,0.1)";e.target.style.borderColor="rgba(1,173,110,0.3)";e.target.style.color=C.green2;}}
@@ -349,32 +669,28 @@
     }
 
     /* ── ChatPanel — 3 estados: mini | medium | full ─────────── */
-    // size: "mini" | "medium" | "full"
-    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize}) {
+    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile}) {
       const scrollRef=useRef(null);
+      const chatFileRef=useRef(null);
       useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing,size]);
 
       const W = 320;
 
-      // ── mini: só o botão flutuante ──
       if (size==="mini") return (
         <div style={{position:"absolute",bottom:16,right:16,zIndex:25,animation:"fadeIn 0.2s ease"}}>
           <button onClick={()=>setSize("medium")}
             style={{width:46,height:46,borderRadius:"50%",background:"rgba(32,38,47,0.95)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",transition:"all 0.15s ease",position:"relative"}}
           >
             <Icon.Msg s={16} c={C.green2}/>
-            {/* unread dot */}
             <div style={{position:"absolute",top:10,right:10,width:7,height:7,borderRadius:"50%",background:C.green,border:"2px solid #20262f"}}/>
           </button>
         </div>
       );
 
-      // ── header controls (shared by medium + full) ──
       const Header = () => (
         <div style={{display:"flex",alignItems:"center",padding:"8px 10px 8px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
           <Icon.Msg s={12} c={C.green2}/>
           <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,color:C.gray2,marginLeft:6,flex:1}}>Conversa</span>
-          {/* size controls */}
           <div style={{display:"flex",gap:2}}>
             {[
               {id:"mini",   icon:<Icon.Minus  s={11} c={size==="mini"  ?C.green2:C.gray}/>, title:"Minimizar"},
@@ -389,30 +705,42 @@
         </div>
       );
 
-      // ── input bar (shared) ──
       const InputBar = () => (
-        <div style={{display:"flex",alignItems:"flex-end",gap:6,padding:"8px 8px 8px 12px",flexShrink:0}}>
-          <textarea rows={1} value={input} onChange={e=>setInput(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
-            placeholder="Descreva o que quer ajustar…"
-            style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,resize:"none",lineHeight:1.5,padding:"4px 0",maxHeight:72}}
-          />
-          <button onClick={onSend} style={{width:30,height:30,borderRadius:"50%",background:C.green,border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
-            <Icon.Send s={13} c="#fff"/>
-          </button>
+        <div style={{flexShrink:0}}>
+          {attachedFile && (
+            <div style={{display:"flex",alignItems:"center",gap:7,padding:"6px 12px 0",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+              <span style={{background:"rgba(1,173,110,0.12)",border:"1px solid rgba(51,224,161,0.25)",borderRadius:4,padding:"1px 6px",fontFamily:"monospace",fontSize:9,fontWeight:700,color:C.green2,textTransform:"uppercase",flexShrink:0}}>{attachedFile.ext}</span>
+              <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{attachedFile.name}</span>
+              <button onClick={onRemoveFile} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",fontSize:15,lineHeight:1,padding:"0 2px",flexShrink:0}}>×</button>
+            </div>
+          )}
+          <div style={{display:"flex",alignItems:"flex-end",gap:6,padding:"8px 8px 8px 10px"}}>
+            <button onClick={()=>chatFileRef.current?.click()} title="Anexar arquivo"
+              style={{width:26,height:26,borderRadius:5,background:"none",border:"none",color:attachedFile?C.green2:C.gray,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"color 0.15s ease",padding:0}}>
+              <Icon.Paperclip s={13} c={attachedFile?C.green2:C.gray}/>
+            </button>
+            <input ref={chatFileRef} type="file" accept=".dwg,.ifc,.dxf,.kmz,.rvt,.nwc" style={{display:"none"}}
+              onChange={e=>e.target.files[0]&&onAttachFile(e.target.files[0])}/>
+            <textarea rows={1} value={input} onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
+              placeholder="Descreva o que quer ajustar…"
+              style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,resize:"none",lineHeight:1.5,padding:"4px 0",maxHeight:72}}
+            />
+            <button onClick={onSend} style={{width:30,height:30,borderRadius:"50%",background:(input.trim()||attachedFile)?C.green:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"background 0.15s ease"}}>
+              <Icon.Send s={13} c="#fff"/>
+            </button>
+          </div>
         </div>
       );
 
-      // ── medium: header + ultima msg + input ──
       if (size==="medium") {
         const lastMsg = msgs[msgs.length-1];
         return (
           <div style={{position:"absolute",bottom:16,right:16,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden"}}>
             <Header/>
-            {/* preview da última mensagem */}
             {lastMsg && (
               <div style={{padding:"10px 14px 4px",flexShrink:0}}>
-                <Bubble msg={lastMsg} idx={0}/>
+                <Bubble msg={lastMsg} idx={0} onAttachFile={onAttachFile}/>
                 {typing && <div style={{marginBottom:6}}><div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}><TypingDots/></div></div>}
               </div>
             )}
@@ -422,12 +750,11 @@
         );
       }
 
-      // ── full: header + histórico completo + input ──
       return (
         <div style={{position:"absolute",bottom:16,right:16,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 120px)"}}>
           <Header/>
           <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"12px 14px 4px"}}>
-            {msgs.map((msg,i)=><Bubble key={i} msg={msg} idx={i}/>)}
+            {msgs.map((msg,i)=><Bubble key={i} msg={msg} idx={i} onAttachFile={onAttachFile}/>)}
             {typing && <div style={{marginBottom:8}}><div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}><TypingDots/></div></div>}
           </div>
           <div style={{borderTop:"1px solid rgba(255,255,255,0.06)"}}/>
@@ -452,7 +779,12 @@
       const [mode,        setMode]        = useState("idle");
       const [leaving,     setLeaving]     = useState(false);
       const [chatSize,    setChatSize]    = useState("medium"); // "mini"|"medium"|"full"
-      const [metricsOpen, setMetricsOpen] = useState(true);
+      const [metricsOpen,  setMetricsOpen]  = useState(true);
+      const [showSetbacks, setShowSetbacks] = useState(false);
+      const [versions,     setVersions]     = useState(VERSIONS_INIT);
+      const [transitioning,setTransitioning]= useState(false);
+      const [comparing,    setComparing]    = useState(false);
+      const [attachedFile, setAttachedFile] = useState(null);
 
       const svgRef   = useRef(null);
       const dragging = useRef(null);
@@ -523,12 +855,25 @@
         resizing.current=null;
       },[]);
 
+      function attachFile(file) {
+        const ext=(file.name.split(".").pop()||"file").toLowerCase();
+        const size=file.size<1024*1024
+          ? `${Math.max(1,Math.round(file.size/1024))} KB`
+          : `${(file.size/(1024*1024)).toFixed(1)} MB`;
+        setAttachedFile({name:file.name,ext,size,meta:"Arquivo do projeto"});
+      }
+
       function sendMessage(text) {
-        const msg=text||input;
-        if(!msg.trim())return;
+        const msg=(text||input||"").trim();
+        if(!msg && !attachedFile)return;
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-        setMsgs(m=>[...m,{role:"user",text:msg,time:now}]);
+        setMsgs(m=>[
+          ...m,
+          ...(attachedFile?[{role:"file",...attachedFile,time:now}]:[]),
+          ...(msg?[{role:"user",text:msg,time:now}]:[]),
+        ]);
         setInput("");
+        setAttachedFile(null);
         // transition: fade idle out, then show canvas
         setLeaving(true);
         setTimeout(()=>{ setMode("active"); setLeaving(false); setChatSize("medium"); },500);
@@ -538,6 +883,28 @@
           const now2=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
           setMsgs(m=>[...m,{role:"agent",text:AUTO_REPLY,time:now2}]);
         },1700);
+      }
+
+      function switchVersion(newVer) {
+        if (newVer === version) return;
+        const newTowers = versions[newVer];
+        setVersions(v=>({...v, [version]: towers})); // salva estado atual
+        setTransitioning(true);
+        setTimeout(()=>{
+          setTowers(newTowers);
+          setVersion(newVer);
+          setSel(null);
+          setTimeout(()=>setTransitioning(false), 180);
+        }, 200);
+      }
+
+      function addTower() {
+        const ids=["A","B","C","D","E","F"];
+        if(towers.length>=6) return;
+        const newId=ids[towers.length];
+        const t={id:newId,x:240,y:185,w:60,h:44,floors:10,units:40,area:1760,type:"Studio 44m²"};
+        setTowers(prev=>[...prev,t]);
+        setSel(newId);
       }
 
       function panelPos(t) {
@@ -583,28 +950,40 @@
               <div style={{position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",padding:"0 14px",gap:10}}>
                 <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <div style={{width:6,height:6,borderRadius:"50%",background:C.green,flexShrink:0}}/>
-                  <select value={version} onChange={e=>setVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none"}}>
+                  <select value={version} onChange={e=>switchVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none"}}>
                     {["Versão 01","Versão 02","Versão 03"].map(v=><option key={v} value={v} style={{background:C.card}}>{v}</option>)}
                   </select>
                 </div>
+                {/* + Torre — 1.4 */}
+                <button onClick={addTower} disabled={towers.length>=6}
+                  style={{display:"flex",alignItems:"center",gap:5,background:"rgba(1,173,110,0.12)",border:"1px solid rgba(1,173,110,0.35)",borderRadius:6,color:towers.length>=6?C.gray:C.green2,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"3px 10px",cursor:towers.length>=6?"not-allowed":"pointer",flexShrink:0,whiteSpace:"nowrap",transition:"all 0.15s ease"}}
+                >
+                  <Icon.Plus s={11} c={towers.length>=6?C.gray:C.green2}/> Torre
+                </button>
                 <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6}}>
                   <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><Icon.ZoomOut/></button>
                   <span style={{fontSize:11,color:C.gray,minWidth:34,textAlign:"center"}}>{zoom}%</span>
                   <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><Icon.ZoomIn/></button>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                  {/* Recuos toggle — 1.1 */}
+                  <button onClick={()=>setShowSetbacks(v=>!v)}
+                    style={{display:"flex",alignItems:"center",gap:5,background:showSetbacks?"rgba(255,188,0,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${showSetbacks?"rgba(255,188,0,0.45)":"rgba(255,255,255,0.1)"}`,borderRadius:6,color:showSetbacks?C.yellow:C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"3px 10px",cursor:"pointer",flexShrink:0,transition:"all 0.15s ease"}}
+                  >
+                    <Icon.Ruler s={11} c={showSetbacks?C.yellow:C.gray}/> Recuos
+                  </button>
                   <div style={{display:"flex",background:"rgba(255,255,255,0.05)",borderRadius:6,overflow:"hidden"}}>
                     {["2D","3D"].map(v=><button key={v} onClick={()=>setView(v)} style={{background:view===v?C.green:"transparent",border:"none",color:view===v?"#fff":C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"4px 11px",cursor:"pointer",transition:"all 0.15s ease"}}>{v}</button>)}
                   </div>
-                  <button style={{background:"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap"}}>Comparar versões</button>
+                  <button onClick={()=>setComparing(true)} style={{background:comparing?"rgba(86,79,255,0.15)":"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap",transition:"background 0.15s ease"}}>Comparar versões</button>
                 </div>
               </div>
 
               {/* metrics HUD */}
-              <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)}/>
+              <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)} towerCount={towers.length}/>
 
               {/* SVG */}
-              <svg ref={svgRef} width="100%" height="100%" viewBox="0 0 640 440" style={{position:"absolute",top:0,left:0,userSelect:"none"}}
+              <svg ref={svgRef} width="100%" height="100%" viewBox="0 0 640 440" style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease"}}
                 onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
                 onClick={()=>{if(!dragging.current)setSel(null);}}
               >
@@ -617,6 +996,14 @@
                 <polygon points={TERRAIN} fill="rgba(1,173,110,0.055)" stroke="rgba(1,173,110,0.38)" strokeWidth="1.5" strokeDasharray="6,4"/>
                 <text x="315" y="232" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">847 m²</text>
                 <text x="602" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">N ↑</text>
+
+                {showSetbacks && <SetbackOverlay/>}
+
+                {/* tower base shadows — 1.2 */}
+                {towers.map(t=>(
+                  <rect key={`sh-${t.id}`} x={t.x+4} y={t.y+6} width={t.w} height={t.h} rx={4}
+                    fill="rgba(0,0,0,0.32)" style={{filter:"blur(5px)"}}/>
+                ))}
 
                 {towers.map((t,i)=>{
                   const st=towerState(t);
@@ -650,6 +1037,9 @@
                     </g>
                   );
                 })}
+
+                {/* distance ruler — 1.3 */}
+                {selTower && <DistanceRuler tower={selTower} towers={towers}/>}
               </svg>
 
               {selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)}/>; })()}
@@ -657,11 +1047,24 @@
               {/* floating chat */}
               <ChatPanel msgs={msgs} typing={typing} input={input} setInput={setInput}
                 onSend={()=>sendMessage()} size={chatSize} setSize={setChatSize}
+                attachedFile={attachedFile} onAttachFile={attachFile}
+                onRemoveFile={()=>setAttachedFile(null)}
               />
+
+              {/* compare panel — 2.2 */}
+              {comparing && <ComparePanel
+                versions={{...versions,[version]:towers}}
+                currentVersion={version}
+                onClose={()=>setComparing(false)}
+              />}
             </div>
 
             {/* IDLE SCREEN */}
-            {mode==="idle" && <IdleScreen onSend={sendMessage} leaving={leaving}/>}
+            {mode==="idle" && <IdleScreen
+              onSend={sendMessage} leaving={leaving}
+              attachedFile={attachedFile} onAttachFile={attachFile}
+              onRemoveFile={()=>setAttachedFile(null)}
+            />}
           </div>
         </div>
       );
