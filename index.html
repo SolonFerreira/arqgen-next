@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arqgen Next · V0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- lucide icons replaced with inline SVG -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #11151d; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-6px); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-3px); }
+      40% { transform: translateX(3px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+    @keyframes pulseTower {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.015); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .tower-shake { animation: shake 300ms ease forwards; }
+    .tower-pulse { animation: pulseTower 200ms ease 1; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script id="app-src" type="text/plain">
+    const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+    // inline SVG icons
+    const Send = ({size=14,color="currentColor"}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    );
+    const ZoomIn = ({size=12,color="currentColor"}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    );
+    const ZoomOut = ({size=12,color="currentColor"}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    );
+    const X = ({size=12,color="currentColor"}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    );
+
+    // ── palette ────────────────────────────────────────────────────────────────
+    const C = {
+      ink:    "#1A202C", ink2:   "#11151d", card:   "#20262f",
+      green:  "#01AD6E", green2: "#33E0A1", purple: "#564FFF",
+      yellow: "#FFBC00", red:    "#FD4848", gray:   "#718096",
+      gray2:  "#CBD5E0",
+    };
+
+    const TERRAIN = "160,60 480,40 560,120 540,360 420,400 180,380 80,280 100,140";
+    const LOT = 847;
+
+    const INIT_TOWERS = [
+      { id:"A", x:185, y:145, w:72,  h:52, floors:12, units:48, area:2304, type:"Studio 44m²"  },
+      { id:"B", x:310, y:165, w:88,  h:60, floors:15, units:75, area:5100, type:"Studio 44m²"  },
+      { id:"C", x:390, y:270, w:64,  h:48, floors:10, units:40, area:1920, type:"1 dorm 52m²" },
+    ];
+
+    const HISTORY = [
+      { role:"user",  text:"Quero avaliar este terreno no Brooklin.\nGera três alternativas priorizando\nunidades, mantendo CA abaixo de 12.", time:"14:22" },
+      { role:"agent", text:"Entendido. Identifiquei duas premissas\nausentes antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m²,\n  1 dorm 52m² ou ambas?", time:"14:22" },
+      { role:"user",  text:"Confirmo 1 vaga. Usa ambas as tipologias.", time:"14:23" },
+      { role:"skill", fn:"gerar_solucoes_implantacao()", sub:"3 alternativas geradas · Versão 01 ativa",
+        text:"Solução com 163 unidades posicionada.\nTorre B concentra maior densidade.\nTaxa de ocupação em 38% — dentro do limite.\nQuer explorar reduzir Torre A para\nabrir área de permeabilidade?", time:"14:23" },
+    ];
+
+    const AUTO_REPLY = "Entendido. Analisando o impacto no estudo atual. Posso ajustar as torres conforme solicitado — qual elemento quer priorizar: unidades, permeabilidade ou recuos?";
+
+    // ── geometry helpers ───────────────────────────────────────────────────────
+    function pip(px, py, pts) {
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi,yi] = pts[i], [xj,yj] = pts[j];
+        if ((yi > py) !== (yj > py) && px < ((xj-xi)*(py-yi))/(yj-yi)+xi) inside = !inside;
+      }
+      return inside;
+    }
+
+    function parsePoly(str) { return str.split(" ").map(p => p.split(",").map(Number)); }
+
+    function rectInPoly(x, y, w, h, str) {
+      const pts = parsePoly(str);
+      return pip(x,y,pts) && pip(x+w,y,pts) && pip(x,y+h,pts) && pip(x+w,y+h,pts);
+    }
+
+    function overlap(a, b) {
+      return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+    }
+
+    function metrics(towers) {
+      const units = towers.reduce((s,t) => s + t.units, 0);
+      const area  = towers.reduce((s,t) => s + t.area,  0);
+      const base  = towers.reduce((s,t) => s + (t.w*t.h)/100, 0);
+      const occ   = Math.min(99, Math.round(base / LOT * 100));
+      const ca    = Math.round(area / LOT * 10) / 10;
+      return { units, area, occ, ca };
+    }
+
+    // ── MetricBar ──────────────────────────────────────────────────────────────
+    function MetricBar({ val, max, warn, danger }) {
+      const pct = max ? Math.min(100, val/max*100) : 100;
+      const color = !max ? C.green2 : val >= danger ? C.red : val >= warn ? C.yellow : C.green2;
+      return (
+        <div style={{ height:4, background:"rgba(255,255,255,0.08)", borderRadius:2, marginTop:6 }}>
+          <div style={{ height:"100%", width:`${pct}%`, background:color, borderRadius:2, transition:"width 0.35s ease, background 0.35s ease" }} />
+        </div>
+      );
+    }
+
+    // ── FlipValue ──────────────────────────────────────────────────────────────
+    function FlipValue({ val, suffix="" }) {
+      const [disp, setDisp] = useState(val);
+      const [anim, setAnim] = useState(false);
+      const prev = useRef(val);
+      useEffect(() => {
+        if (prev.current !== val) {
+          setAnim(true);
+          const t = setTimeout(() => { setDisp(val); setAnim(false); }, 160);
+          prev.current = val;
+          return () => clearTimeout(t);
+        }
+      }, [val]);
+      return (
+        <span style={{
+          display:"inline-block",
+          fontFamily:"'Sora',sans-serif", fontSize:22, fontWeight:700, color:"#fff",
+          transform: anim ? "translateY(-5px)" : "translateY(0)",
+          opacity: anim ? 0 : 1,
+          transition:"transform 0.16s ease, opacity 0.16s ease",
+        }}>
+          {typeof disp === "number" ? disp.toLocaleString("pt-BR") : disp}{suffix}
+        </span>
+      );
+    }
+
+    // ── TypingDots ─────────────────────────────────────────────────────────────
+    function TypingDots() {
+      return (
+        <div style={{ display:"flex", gap:4, padding:"10px 14px", alignItems:"center" }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{
+              width:6, height:6, borderRadius:"50%", background:C.green2,
+              animation:`bounce 1s ease ${i*0.2}s infinite`
+            }} />
+          ))}
+        </div>
+      );
+    }
+
+    // ── ChatBubble ─────────────────────────────────────────────────────────────
+    function Bubble({ msg }) {
+      if (msg.role === "user") return (
+        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
+          <div style={{ maxWidth:"82%" }}>
+            <div style={{
+              background:"rgba(255,255,255,0.07)", borderRadius:"12px 12px 2px 12px",
+              padding:"10px 14px", fontFamily:"'Inter',sans-serif", fontSize:13, color:C.gray2, whiteSpace:"pre-line",
+            }}>{msg.text}</div>
+            <div style={{ textAlign:"right", marginTop:3, fontFamily:"'Inter',sans-serif", fontSize:10, color:C.gray }}>{msg.time}</div>
+          </div>
+        </div>
+      );
+
+      if (msg.role === "skill") return (
+        <div style={{ marginBottom:10 }}>
+          <div style={{
+            background:"rgba(86,79,255,0.12)", border:"1px solid rgba(203,200,255,0.2)",
+            borderRadius:"2px 12px 12px 12px", padding:"10px 14px", maxWidth:"92%",
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+              <span style={{
+                background:C.purple, color:"#fff", fontFamily:"'Inter',sans-serif",
+                fontSize:10, fontWeight:600, padding:"2px 7px", borderRadius:4, letterSpacing:"0.05em",
+              }}>Skill</span>
+              <code style={{ fontFamily:"monospace", fontSize:11, color:"rgba(203,200,255,0.8)" }}>{msg.fn}</code>
+            </div>
+            <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:6 }}>↳ {msg.sub}</div>
+            <div style={{ fontFamily:"'Inter',sans-serif", fontSize:13, color:C.gray2, whiteSpace:"pre-line" }}>{msg.text}</div>
+          </div>
+          <div style={{ marginTop:3, fontFamily:"'Inter',sans-serif", fontSize:10, color:C.gray }}>{msg.time}</div>
+        </div>
+      );
+
+      return (
+        <div style={{ marginBottom:10 }}>
+          <div style={{
+            background:"rgba(1,173,110,0.1)", border:"1px solid rgba(51,224,161,0.15)",
+            borderRadius:"2px 12px 12px 12px", padding:"10px 14px", maxWidth:"92%",
+            fontFamily:"'Inter',sans-serif", fontSize:13, color:C.gray2, whiteSpace:"pre-line",
+          }}>{msg.text}</div>
+          <div style={{ marginTop:3, fontFamily:"'Inter',sans-serif", fontSize:10, color:C.gray }}>{msg.time}</div>
+        </div>
+      );
+    }
+
+    // ── PropPanel ──────────────────────────────────────────────────────────────
+    function PropPanel({ tower, onClose }) {
+      return (
+        <div style={{
+          position:"absolute", background:C.card,
+          border:"1px solid rgba(51,224,161,0.22)", borderRadius:10, padding:14,
+          width:190, zIndex:40, animation:"fadeIn 0.15s ease",
+          top: Math.min(tower.panelY, window.innerHeight - 220),
+          left: tower.panelX,
+          boxShadow:"0 8px 32px rgba(0,0,0,0.4)",
+        }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+            <span style={{ fontFamily:"'Sora',sans-serif", fontSize:13, fontWeight:700, color:"#fff" }}>Torre {tower.id}</span>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <span style={{ fontFamily:"'Inter',sans-serif", fontSize:10, color:C.green2 }}>Selecionada</span>
+              <button onClick={onClose} style={{ background:"none", border:"none", color:C.gray, cursor:"pointer", display:"flex" }}>
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:8 }}>
+            {[["Pavimentos",tower.floors],["Unidades",tower.units],["Área total",`${tower.area.toLocaleString("pt-BR")} m²`],["Tipologia",tower.type]].map(([l,v])=>(
+              <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:7 }}>
+                <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray }}>{l}</span>
+                <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray2, fontWeight:500 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:6, marginTop:10 }}>
+            <button style={{ flex:1, background:"rgba(1,173,110,0.15)", border:`1px solid rgba(1,173,110,0.4)`, borderRadius:6, color:C.green2, fontFamily:"'Inter',sans-serif", fontSize:11, padding:"5px 0", cursor:"pointer" }}>Ajustar</button>
+            <button style={{ flex:1, background:"rgba(253,72,72,0.1)", border:"1px solid rgba(253,72,72,0.3)", borderRadius:6, color:C.red, fontFamily:"'Inter',sans-serif", fontSize:11, padding:"5px 0", cursor:"pointer" }}>Remover</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Main ───────────────────────────────────────────────────────────────────
+    function ArqgenNext() {
+      const [towers,    setTowers]  = useState(INIT_TOWERS);
+      const [sel,       setSel]     = useState(null);
+      const [zoom,      setZoom]    = useState(100);
+      const [version,   setVersion] = useState("Versão 01");
+      const [view,      setView]    = useState("2D");
+      const [msgs,      setMsgs]    = useState(HISTORY);
+      const [input,     setInput]   = useState("");
+      const [typing,    setTyping]  = useState(false);
+      const [mounted,   setMounted] = useState(false);
+      const [shakeId,   setShakeId] = useState(null);
+
+      const svgRef   = useRef(null);
+      const dragging = useRef(null);
+      const resizing = useRef(null);
+      const chatRef  = useRef(null);
+
+      useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
+      useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [msgs, typing]);
+
+      const m = useMemo(() => metrics(towers), [towers]);
+
+      function svgPt(e) {
+        const svg = svgRef.current;
+        const p = svg.createSVGPoint();
+        p.x = e.clientX; p.y = e.clientY;
+        return p.matrixTransform(svg.getScreenCTM().inverse());
+      }
+
+      function towerState(t) {
+        if (!rectInPoly(t.x, t.y, t.w, t.h, TERRAIN)) return "conflict";
+        if (towers.some(o => o.id !== t.id && overlap(t, o))) return "overlap";
+        return sel === t.id ? "selected" : "normal";
+      }
+
+      function onTowerDown(e, id) {
+        e.stopPropagation();
+        setSel(id);
+        const t = towers.find(t => t.id === id);
+        const p = svgPt(e);
+        dragging.current = { id, ox: p.x - t.x, oy: p.y - t.y, orig: { x:t.x, y:t.y } };
+      }
+
+      function onHandleDown(e, id, corner) {
+        e.stopPropagation();
+        const t = towers.find(t => t.id === id);
+        const p = svgPt(e);
+        resizing.current = { id, corner, sp:p, ow:t.w, oh:t.h, ox:t.x, oy:t.y };
+      }
+
+      const onMove = useCallback(e => {
+        if (dragging.current) {
+          const { id, ox, oy } = dragging.current;
+          const p = svgPt(e);
+          setTowers(prev => prev.map(t => t.id===id ? {...t, x:p.x-ox, y:p.y-oy} : t));
+        }
+        if (resizing.current) {
+          const { id, corner, sp, ow, oh, ox, oy } = resizing.current;
+          const p = svgPt(e);
+          const dx = p.x - sp.x, dy = p.y - sp.y;
+          setTowers(prev => prev.map(t => {
+            if (t.id !== id) return t;
+            let { x, y, w, h } = { x:ox, y:oy, w:ow, h:oh };
+            if (corner.includes("e")) w = Math.max(30, ow+dx);
+            if (corner.includes("s")) h = Math.max(20, oh+dy);
+            if (corner.includes("w")) { x = ox+dx; w = Math.max(30, ow-dx); }
+            if (corner.includes("n")) { y = oy+dy; h = Math.max(20, oh-dy); }
+            const r = (w*h)/(ow*oh);
+            return { ...t, x, y, w, h, units: Math.round(t.units*r), area: Math.round(t.area*r) };
+          }));
+        }
+      }, []);
+
+      const onUp = useCallback(() => {
+        if (dragging.current) {
+          const { id, orig } = dragging.current;
+          setTowers(prev => {
+            const t = prev.find(t => t.id===id);
+            if (!rectInPoly(t.x, t.y, t.w, t.h, TERRAIN)) {
+              setShakeId(id);
+              setTimeout(() => setShakeId(null), 400);
+              return prev.map(tt => tt.id===id ? {...tt, x:orig.x, y:orig.y} : tt);
+            }
+            return prev;
+          });
+          dragging.current = null;
+        }
+        resizing.current = null;
+      }, []);
+
+      function send() {
+        if (!input.trim()) return;
+        const now = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        setMsgs(m => [...m, { role:"user", text:input, time:now }]);
+        setInput(""); setTyping(true);
+        setTimeout(() => {
+          setTyping(false);
+          const now2 = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+          setMsgs(m => [...m, { role:"agent", text:AUTO_REPLY, time:now2 }]);
+        }, 1200);
+      }
+
+      // panel position (relative to canvas div)
+      function panelPos(t) {
+        const svg = svgRef.current;
+        if (!svg) return { panelX:0, panelY:0 };
+        const r = svg.getBoundingClientRect();
+        const sx = r.width / 640, sy = r.height / 440;
+        const canvasDiv = svg.closest("[data-canvas]");
+        const cr = canvasDiv ? canvasDiv.getBoundingClientRect() : r;
+        return {
+          panelX: Math.min((t.x + t.w)*sx + r.left - cr.left + 10, cr.width - 200),
+          panelY: t.y*sy + r.top - cr.top,
+        };
+      }
+
+      const selTower = towers.find(t => t.id === sel);
+
+      // icon btn style
+      const ib = { background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:5, color:C.gray2, width:24, height:24, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" };
+
+      return (
+        <div
+          tabIndex={-1}
+          onKeyDown={e => e.key==="Escape" && setSel(null)}
+          style={{
+            width:"100vw", height:"100vh", background:C.ink2,
+            display:"flex", flexDirection:"column", overflow:"hidden",
+            opacity: mounted ? 1 : 0, transition:"opacity 0.5s ease",
+            fontFamily:"'Inter',sans-serif",
+          }}
+        >
+          {/* TOPBAR */}
+          <div style={{
+            height:48, flexShrink:0, background:C.ink2,
+            borderBottom:"1px solid rgba(255,255,255,0.06)",
+            display:"flex", alignItems:"center", padding:"0 20px", gap:16,
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontFamily:"'Sora',sans-serif", fontSize:18, fontWeight:700, color:C.green }}>arqgen</span>
+              <span style={{ background:C.purple, color:"#fff", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20, letterSpacing:"0.04em" }}>Next</span>
+            </div>
+            <div style={{ flex:1, textAlign:"center", fontSize:13, color:C.gray }}>Estudo · Lote Brooklin 847m²</div>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <button style={{ background:"none", border:`1px solid ${C.green}`, color:C.green, borderRadius:6, padding:"5px 14px", fontSize:12, cursor:"pointer", transition:"all 0.15s ease" }}>
+                Exportar
+              </button>
+              <div style={{ width:30, height:30, borderRadius:"50%", background:"linear-gradient(135deg,#564FFF,#01AD6E)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Sora',sans-serif", fontSize:11, fontWeight:700, color:"#fff" }}>S</div>
+            </div>
+          </div>
+
+          {/* BODY */}
+          <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
+
+            {/* CANVAS */}
+            <div data-canvas style={{ flex:"0 0 70%", position:"relative", background:C.ink2, cursor:"crosshair" }}>
+
+              {/* canvas controls */}
+              <div style={{
+                position:"absolute", top:0, left:0, right:0, height:40, zIndex:10,
+                background:"rgba(17,21,29,0.88)", backdropFilter:"blur(8px)",
+                borderBottom:"1px solid rgba(255,255,255,0.05)",
+                display:"flex", alignItems:"center", padding:"0 14px", gap:10,
+              }}>
+                {/* version */}
+                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                  <div style={{ width:6, height:6, borderRadius:"50%", background:C.green }} />
+                  <select value={version} onChange={e=>setVersion(e.target.value)} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", color:C.gray2, fontFamily:"'Inter',sans-serif", fontSize:12, borderRadius:5, padding:"2px 6px", cursor:"pointer", outline:"none" }}>
+                    {["Versão 01","Versão 02","Versão 03"].map(v=>(
+                      <option key={v} value={v} style={{ background:C.card }}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* zoom */}
+                <div style={{ flex:1, display:"flex", justifyContent:"center", alignItems:"center", gap:8 }}>
+                  <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><ZoomOut size={12}/></button>
+                  <span style={{ fontSize:11, color:C.gray, minWidth:36, textAlign:"center" }}>{zoom}%</span>
+                  <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><ZoomIn size={12}/></button>
+                </div>
+
+                {/* 2D/3D + compare */}
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ display:"flex", background:"rgba(255,255,255,0.05)", borderRadius:6, overflow:"hidden" }}>
+                    {["2D","3D"].map(v=>(
+                      <button key={v} onClick={()=>setView(v)} style={{ background:view===v?C.green:"transparent", border:"none", color:view===v?"#fff":C.gray, fontFamily:"'Inter',sans-serif", fontSize:11, fontWeight:600, padding:"3px 11px", cursor:"pointer", transition:"all 0.15s ease" }}>{v}</button>
+                    ))}
+                  </div>
+                  <button style={{ background:"none", border:`1px solid ${C.purple}`, color:C.purple, borderRadius:6, padding:"3px 10px", fontSize:11, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Comparar versões</button>
+                </div>
+              </div>
+
+              {/* SVG */}
+              <svg
+                ref={svgRef}
+                width="100%" height="100%"
+                viewBox="0 0 640 440"
+                style={{ position:"absolute", top:0, left:0, userSelect:"none" }}
+                onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+                onClick={() => { if (!dragging.current) setSel(null); }}
+              >
+                <defs>
+                  <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
+                  </pattern>
+                </defs>
+                <rect width="640" height="440" fill="url(#g)"/>
+
+                {/* terrain */}
+                <polygon points={TERRAIN} fill="rgba(1,173,110,0.06)" stroke="rgba(1,173,110,0.4)" strokeWidth="1.5" strokeDasharray="6,4"/>
+                <text x="315" y="228" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif">847 m²</text>
+                <text x="598" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif">N ↑</text>
+
+                {/* towers */}
+                {towers.map((t,i) => {
+                  const st    = towerState(t);
+                  const isSel = sel === t.id;
+                  const clsName = shakeId===t.id ? "tower-shake" : isSel ? "tower-pulse" : "";
+
+                  const fill   = st==="conflict" ? "rgba(253,72,72,0.2)"  : st==="overlap" ? "rgba(255,188,0,0.15)" : isSel ? "rgba(1,173,110,0.35)" : "#344357";
+                  const stroke = st==="conflict" ? C.red : st==="overlap" ? C.yellow : isSel ? C.green2 : "#526171";
+                  const sw     = isSel || st!=="normal" ? 2 : 1.5;
+
+                  // stagger entrance
+                  const enterDelay = `${i*100+200}ms`;
+
+                  return (
+                    <g key={t.id} className={clsName}
+                      style={{ cursor: dragging.current?.id===t.id ? "grabbing" : "grab", transition:"all 0.15s ease" }}
+                      onMouseDown={e => onTowerDown(e, t.id)}
+                      onClick={e => { e.stopPropagation(); setSel(t.id); }}
+                    >
+                      <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4}
+                        fill={fill} stroke={stroke} strokeWidth={sw}
+                        style={{ filter: isSel ? "drop-shadow(0 0 7px rgba(51,224,161,0.45))" : "none", transition:"all 0.15s ease" }}
+                      />
+                      <text x={t.x+t.w/2} y={t.y+t.h/2+5} textAnchor="middle"
+                        fill="#fff" fontSize={14} fontWeight="bold" fontFamily="'Sora',sans-serif"
+                        style={{ pointerEvents:"none" }}
+                      >{t.id}</text>
+
+                      {/* overlap badge */}
+                      {st==="overlap" && <>
+                        <rect x={t.x+t.w/2-27} y={t.y-19} width={54} height={16} rx={4} fill={C.yellow}/>
+                        <text x={t.x+t.w/2} y={t.y-8} textAnchor="middle" fill="#000" fontSize={9} fontWeight="bold" fontFamily="'Inter',sans-serif">Conflito</text>
+                      </>}
+
+                      {/* resize handles */}
+                      {isSel && [["nw",t.x-4,t.y-4],["ne",t.x+t.w-4,t.y-4],["sw",t.x-4,t.y+t.h-4],["se",t.x+t.w-4,t.y+t.h-4]].map(([corner,hx,hy])=>(
+                        <rect key={corner} x={hx} y={hy} width={8} height={8} rx={1}
+                          fill="#fff" stroke={C.green2} strokeWidth={1}
+                          style={{ cursor:`${corner}-resize`, transition:"opacity 0.15s ease" }}
+                          onMouseDown={e=>{ e.stopPropagation(); onHandleDown(e,t.id,corner); }}
+                        />
+                      ))}
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* prop panel (absolute over canvas div) */}
+              {selTower && (()=>{
+                const pos = panelPos(selTower);
+                return <PropPanel tower={{...selTower, ...pos}} onClose={()=>setSel(null)}/>;
+              })()}
+            </div>
+
+            {/* RIGHT PANEL */}
+            <div style={{ flex:"0 0 30%", background:C.ink, display:"flex", flexDirection:"column", borderLeft:"1px solid rgba(255,255,255,0.06)" }}>
+
+              {/* metrics */}
+              <div style={{ padding:14, borderBottom:"1px solid rgba(255,255,255,0.05)", flexShrink:0 }}>
+                <div style={{ background:C.card, borderRadius:10, padding:14, border:"1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ fontFamily:"'Sora',sans-serif", fontSize:11, fontWeight:600, color:C.green2, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:14 }}>
+                    Métricas do estudo
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px 10px" }}>
+                    <div>
+                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>Unidades totais</div>
+                      <FlipValue val={m.units}/>
+                      <MetricBar val={m.units} max={null}/>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>Área construída</div>
+                      <FlipValue val={m.area} suffix=" m²"/>
+                      <MetricBar val={m.area} max={null}/>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>Taxa de ocupação</div>
+                      <FlipValue val={m.occ} suffix="%"/>
+                      <MetricBar val={m.occ} max={50} warn={45} danger={50}/>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>CA utilizado</div>
+                      <FlipValue val={m.ca}/>
+                      <MetricBar val={m.ca} max={12} warn={11.5} danger={12}/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* chat */}
+              <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                <div ref={chatRef} style={{ flex:1, background:C.ink2, overflowY:"auto", padding:"14px 14px 6px" }}>
+                  {msgs.map((msg,i) => <Bubble key={i} msg={msg}/>)}
+                  {typing && (
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ background:"rgba(1,173,110,0.1)", border:"1px solid rgba(51,224,161,0.15)", borderRadius:"2px 12px 12px 12px", display:"inline-block" }}>
+                        <TypingDots/>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding:12, background:C.card, borderTop:"1px solid rgba(255,255,255,0.05)", flexShrink:0 }}>
+                  <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
+                    <textarea
+                      rows={2}
+                      value={input}
+                      onChange={e=>setInput(e.target.value)}
+                      onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
+                      placeholder="Descreva o que quer ajustar..."
+                      style={{
+                        flex:1, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)",
+                        borderRadius:8, color:C.gray2, fontFamily:"'Inter',sans-serif", fontSize:13,
+                        padding:"8px 10px", resize:"none", outline:"none", maxHeight:100,
+                        transition:"border-color 0.15s ease",
+                      }}
+                      onFocus={e=>e.target.style.borderColor=C.green}
+                      onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.1)"}
+                    />
+                    <button onClick={send} style={{
+                      width:32, height:32, borderRadius:"50%", background:C.green, border:"none",
+                      display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0,
+                    }}>
+                      <Send size={14} color="#fff"/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<ArqgenNext/>);
+  </script>
+  <script>
+    // Run JSX with classic runtime (avoids import from react/jsx-runtime)
+    window.addEventListener('DOMContentLoaded', () => {
+      const src = document.getElementById('app-src').textContent;
+      try {
+        const compiled = Babel.transform(src, {
+          presets: [['react', { runtime: 'classic' }]]
+        }).code;
+        // eslint-disable-next-line no-eval
+        (new Function(compiled))();
+      } catch(e) {
+        document.getElementById('root').innerHTML =
+          '<pre style="color:#FD4848;padding:20px;font-size:12px">' + e.message + '</pre>';
+      }
+    });
+  </script>
+</body>
+</html>
