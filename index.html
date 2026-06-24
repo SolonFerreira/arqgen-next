@@ -125,8 +125,6 @@
         text:"Solução com 163 unidades posicionada. Torre B concentra maior densidade.\nTaxa de ocupação em 38% — dentro do limite.\nQuer explorar reduzir Torre A para abrir área de permeabilidade?", time:"14:23" },
     ];
 
-    const AUTO_REPLY = "Entendido. Analisando o impacto no estudo atual. Posso ajustar as torres conforme solicitado — qual elemento quer priorizar: unidades, permeabilidade ou recuos?";
-
     /* ── geometry ─────────────────────────────────────────────── */
     function pip(px, py, pts) {
       let inside = false;
@@ -150,6 +148,19 @@
       const occ   = Math.min(99,Math.round(base/LOT*100));
       const ca    = Math.round(area/LOT*10)/10;
       return {units,area,occ,ca};
+    }
+
+    function scaleTower(tower, factor) {
+      const w=Math.max(30,Math.round(tower.w*factor));
+      const h=Math.max(20,Math.round(tower.h*factor));
+      return {
+        ...tower,
+        x:tower.x+(tower.w-w)/2,
+        y:tower.y+(tower.h-h)/2,
+        w,h,
+        units:Math.max(1,Math.round(tower.units*factor*factor)),
+        area:Math.max(1,Math.round(tower.area*factor*factor)),
+      };
     }
 
     /* ── geometry extra ───────────────────────────────────────── */
@@ -241,7 +252,7 @@
     }
 
     /* ── ChatBubble ───────────────────────────────────────────── */
-    function Bubble({msg,idx,onAttachFile}) {
+    function Bubble({msg,idx,onAttachFile,onAction}) {
       const enter={animation:`fadeUp 0.25s ease ${idx*0.04}s both`};
       if (msg.role==="file") return <FileBubble msg={msg} enter={enter}/>;
       if (msg.role==="user") return (
@@ -261,6 +272,24 @@
             </div>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,marginBottom:5}}>↳ {msg.sub}</div>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2,whiteSpace:"pre-line",lineHeight:1.5}}>{msg.text}</div>
+            {msg.preview && (
+              <div style={{marginTop:9,padding:"8px 9px",background:"rgba(17,21,29,0.5)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:7}}>
+                {msg.preview.map(row=>(
+                  <div key={row.label} style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:7,alignItems:"center",marginTop:row.label===msg.preview[0].label?0:5}}>
+                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{row.label}</span>
+                    <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,color:C.gray2}}>{row.before}</span>
+                    <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:700,color:row.good===false?C.red:C.green2}}>→ {row.after}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {msg.action && (
+              <button onClick={()=>!msg.action.applied&&onAction&&onAction(msg)}
+                disabled={msg.action.applied}
+                style={{marginTop:9,width:"100%",background:msg.action.applied?"rgba(255,255,255,0.05)":"rgba(86,79,255,0.22)",border:`1px solid ${msg.action.applied?"rgba(255,255,255,0.08)":"rgba(203,200,255,0.35)"}`,borderRadius:6,color:msg.action.applied?C.gray:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"7px 10px",cursor:msg.action.applied?"default":"pointer"}}>
+                {msg.action.applied?"✓ Alteração aplicada":msg.action.label}
+              </button>
+            )}
           </div>
           <div style={{marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
         </div>
@@ -420,7 +449,7 @@
     }
 
     /* ── TowerPanel ───────────────────────────────────────────── */
-    function TowerPanel({tower,px,py,onClose}) {
+    function TowerPanel({tower,px,py,onClose,onAdjust,onRemove}) {
       return (
         <div style={{position:"absolute",left:px,top:py,zIndex:30,background:"rgba(26,32,44,0.96)",backdropFilter:"blur(12px)",border:"1px solid rgba(51,224,161,0.25)",borderRadius:10,padding:14,width:185,animation:"expandIn 0.15s ease",boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -439,10 +468,31 @@
             ))}
           </div>
           <div style={{display:"flex",gap:6,marginTop:10}}>
-            <button style={{flex:1,background:"rgba(1,173,110,0.15)",border:"1px solid rgba(1,173,110,0.35)",borderRadius:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Ajustar</button>
-            <button style={{flex:1,background:"rgba(253,72,72,0.1)",border:"1px solid rgba(253,72,72,0.28)",borderRadius:6,color:C.red,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Remover</button>
+            <button onClick={onAdjust} style={{flex:1,background:"rgba(1,173,110,0.15)",border:"1px solid rgba(1,173,110,0.35)",borderRadius:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Reduzir 20%</button>
+            <button onClick={onRemove} style={{flex:1,background:"rgba(253,72,72,0.1)",border:"1px solid rgba(253,72,72,0.28)",borderRadius:6,color:C.red,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Remover</button>
           </div>
         </div>
+      );
+    }
+
+    /* ── Tower3D ──────────────────────────────────────────────── */
+    function Tower3D({tower,selected,onSelect}) {
+      const height=Math.min(78,18+tower.floors*2.8);
+      const dx=-height*0.34,dy=-height*0.55;
+      const x=tower.x,y=tower.y,w=tower.w,h=tower.h;
+      const top=`${x},${y} ${x+w},${y} ${x+w+dx},${y+dy} ${x+dx},${y+dy}`;
+      const left=`${x},${y} ${x+dx},${y+dy} ${x+dx},${y+h+dy} ${x},${y+h}`;
+      const right=`${x+w},${y} ${x+w+dx},${y+dy} ${x+w+dx},${y+h+dy} ${x+w},${y+h}`;
+      return (
+        <g onClick={e=>{e.stopPropagation();onSelect(tower.id);}} style={{cursor:"pointer"}}>
+          <ellipse cx={x+w/2+5} cy={y+h+8} rx={w*0.68} ry={h*0.24} fill="rgba(0,0,0,0.35)"/>
+          <polygon points={left} fill={selected?"#176e55":"#26394a"} stroke={selected?C.green2:"#526171"} strokeWidth={selected?2:1.2}/>
+          <polygon points={right} fill={selected?"#0d5942":"#1d2d3b"} stroke={selected?C.green2:"#526171"} strokeWidth={selected?2:1.2}/>
+          <polygon points={top} fill={selected?"#28b982":"#486078"} stroke={selected?C.green2:"#718096"} strokeWidth={selected?2:1.2}/>
+          {[0.25,0.5,0.75].map(p=><line key={p} x1={x+dx*p} y1={y+dy*p} x2={x+w+dx*p} y2={y+dy*p} stroke="rgba(255,255,255,0.08)" strokeWidth="0.8"/>)}
+          <text x={x+w/2+dx/2} y={y+dy/2+4} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="700" fontFamily="'Sora',sans-serif">{tower.id}</text>
+          <text x={x+w/2+dx/2} y={y+dy/2+17} textAnchor="middle" fill="rgba(255,255,255,0.58)" fontSize={8} fontFamily="'Inter',sans-serif">{tower.floors} pav.</text>
+        </g>
       );
     }
 
@@ -669,7 +719,7 @@
     }
 
     /* ── ChatPanel — 3 estados: mini | medium | full ─────────── */
-    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile}) {
+    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction}) {
       const scrollRef=useRef(null);
       const chatFileRef=useRef(null);
       useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing,size]);
@@ -740,7 +790,7 @@
             <Header/>
             {lastMsg && (
               <div style={{padding:"10px 14px 4px",flexShrink:0}}>
-                <Bubble msg={lastMsg} idx={0} onAttachFile={onAttachFile}/>
+                <Bubble msg={lastMsg} idx={0} onAttachFile={onAttachFile} onAction={onAction}/>
                 {typing && <div style={{marginBottom:6}}><div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}><TypingDots/></div></div>}
               </div>
             )}
@@ -754,7 +804,7 @@
         <div style={{position:"absolute",bottom:16,right:16,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 120px)"}}>
           <Header/>
           <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"12px 14px 4px"}}>
-            {msgs.map((msg,i)=><Bubble key={i} msg={msg} idx={i} onAttachFile={onAttachFile}/>)}
+            {msgs.map((msg,i)=><Bubble key={msg.id||i} msg={msg} idx={i} onAttachFile={onAttachFile} onAction={onAction}/>)}
             {typing && <div style={{marginBottom:8}}><div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}><TypingDots/></div></div>}
           </div>
           <div style={{borderTop:"1px solid rgba(255,255,255,0.06)"}}/>
@@ -863,10 +913,49 @@
         setAttachedFile({name:file.name,ext,size,meta:"Arquivo do projeto"});
       }
 
+      function contextualReply(text,tower,currentTowers) {
+        const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        const lower=text.toLowerCase();
+        if(!tower){
+          const totals=calcMetrics(currentTowers);
+          return {id:`reply-${Date.now()}`,role:"agent",time:now,text:`O estudo está com ${currentTowers.length} torres, ${totals.units} unidades e CA ${totals.ca}. Selecione uma torre no canvas para eu propor um ajuste específico com prévia antes/depois.`};
+        }
+
+        let type="reduce",label=`Reduzir Torre ${tower.id} em 20%`,after=scaleTower(tower,0.8);
+        if(/remov|exclu|apagar/.test(lower)){
+          type="remove"; label=`Remover Torre ${tower.id}`; after=null;
+        } else if(/aument|mais|ampli|pavimento/.test(lower)){
+          const factor=(tower.floors+2)/tower.floors;
+          type="increase"; label=`Adicionar 2 pavimentos à Torre ${tower.id}`;
+          after={...tower,floors:tower.floors+2,units:Math.round(tower.units*factor),area:Math.round(tower.area*factor)};
+        }
+
+        const nextTowers=type==="remove"
+          ? currentTowers.filter(t=>t.id!==tower.id)
+          : currentTowers.map(t=>t.id===tower.id?after:t);
+        const beforeM=calcMetrics(currentTowers),afterM=calcMetrics(nextTowers);
+        return {
+          id:`skill-${Date.now()}`,role:"skill",time:now,
+          fn:type==="remove"?"remover_torre()":type==="increase"?"aumentar_pavimentos()":"reduzir_projecao()",
+          sub:`Torre ${tower.id} · prévia calculada`,
+          text:type==="remove"
+            ? `A remoção da Torre ${tower.id} reduz o CA para ${afterM.ca} e libera sua área de projeção.`
+            : `A Torre ${tower.id} está com ${tower.floors} pavimentos e ${tower.units} unidades. Preparei um ajuste coerente com seu pedido.`,
+          preview:[
+            {label:"Unidades",before:beforeM.units,after:afterM.units,good:type==="increase"},
+            {label:"Área total",before:`${beforeM.area.toLocaleString("pt-BR")} m²`,after:`${afterM.area.toLocaleString("pt-BR")} m²`,good:type!=="increase"},
+            {label:"CA",before:beforeM.ca,after:afterM.ca,good:afterM.ca<=beforeM.ca},
+          ],
+          action:{id:`action-${Date.now()}`,type,targetId:tower.id,label,after},
+        };
+      }
+
       function sendMessage(text) {
         const msg=(text||input||"").trim();
         if(!msg && !attachedFile)return;
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        const selected=towers.find(t=>t.id===sel);
+        const currentTowers=towers.map(t=>({...t}));
         setMsgs(m=>[
           ...m,
           ...(attachedFile?[{role:"file",...attachedFile,time:now}]:[]),
@@ -880,9 +969,21 @@
         setTyping(true);
         setTimeout(()=>{
           setTyping(false);
-          const now2=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-          setMsgs(m=>[...m,{role:"agent",text:AUTO_REPLY,time:now2}]);
+          setMsgs(m=>[...m,contextualReply(msg,selected,currentTowers)]);
         },1700);
+      }
+
+      function applyChatAction(message) {
+        const action=message.action;
+        if(!action||action.applied)return;
+        if(action.type==="remove"){
+          setTowers(prev=>prev.filter(t=>t.id!==action.targetId));
+          setSel(null);
+        } else {
+          setTowers(prev=>prev.map(t=>t.id===action.targetId?{...action.after}:t));
+          setSel(action.targetId);
+        }
+        setMsgs(prev=>prev.map(m=>m.id===message.id?{...m,action:{...m.action,applied:true}}:m));
       }
 
       function switchVersion(newVer) {
@@ -901,25 +1002,42 @@
       function addTower() {
         const ids=["A","B","C","D","E","F"];
         if(towers.length>=6) return;
-        const newId=ids[towers.length];
+        const newId=ids.find(id=>!towers.some(t=>t.id===id));
         const t={id:newId,x:240,y:185,w:60,h:44,floors:10,units:40,area:1760,type:"Studio 44m²"};
         setTowers(prev=>[...prev,t]);
         setSel(newId);
       }
 
+      function adjustTower(id) {
+        setTowers(prev=>prev.map(t=>t.id===id?scaleTower(t,0.8):t));
+      }
+
+      function removeTower(id) {
+        setTowers(prev=>prev.filter(t=>t.id!==id));
+        setSel(null);
+      }
+
       function panelPos(t) {
         const svg=svgRef.current; if(!svg)return{px:0,py:0};
-        const r=svg.getBoundingClientRect();
-        const sx=r.width/640,sy=r.height/440;
         const cr=svg.closest("[data-canvas]").getBoundingClientRect();
-        let px=(t.x+t.w)*sx+r.left-cr.left+12;
-        let py=t.y*sy+r.top-cr.top;
-        if(px+190>cr.width)px=t.x*sx+r.left-cr.left-200;
+        const p=svg.createSVGPoint();
+        p.x=t.x+t.w;p.y=t.y;
+        const screen=p.matrixTransform(svg.getScreenCTM());
+        let px=screen.x-cr.left+12;
+        let py=screen.y-cr.top;
+        if(px+190>cr.width){
+          p.x=t.x;
+          const left=p.matrixTransform(svg.getScreenCTM());
+          px=left.x-cr.left-200;
+        }
         if(py+220>cr.height)py=cr.height-224;
         return{px:Math.max(4,px),py:Math.max(52,py)};
       }
 
       const selTower=towers.find(t=>t.id===sel);
+      const zoomFactor=zoom/100;
+      const viewW=640/zoomFactor,viewH=440/zoomFactor;
+      const canvasViewBox=`${(640-viewW)/2} ${(440-viewH)/2} ${viewW} ${viewH}`;
       const ib={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,color:C.gray2,width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0};
 
       return (
@@ -962,7 +1080,7 @@
                 </button>
                 <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6}}>
                   <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><Icon.ZoomOut/></button>
-                  <span style={{fontSize:11,color:C.gray,minWidth:34,textAlign:"center"}}>{zoom}%</span>
+                  <button onClick={()=>setZoom(100)} title="Restaurar zoom" style={{background:"none",border:"none",fontSize:11,color:C.gray,minWidth:38,textAlign:"center",cursor:"pointer"}}>{zoom}%</button>
                   <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><Icon.ZoomIn/></button>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
@@ -983,7 +1101,7 @@
               <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)} towerCount={towers.length}/>
 
               {/* SVG */}
-              <svg ref={svgRef} width="100%" height="100%" viewBox="0 0 640 440" style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease"}}
+              <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease"}}
                 onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
                 onClick={()=>{if(!dragging.current)setSel(null);}}
               >
@@ -997,15 +1115,14 @@
                 <text x="315" y="232" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">847 m²</text>
                 <text x="602" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">N ↑</text>
 
-                {showSetbacks && <SetbackOverlay/>}
+                {showSetbacks && view==="2D" && <SetbackOverlay/>}
 
-                {/* tower base shadows — 1.2 */}
-                {towers.map(t=>(
+                {view==="2D" && towers.map(t=>(
                   <rect key={`sh-${t.id}`} x={t.x+4} y={t.y+6} width={t.w} height={t.h} rx={4}
                     fill="rgba(0,0,0,0.32)" style={{filter:"blur(5px)"}}/>
                 ))}
 
-                {towers.map((t,i)=>{
+                {view==="2D" && towers.map((t,i)=>{
                   const st=towerState(t);
                   const isSel=sel===t.id,isHov=hoverId===t.id&&!isSel,isShk=shakeId===t.id;
                   const fill=st==="conflict"?"rgba(253,72,72,0.2)":st==="overlap"?"rgba(255,188,0,0.12)":isSel?"rgba(1,173,110,0.3)":isHov?"rgba(52,67,87,0.9)":"#344357";
@@ -1038,17 +1155,21 @@
                   );
                 })}
 
-                {/* distance ruler — 1.3 */}
-                {selTower && <DistanceRuler tower={selTower} towers={towers}/>}
+                {view==="3D" && towers.map(t=>(
+                  <Tower3D key={t.id} tower={t} selected={sel===t.id} onSelect={setSel}/>
+                ))}
+
+                {view==="2D" && selTower && <DistanceRuler tower={selTower} towers={towers}/>}
               </svg>
 
-              {selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)}/>; })()}
+              {selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)} onAdjust={()=>adjustTower(selTower.id)} onRemove={()=>removeTower(selTower.id)}/>; })()}
 
               {/* floating chat */}
               <ChatPanel msgs={msgs} typing={typing} input={input} setInput={setInput}
                 onSend={()=>sendMessage()} size={chatSize} setSize={setChatSize}
                 attachedFile={attachedFile} onAttachFile={attachFile}
                 onRemoveFile={()=>setAttachedFile(null)}
+                onAction={applyChatAction}
               />
 
               {/* compare panel — 2.2 */}
