@@ -10,34 +10,23 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- lucide icons replaced with inline SVG -->
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #11151d; }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-    @keyframes bounce {
-      0%, 80%, 100% { transform: translateY(0); }
-      40% { transform: translateY(-6px); }
-    }
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20% { transform: translateX(-3px); }
-      40% { transform: translateX(3px); }
-      60% { transform: translateX(-3px); }
-      80% { transform: translateX(3px); }
-    }
-    @keyframes pulseTower {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.015); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.92); }
-      to { opacity: 1; transform: scale(1); }
-    }
-    .tower-shake { animation: shake 300ms ease forwards; }
-    .tower-pulse { animation: pulseTower 200ms ease 1; }
+
+    @keyframes bounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+    @keyframes shake     { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-3px)} 40%{transform:translateX(3px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+    @keyframes pulseT    { 0%,100%{transform:scale(1)} 50%{transform:scale(1.018)} }
+    @keyframes fadeUp    { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+    @keyframes slideUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes expandIn  { from{opacity:0;transform:scale(0.94)} to{opacity:1;transform:scale(1)} }
+
+    .shake   { animation: shake  300ms ease forwards; }
+    .pulse-t { animation: pulseT 200ms ease 1; }
   </style>
 </head>
 <body>
@@ -46,29 +35,7 @@
   <script id="app-src" type="text/plain">
     const { useState, useRef, useEffect, useCallback, useMemo } = React;
 
-    // inline SVG icons
-    const Send = ({size=14,color="currentColor"}) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-      </svg>
-    );
-    const ZoomIn = ({size=12,color="currentColor"}) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-      </svg>
-    );
-    const ZoomOut = ({size=12,color="currentColor"}) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
-      </svg>
-    );
-    const X = ({size=12,color="currentColor"}) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-    );
-
-    // ── palette ────────────────────────────────────────────────────────────────
+    /* ── palette ──────────────────────────────────────────────────── */
     const C = {
       ink:    "#1A202C", ink2:   "#11151d", card:   "#20262f",
       green:  "#01AD6E", green2: "#33E0A1", purple: "#564FFF",
@@ -76,6 +43,18 @@
       gray2:  "#CBD5E0",
     };
 
+    /* ── icons (inline SVG) ───────────────────────────────────────── */
+    const Icon = {
+      Send:    ({s=14,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+      ZoomIn:  ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
+      ZoomOut: ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>,
+      X:       ({s=12,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+      Layers:  ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+      ChevronUp: ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
+      Msg:     ({s=13,c="currentColor"}) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+    };
+
+    /* ── data ─────────────────────────────────────────────────────── */
     const TERRAIN = "160,60 480,40 560,120 540,360 420,400 180,380 80,280 100,140";
     const LOT = 847;
 
@@ -86,519 +65,664 @@
     ];
 
     const HISTORY = [
-      { role:"user",  text:"Quero avaliar este terreno no Brooklin.\nGera três alternativas priorizando\nunidades, mantendo CA abaixo de 12.", time:"14:22" },
-      { role:"agent", text:"Entendido. Identifiquei duas premissas\nausentes antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m²,\n  1 dorm 52m² ou ambas?", time:"14:22" },
+      { role:"user",  text:"Quero avaliar este terreno no Brooklin.\nGera três alternativas priorizando unidades, mantendo CA abaixo de 12.", time:"14:22" },
+      { role:"agent", text:"Entendido. Identifiquei duas premissas ausentes antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m², 1 dorm 52m² ou ambas?", time:"14:22" },
       { role:"user",  text:"Confirmo 1 vaga. Usa ambas as tipologias.", time:"14:23" },
       { role:"skill", fn:"gerar_solucoes_implantacao()", sub:"3 alternativas geradas · Versão 01 ativa",
-        text:"Solução com 163 unidades posicionada.\nTorre B concentra maior densidade.\nTaxa de ocupação em 38% — dentro do limite.\nQuer explorar reduzir Torre A para\nabrir área de permeabilidade?", time:"14:23" },
+        text:"Solução com 163 unidades posicionada. Torre B concentra maior densidade.\nTaxa de ocupação em 38% — dentro do limite.\nQuer explorar reduzir Torre A para abrir área de permeabilidade?", time:"14:23" },
     ];
 
     const AUTO_REPLY = "Entendido. Analisando o impacto no estudo atual. Posso ajustar as torres conforme solicitado — qual elemento quer priorizar: unidades, permeabilidade ou recuos?";
 
-    // ── geometry helpers ───────────────────────────────────────────────────────
+    /* ── geometry ─────────────────────────────────────────────────── */
     function pip(px, py, pts) {
       let inside = false;
-      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-        const [xi,yi] = pts[i], [xj,yj] = pts[j];
-        if ((yi > py) !== (yj > py) && px < ((xj-xi)*(py-yi))/(yj-yi)+xi) inside = !inside;
+      for (let i=0, j=pts.length-1; i<pts.length; j=i++) {
+        const [xi,yi]=pts[i],[xj,yj]=pts[j];
+        if ((yi>py)!==(yj>py) && px<((xj-xi)*(py-yi))/(yj-yi)+xi) inside=!inside;
       }
       return inside;
     }
+    const parsePoly = str => str.split(" ").map(p=>p.split(",").map(Number));
+    function rectInPoly(x,y,w,h,str) {
+      const pts=parsePoly(str);
+      return pip(x,y,pts)&&pip(x+w,y,pts)&&pip(x,y+h,pts)&&pip(x+w,y+h,pts);
+    }
+    const overlaps = (a,b) => a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
 
-    function parsePoly(str) { return str.split(" ").map(p => p.split(",").map(Number)); }
-
-    function rectInPoly(x, y, w, h, str) {
-      const pts = parsePoly(str);
-      return pip(x,y,pts) && pip(x+w,y,pts) && pip(x,y+h,pts) && pip(x+w,y+h,pts);
+    function calcMetrics(towers) {
+      const units = towers.reduce((s,t)=>s+t.units,0);
+      const area  = towers.reduce((s,t)=>s+t.area, 0);
+      const base  = towers.reduce((s,t)=>s+(t.w*t.h)/100,0);
+      const occ   = Math.min(99,Math.round(base/LOT*100));
+      const ca    = Math.round(area/LOT*10)/10;
+      return {units,area,occ,ca};
     }
 
-    function overlap(a, b) {
-      return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
-    }
-
-    function metrics(towers) {
-      const units = towers.reduce((s,t) => s + t.units, 0);
-      const area  = towers.reduce((s,t) => s + t.area,  0);
-      const base  = towers.reduce((s,t) => s + (t.w*t.h)/100, 0);
-      const occ   = Math.min(99, Math.round(base / LOT * 100));
-      const ca    = Math.round(area / LOT * 10) / 10;
-      return { units, area, occ, ca };
-    }
-
-    // ── MetricBar ──────────────────────────────────────────────────────────────
-    function MetricBar({ val, max, warn, danger }) {
-      const pct = max ? Math.min(100, val/max*100) : 100;
-      const color = !max ? C.green2 : val >= danger ? C.red : val >= warn ? C.yellow : C.green2;
-      return (
-        <div style={{ height:4, background:"rgba(255,255,255,0.08)", borderRadius:2, marginTop:6 }}>
-          <div style={{ height:"100%", width:`${pct}%`, background:color, borderRadius:2, transition:"width 0.35s ease, background 0.35s ease" }} />
-        </div>
-      );
-    }
-
-    // ── FlipValue ──────────────────────────────────────────────────────────────
-    function FlipValue({ val, suffix="" }) {
-      const [disp, setDisp] = useState(val);
-      const [anim, setAnim] = useState(false);
-      const prev = useRef(val);
-      useEffect(() => {
-        if (prev.current !== val) {
+    /* ── FlipValue ────────────────────────────────────────────────── */
+    function FlipValue({val,suffix="",size=22,bold=700}) {
+      const [disp,setDisp]=useState(val);
+      const [anim,setAnim]=useState(false);
+      const prev=useRef(val);
+      useEffect(()=>{
+        if(prev.current!==val){
           setAnim(true);
-          const t = setTimeout(() => { setDisp(val); setAnim(false); }, 160);
-          prev.current = val;
-          return () => clearTimeout(t);
+          const t=setTimeout(()=>{setDisp(val);setAnim(false);},160);
+          prev.current=val;
+          return ()=>clearTimeout(t);
         }
-      }, [val]);
+      },[val]);
       return (
         <span style={{
+          fontFamily:"'Sora',sans-serif",fontSize:size,fontWeight:bold,color:"#fff",
           display:"inline-block",
-          fontFamily:"'Sora',sans-serif", fontSize:22, fontWeight:700, color:"#fff",
-          transform: anim ? "translateY(-5px)" : "translateY(0)",
-          opacity: anim ? 0 : 1,
-          transition:"transform 0.16s ease, opacity 0.16s ease",
+          transform:anim?"translateY(-4px)":"translateY(0)",
+          opacity:anim?0:1,
+          transition:"transform 0.15s ease,opacity 0.15s ease",
         }}>
-          {typeof disp === "number" ? disp.toLocaleString("pt-BR") : disp}{suffix}
+          {typeof disp==="number"?disp.toLocaleString("pt-BR"):disp}{suffix}
         </span>
       );
     }
 
-    // ── TypingDots ─────────────────────────────────────────────────────────────
+    /* ── MetricBar ────────────────────────────────────────────────── */
+    function MetricBar({val,max,warn,danger}) {
+      const pct=max?Math.min(100,val/max*100):100;
+      const color=!max?C.green2:val>=(danger||Infinity)?C.red:val>=(warn||Infinity)?C.yellow:C.green2;
+      return (
+        <div style={{height:3,background:"rgba(255,255,255,0.07)",borderRadius:2,marginTop:5}}>
+          <div style={{height:"100%",width:`${pct}%`,background:color,borderRadius:2,transition:"width 0.35s ease,background 0.35s ease"}}/>
+        </div>
+      );
+    }
+
+    /* ── TypingDots ───────────────────────────────────────────────── */
     function TypingDots() {
       return (
-        <div style={{ display:"flex", gap:4, padding:"10px 14px", alignItems:"center" }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{
-              width:6, height:6, borderRadius:"50%", background:C.green2,
-              animation:`bounce 1s ease ${i*0.2}s infinite`
-            }} />
+        <div style={{display:"flex",gap:4,padding:"10px 14px",alignItems:"center"}}>
+          {[0,1,2].map(i=>(
+            <div key={i} style={{width:6,height:6,borderRadius:"50%",background:C.green2,animation:`bounce 1s ease ${i*0.2}s infinite`}}/>
           ))}
         </div>
       );
     }
 
-    // ── ChatBubble ─────────────────────────────────────────────────────────────
-    function Bubble({ msg }) {
-      if (msg.role === "user") return (
-        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
-          <div style={{ maxWidth:"82%" }}>
-            <div style={{
-              background:"rgba(255,255,255,0.07)", borderRadius:"12px 12px 2px 12px",
-              padding:"10px 14px", fontFamily:"'Inter',sans-serif", fontSize:13, color:C.gray2, whiteSpace:"pre-line",
-            }}>{msg.text}</div>
-            <div style={{ textAlign:"right", marginTop:3, fontFamily:"'Inter',sans-serif", fontSize:10, color:C.gray }}>{msg.time}</div>
+    /* ── ChatBubble ───────────────────────────────────────────────── */
+    function Bubble({msg,idx}) {
+      const enter = {animation:`fadeUp 0.25s ease ${idx*0.04}s both`};
+      if (msg.role==="user") return (
+        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8,...enter}}>
+          <div style={{maxWidth:"80%"}}>
+            <div style={{background:"rgba(255,255,255,0.08)",borderRadius:"12px 12px 2px 12px",padding:"9px 13px",fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2,whiteSpace:"pre-line",lineHeight:1.5}}>{msg.text}</div>
+            <div style={{textAlign:"right",marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
           </div>
         </div>
       );
-
-      if (msg.role === "skill") return (
-        <div style={{ marginBottom:10 }}>
-          <div style={{
-            background:"rgba(86,79,255,0.12)", border:"1px solid rgba(203,200,255,0.2)",
-            borderRadius:"2px 12px 12px 12px", padding:"10px 14px", maxWidth:"92%",
-          }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-              <span style={{
-                background:C.purple, color:"#fff", fontFamily:"'Inter',sans-serif",
-                fontSize:10, fontWeight:600, padding:"2px 7px", borderRadius:4, letterSpacing:"0.05em",
-              }}>Skill</span>
-              <code style={{ fontFamily:"monospace", fontSize:11, color:"rgba(203,200,255,0.8)" }}>{msg.fn}</code>
+      if (msg.role==="skill") return (
+        <div style={{marginBottom:8,...enter}}>
+          <div style={{background:"rgba(86,79,255,0.12)",border:"1px solid rgba(203,200,255,0.2)",borderRadius:"2px 12px 12px 12px",padding:"10px 13px",maxWidth:"92%"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+              <span style={{background:C.purple,color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:4,letterSpacing:"0.05em"}}>Skill</span>
+              <code style={{fontFamily:"monospace",fontSize:11,color:"rgba(203,200,255,0.8)"}}>{msg.fn}</code>
             </div>
-            <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:6 }}>↳ {msg.sub}</div>
-            <div style={{ fontFamily:"'Inter',sans-serif", fontSize:13, color:C.gray2, whiteSpace:"pre-line" }}>{msg.text}</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,marginBottom:5}}>↳ {msg.sub}</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2,whiteSpace:"pre-line",lineHeight:1.5}}>{msg.text}</div>
           </div>
-          <div style={{ marginTop:3, fontFamily:"'Inter',sans-serif", fontSize:10, color:C.gray }}>{msg.time}</div>
+          <div style={{marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
         </div>
       );
-
       return (
-        <div style={{ marginBottom:10 }}>
-          <div style={{
-            background:"rgba(1,173,110,0.1)", border:"1px solid rgba(51,224,161,0.15)",
-            borderRadius:"2px 12px 12px 12px", padding:"10px 14px", maxWidth:"92%",
-            fontFamily:"'Inter',sans-serif", fontSize:13, color:C.gray2, whiteSpace:"pre-line",
-          }}>{msg.text}</div>
-          <div style={{ marginTop:3, fontFamily:"'Inter',sans-serif", fontSize:10, color:C.gray }}>{msg.time}</div>
+        <div style={{marginBottom:8,...enter}}>
+          <div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",padding:"9px 13px",maxWidth:"92%",fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2,whiteSpace:"pre-line",lineHeight:1.5}}>{msg.text}</div>
+          <div style={{marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
         </div>
       );
     }
 
-    // ── PropPanel ──────────────────────────────────────────────────────────────
-    function PropPanel({ tower, onClose }) {
+    /* ── MetricsHUD ───────────────────────────────────────────────── */
+    function MetricsHUD({m,open,onToggle}) {
+      return (
+        <div style={{position:"absolute",top:52,right:14,zIndex:20,animation:"fadeIn 0.3s ease"}}>
+          {/* collapsed pill */}
+          <button
+            onClick={onToggle}
+            style={{
+              display:"flex",alignItems:"center",gap:8,
+              background:open?"rgba(32,38,47,0.95)":"rgba(32,38,47,0.85)",
+              border:`1px solid ${open?"rgba(51,224,161,0.25)":"rgba(255,255,255,0.1)"}`,
+              borderRadius:open?"10px 10px 0 0":10,
+              padding:"6px 12px",cursor:"pointer",
+              backdropFilter:"blur(10px)",
+              width:"100%",
+              transition:"all 0.2s ease",
+            }}
+          >
+            <Icon.Layers s={12} c={C.green2}/>
+            <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,flex:1,textAlign:"left"}}>
+              <span style={{color:"#fff",fontWeight:600}}>{m.units}</span> un &nbsp;·&nbsp; CA <span style={{color:m.ca>=11.5?C.yellow:"#fff",fontWeight:600}}>{m.ca}</span>
+            </span>
+            <div style={{transform:open?"rotate(0)":"rotate(180deg)",transition:"transform 0.2s ease",display:"flex"}}>
+              <Icon.ChevronUp s={12} c={C.gray}/>
+            </div>
+          </button>
+
+          {/* expanded panel */}
+          {open && (
+            <div style={{
+              background:"rgba(32,38,47,0.95)",backdropFilter:"blur(10px)",
+              border:"1px solid rgba(51,224,161,0.25)",borderTop:"none",
+              borderRadius:"0 0 10px 10px",padding:"12px 14px",
+              width:230,animation:"expandIn 0.15s ease",
+            }}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 10px"}}>
+                {[
+                  {label:"Unidades totais",val:m.units,suffix:"",max:null},
+                  {label:"Área construída", val:m.area, suffix:" m²",max:null,size:16},
+                  {label:"Taxa de ocupação",val:m.occ, suffix:"%",max:50,warn:45,danger:50},
+                  {label:"CA utilizado",    val:m.ca,  suffix:"",max:12,warn:11.5,danger:12},
+                ].map(({label,val,suffix,max,warn,danger,size})=>(
+                  <div key={label}>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginBottom:2}}>{label}</div>
+                    <FlipValue val={val} suffix={suffix} size={size||20}/>
+                    <MetricBar val={val} max={max} warn={warn} danger={danger}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ── TowerPanel (on-canvas prop card) ────────────────────────── */
+    function TowerPanel({tower,px,py,onClose}) {
       return (
         <div style={{
-          position:"absolute", background:C.card,
-          border:"1px solid rgba(51,224,161,0.22)", borderRadius:10, padding:14,
-          width:190, zIndex:40, animation:"fadeIn 0.15s ease",
-          top: Math.min(tower.panelY, window.innerHeight - 220),
-          left: tower.panelX,
-          boxShadow:"0 8px 32px rgba(0,0,0,0.4)",
+          position:"absolute",left:px,top:py,zIndex:30,
+          background:"rgba(26,32,44,0.96)",backdropFilter:"blur(12px)",
+          border:"1px solid rgba(51,224,161,0.25)",borderRadius:10,padding:14,width:185,
+          animation:"expandIn 0.15s ease",boxShadow:"0 8px 32px rgba(0,0,0,0.5)",
         }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-            <span style={{ fontFamily:"'Sora',sans-serif", fontSize:13, fontWeight:700, color:"#fff" }}>Torre {tower.id}</span>
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ fontFamily:"'Inter',sans-serif", fontSize:10, color:C.green2 }}>Selecionada</span>
-              <button onClick={onClose} style={{ background:"none", border:"none", color:C.gray, cursor:"pointer", display:"flex" }}>
-                <X size={12} />
-              </button>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:24,height:24,borderRadius:6,background:"rgba(1,173,110,0.2)",border:"1px solid rgba(51,224,161,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:C.green2}}>{tower.id}</div>
+              <span style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,color:"#fff"}}>Torre {tower.id}</span>
             </div>
+            <button onClick={onClose} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",display:"flex",padding:2}}>
+              <Icon.X s={12}/>
+            </button>
           </div>
-          <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:8 }}>
+          <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:9}}>
             {[["Pavimentos",tower.floors],["Unidades",tower.units],["Área total",`${tower.area.toLocaleString("pt-BR")} m²`],["Tipologia",tower.type]].map(([l,v])=>(
-              <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:7 }}>
-                <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray }}>{l}</span>
-                <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray2, fontWeight:500 }}>{v}</span>
+              <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>{l}</span>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,fontWeight:500}}>{v}</span>
               </div>
             ))}
           </div>
-          <div style={{ display:"flex", gap:6, marginTop:10 }}>
-            <button style={{ flex:1, background:"rgba(1,173,110,0.15)", border:`1px solid rgba(1,173,110,0.4)`, borderRadius:6, color:C.green2, fontFamily:"'Inter',sans-serif", fontSize:11, padding:"5px 0", cursor:"pointer" }}>Ajustar</button>
-            <button style={{ flex:1, background:"rgba(253,72,72,0.1)", border:"1px solid rgba(253,72,72,0.3)", borderRadius:6, color:C.red, fontFamily:"'Inter',sans-serif", fontSize:11, padding:"5px 0", cursor:"pointer" }}>Remover</button>
+          <div style={{display:"flex",gap:6,marginTop:10}}>
+            <button style={{flex:1,background:"rgba(1,173,110,0.15)",border:"1px solid rgba(1,173,110,0.35)",borderRadius:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Ajustar</button>
+            <button style={{flex:1,background:"rgba(253,72,72,0.1)",border:"1px solid rgba(253,72,72,0.28)",borderRadius:6,color:C.red,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Remover</button>
           </div>
         </div>
       );
     }
 
-    // ── Main ───────────────────────────────────────────────────────────────────
+    /* ── IdleInput ────────────────────────────────────────────────── */
+    function IdleInput({onSend}) {
+      const [val,setVal]=useState("");
+      const ref=useRef(null);
+      useEffect(()=>{ setTimeout(()=>ref.current?.focus(),400); },[]);
+      function send(){
+        if(!val.trim()) return;
+        onSend(val);
+        setVal("");
+      }
+      return (
+        <div style={{
+          position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",
+          width:"min(640px,80%)",zIndex:20,
+          animation:"slideUp 0.4s ease",
+        }}>
+          <div style={{
+            background:"rgba(32,38,47,0.92)",backdropFilter:"blur(16px)",
+            border:"1px solid rgba(255,255,255,0.12)",borderRadius:16,
+            padding:"6px 6px 6px 16px",
+            display:"flex",alignItems:"flex-end",gap:8,
+            boxShadow:"0 20px 60px rgba(0,0,0,0.5)",
+            transition:"border-color 0.2s ease",
+          }}
+          onFocus={e=>e.currentTarget.style.borderColor="rgba(1,173,110,0.5)"}
+          onBlur={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.12)"}
+          >
+            <textarea
+              ref={ref}
+              rows={2}
+              value={val}
+              onChange={e=>setVal(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();} }}
+              placeholder="Descreva o projeto ou o terreno que quer avaliar…"
+              style={{
+                flex:1,background:"transparent",border:"none",outline:"none",
+                color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:14,
+                resize:"none",lineHeight:1.6,padding:"6px 0",
+              }}
+            />
+            <button
+              onClick={send}
+              style={{
+                width:38,height:38,borderRadius:"50%",
+                background:val.trim()?C.green:"rgba(255,255,255,0.08)",
+                border:"none",display:"flex",alignItems:"center",justifyContent:"center",
+                cursor:"pointer",flexShrink:0,transition:"background 0.2s ease",
+                marginBottom:2,
+              }}
+            >
+              <Icon.Send s={15} c="#fff"/>
+            </button>
+          </div>
+          <p style={{textAlign:"center",marginTop:10,fontFamily:"'Inter',sans-serif",fontSize:11,color:"rgba(113,128,150,0.6)"}}>
+            Enter para enviar · Shift+Enter para nova linha
+          </p>
+        </div>
+      );
+    }
+
+    /* ── FloatingChat ─────────────────────────────────────────────── */
+    function FloatingChat({msgs,typing,input,setInput,onSend,open,onToggle}) {
+      const scrollRef=useRef(null);
+      useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing]);
+
+      return (
+        <div style={{
+          position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",
+          width:"min(580px,72%)",zIndex:20,
+          display:"flex",flexDirection:"column",
+          animation:"slideUp 0.3s ease",
+        }}>
+          {/* chat history (conditionally shown) */}
+          {open && (
+            <div style={{
+              background:"rgba(17,21,29,0.94)",backdropFilter:"blur(14px)",
+              border:"1px solid rgba(255,255,255,0.08)",borderRadius:"12px 12px 0 0",
+              borderBottom:"none",
+              maxHeight:320,overflowY:"auto",
+              padding:"14px 14px 6px",
+              animation:"expandIn 0.2s ease",
+            }} ref={scrollRef}>
+              {msgs.map((msg,i)=><Bubble key={i} msg={msg} idx={i}/>)}
+              {typing && (
+                <div style={{marginBottom:8}}>
+                  <div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}>
+                    <TypingDots/>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* input bar */}
+          <div style={{
+            background:"rgba(32,38,47,0.95)",backdropFilter:"blur(14px)",
+            border:"1px solid rgba(255,255,255,0.1)",
+            borderRadius: open ? "0 0 12px 12px" : 12,
+            padding:"8px 8px 8px 14px",
+            display:"flex",alignItems:"flex-end",gap:8,
+            boxShadow:"0 8px 40px rgba(0,0,0,0.4)",
+            marginBottom:12,
+          }}>
+            {/* toggle history */}
+            <button
+              onClick={onToggle}
+              title={open?"Fechar conversa":"Ver conversa"}
+              style={{
+                width:32,height:32,borderRadius:8,flexShrink:0,
+                background:open?"rgba(1,173,110,0.15)":"rgba(255,255,255,0.05)",
+                border:`1px solid ${open?"rgba(1,173,110,0.3)":"rgba(255,255,255,0.1)"}`,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                cursor:"pointer",transition:"all 0.15s ease",marginBottom:1,
+              }}
+            >
+              <Icon.Msg s={13} c={open?C.green2:C.gray}/>
+            </button>
+
+            <textarea
+              rows={1}
+              value={input}
+              onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();} }}
+              placeholder="Descreva o que quer ajustar…"
+              style={{
+                flex:1,background:"transparent",border:"none",outline:"none",
+                color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:13,
+                resize:"none",lineHeight:1.6,padding:"5px 0",
+                maxHeight:80,
+              }}
+            />
+            <button
+              onClick={onSend}
+              style={{
+                width:34,height:34,borderRadius:"50%",
+                background:C.green,border:"none",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                cursor:"pointer",flexShrink:0,marginBottom:1,
+              }}
+            >
+              <Icon.Send s={14} c="#fff"/>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Main ─────────────────────────────────────────────────────── */
     function ArqgenNext() {
-      const [towers,    setTowers]  = useState(INIT_TOWERS);
-      const [sel,       setSel]     = useState(null);
-      const [zoom,      setZoom]    = useState(100);
-      const [version,   setVersion] = useState("Versão 01");
-      const [view,      setView]    = useState("2D");
-      const [msgs,      setMsgs]    = useState(HISTORY);
-      const [input,     setInput]   = useState("");
-      const [typing,    setTyping]  = useState(false);
-      const [mounted,   setMounted] = useState(false);
-      const [shakeId,   setShakeId] = useState(null);
+      const [towers,   setTowers]   = useState(INIT_TOWERS);
+      const [sel,      setSel]      = useState(null);
+      const [zoom,     setZoom]     = useState(100);
+      const [version,  setVersion]  = useState("Versão 01");
+      const [view,     setView]     = useState("2D");
+      const [msgs,     setMsgs]     = useState(HISTORY);
+      const [input,    setInput]    = useState("");
+      const [typing,   setTyping]   = useState(false);
+      const [mounted,  setMounted]  = useState(false);
+      const [shakeId,  setShakeId]  = useState(null);
+      const [hoverId,  setHoverId]  = useState(null);
+      const [mode,     setMode]     = useState("idle");   // "idle" | "active"
+      const [chatOpen, setChatOpen] = useState(false);
+      const [metricsOpen, setMetricsOpen] = useState(true);
 
       const svgRef   = useRef(null);
       const dragging = useRef(null);
       const resizing = useRef(null);
-      const chatRef  = useRef(null);
 
-      useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
-      useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [msgs, typing]);
+      useEffect(()=>{ const t=setTimeout(()=>setMounted(true),100); return ()=>clearTimeout(t); },[]);
 
-      const m = useMemo(() => metrics(towers), [towers]);
+      const m = useMemo(()=>calcMetrics(towers),[towers]);
 
       function svgPt(e) {
-        const svg = svgRef.current;
-        const p = svg.createSVGPoint();
-        p.x = e.clientX; p.y = e.clientY;
+        const svg=svgRef.current;
+        const p=svg.createSVGPoint();
+        p.x=e.clientX; p.y=e.clientY;
         return p.matrixTransform(svg.getScreenCTM().inverse());
       }
 
       function towerState(t) {
-        if (!rectInPoly(t.x, t.y, t.w, t.h, TERRAIN)) return "conflict";
-        if (towers.some(o => o.id !== t.id && overlap(t, o))) return "overlap";
-        return sel === t.id ? "selected" : "normal";
+        if (!rectInPoly(t.x,t.y,t.w,t.h,TERRAIN)) return "conflict";
+        if (towers.some(o=>o.id!==t.id&&overlaps(t,o))) return "overlap";
+        return sel===t.id?"selected":"normal";
       }
 
-      function onTowerDown(e, id) {
+      function onTowerDown(e,id) {
         e.stopPropagation();
         setSel(id);
-        const t = towers.find(t => t.id === id);
-        const p = svgPt(e);
-        dragging.current = { id, ox: p.x - t.x, oy: p.y - t.y, orig: { x:t.x, y:t.y } };
+        const t=towers.find(t=>t.id===id);
+        const p=svgPt(e);
+        dragging.current={id,ox:p.x-t.x,oy:p.y-t.y,orig:{x:t.x,y:t.y}};
       }
 
-      function onHandleDown(e, id, corner) {
+      function onHandleDown(e,id,corner) {
         e.stopPropagation();
-        const t = towers.find(t => t.id === id);
-        const p = svgPt(e);
-        resizing.current = { id, corner, sp:p, ow:t.w, oh:t.h, ox:t.x, oy:t.y };
+        const t=towers.find(t=>t.id===id);
+        const p=svgPt(e);
+        resizing.current={id,corner,sp:p,ow:t.w,oh:t.h,ox:t.x,oy:t.y};
       }
 
-      const onMove = useCallback(e => {
+      const onMove = useCallback(e=>{
         if (dragging.current) {
-          const { id, ox, oy } = dragging.current;
-          const p = svgPt(e);
-          setTowers(prev => prev.map(t => t.id===id ? {...t, x:p.x-ox, y:p.y-oy} : t));
+          const {id,ox,oy}=dragging.current;
+          const p=svgPt(e);
+          setTowers(prev=>prev.map(t=>t.id===id?{...t,x:p.x-ox,y:p.y-oy}:t));
         }
         if (resizing.current) {
-          const { id, corner, sp, ow, oh, ox, oy } = resizing.current;
-          const p = svgPt(e);
-          const dx = p.x - sp.x, dy = p.y - sp.y;
-          setTowers(prev => prev.map(t => {
-            if (t.id !== id) return t;
-            let { x, y, w, h } = { x:ox, y:oy, w:ow, h:oh };
-            if (corner.includes("e")) w = Math.max(30, ow+dx);
-            if (corner.includes("s")) h = Math.max(20, oh+dy);
-            if (corner.includes("w")) { x = ox+dx; w = Math.max(30, ow-dx); }
-            if (corner.includes("n")) { y = oy+dy; h = Math.max(20, oh-dy); }
-            const r = (w*h)/(ow*oh);
-            return { ...t, x, y, w, h, units: Math.round(t.units*r), area: Math.round(t.area*r) };
+          const {id,corner,sp,ow,oh,ox,oy}=resizing.current;
+          const p=svgPt(e);
+          const dx=p.x-sp.x, dy=p.y-sp.y;
+          setTowers(prev=>prev.map(t=>{
+            if(t.id!==id) return t;
+            let {x,y,w,h}={x:ox,y:oy,w:ow,h:oh};
+            if(corner.includes("e")) w=Math.max(30,ow+dx);
+            if(corner.includes("s")) h=Math.max(20,oh+dy);
+            if(corner.includes("w")){x=ox+dx;w=Math.max(30,ow-dx);}
+            if(corner.includes("n")){y=oy+dy;h=Math.max(20,oh-dy);}
+            const r=(w*h)/(ow*oh);
+            return{...t,x,y,w,h,units:Math.round(t.units*r),area:Math.round(t.area*r)};
           }));
         }
-      }, []);
+      },[]);
 
-      const onUp = useCallback(() => {
+      const onUp = useCallback(()=>{
         if (dragging.current) {
-          const { id, orig } = dragging.current;
-          setTowers(prev => {
-            const t = prev.find(t => t.id===id);
-            if (!rectInPoly(t.x, t.y, t.w, t.h, TERRAIN)) {
+          const {id,orig}=dragging.current;
+          setTowers(prev=>{
+            const t=prev.find(t=>t.id===id);
+            if(!rectInPoly(t.x,t.y,t.w,t.h,TERRAIN)){
               setShakeId(id);
-              setTimeout(() => setShakeId(null), 400);
-              return prev.map(tt => tt.id===id ? {...tt, x:orig.x, y:orig.y} : tt);
+              setTimeout(()=>setShakeId(null),400);
+              return prev.map(tt=>tt.id===id?{...tt,x:orig.x,y:orig.y}:tt);
             }
             return prev;
           });
-          dragging.current = null;
+          dragging.current=null;
         }
-        resizing.current = null;
-      }, []);
+        resizing.current=null;
+      },[]);
 
-      function send() {
-        if (!input.trim()) return;
-        const now = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-        setMsgs(m => [...m, { role:"user", text:input, time:now }]);
-        setInput(""); setTyping(true);
-        setTimeout(() => {
+      function sendMessage(text) {
+        const msg = text || input;
+        if (!msg.trim()) return;
+        const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        setMsgs(m=>[...m,{role:"user",text:msg,time:now}]);
+        setInput("");
+        setMode("active");
+        setChatOpen(true);
+        setTyping(true);
+        setTimeout(()=>{
           setTyping(false);
-          const now2 = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-          setMsgs(m => [...m, { role:"agent", text:AUTO_REPLY, time:now2 }]);
-        }, 1200);
+          const now2=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+          setMsgs(m=>[...m,{role:"agent",text:AUTO_REPLY,time:now2}]);
+        },1200);
       }
 
-      // panel position (relative to canvas div)
+      // calculate tower panel position (absolute in canvas div)
       function panelPos(t) {
-        const svg = svgRef.current;
-        if (!svg) return { panelX:0, panelY:0 };
-        const r = svg.getBoundingClientRect();
-        const sx = r.width / 640, sy = r.height / 440;
-        const canvasDiv = svg.closest("[data-canvas]");
-        const cr = canvasDiv ? canvasDiv.getBoundingClientRect() : r;
-        return {
-          panelX: Math.min((t.x + t.w)*sx + r.left - cr.left + 10, cr.width - 200),
-          panelY: t.y*sy + r.top - cr.top,
-        };
+        const svg=svgRef.current;
+        if(!svg) return {px:0,py:0};
+        const r=svg.getBoundingClientRect();
+        const sx=r.width/640, sy=r.height/440;
+        const cr=svg.closest("[data-canvas]").getBoundingClientRect();
+        let px=(t.x+t.w)*sx + r.left - cr.left + 12;
+        let py=t.y*sy + r.top - cr.top;
+        if(px+190>cr.width) px=(t.x*sx + r.left - cr.left) - 200;
+        if(py+220>cr.height) py=cr.height-224;
+        return {px:Math.max(4,px),py:Math.max(52,py)};
       }
 
-      const selTower = towers.find(t => t.id === sel);
+      const selTower = towers.find(t=>t.id===sel);
 
-      // icon btn style
-      const ib = { background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:5, color:C.gray2, width:24, height:24, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" };
+      /* icon btn style */
+      const ib={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,color:C.gray2,width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0};
 
       return (
         <div
           tabIndex={-1}
-          onKeyDown={e => e.key==="Escape" && setSel(null)}
+          onKeyDown={e=>e.key==="Escape"&&setSel(null)}
           style={{
-            width:"100vw", height:"100vh", background:C.ink2,
-            display:"flex", flexDirection:"column", overflow:"hidden",
-            opacity: mounted ? 1 : 0, transition:"opacity 0.5s ease",
+            width:"100vw",height:"100vh",background:C.ink2,
+            display:"flex",flexDirection:"column",overflow:"hidden",
+            opacity:mounted?1:0,transition:"opacity 0.5s ease",
             fontFamily:"'Inter',sans-serif",
           }}
         >
-          {/* TOPBAR */}
+          {/* ── TOPBAR ──────────────────────────────────────────── */}
           <div style={{
-            height:48, flexShrink:0, background:C.ink2,
+            height:48,flexShrink:0,background:"rgba(17,21,29,0.9)",backdropFilter:"blur(10px)",
             borderBottom:"1px solid rgba(255,255,255,0.06)",
-            display:"flex", alignItems:"center", padding:"0 20px", gap:16,
+            display:"flex",alignItems:"center",padding:"0 18px",gap:16,
+            position:"relative",zIndex:10,
           }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ fontFamily:"'Sora',sans-serif", fontSize:18, fontWeight:700, color:C.green }}>arqgen</span>
-              <span style={{ background:C.purple, color:"#fff", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20, letterSpacing:"0.04em" }}>Next</span>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+              <span style={{fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:700,color:C.green,letterSpacing:"-0.02em"}}>arqgen</span>
+              <span style={{background:C.purple,color:"#fff",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:20,letterSpacing:"0.04em",lineHeight:1}}>Next</span>
             </div>
-            <div style={{ flex:1, textAlign:"center", fontSize:13, color:C.gray }}>Estudo · Lote Brooklin 847m²</div>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <button style={{ background:"none", border:`1px solid ${C.green}`, color:C.green, borderRadius:6, padding:"5px 14px", fontSize:12, cursor:"pointer", transition:"all 0.15s ease" }}>
-                Exportar
-              </button>
-              <div style={{ width:30, height:30, borderRadius:"50%", background:"linear-gradient(135deg,#564FFF,#01AD6E)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Sora',sans-serif", fontSize:11, fontWeight:700, color:"#fff" }}>S</div>
+            <div style={{flex:1,textAlign:"center",fontSize:12,color:C.gray,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>
+              Estudo · Lote Brooklin 847m²
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+              <button style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>
+              <div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#564FFF,#01AD6E)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>S</div>
             </div>
           </div>
 
-          {/* BODY */}
-          <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
-
-            {/* CANVAS */}
-            <div data-canvas style={{ flex:"0 0 70%", position:"relative", background:C.ink2, cursor:"crosshair" }}>
-
-              {/* canvas controls */}
-              <div style={{
-                position:"absolute", top:0, left:0, right:0, height:40, zIndex:10,
-                background:"rgba(17,21,29,0.88)", backdropFilter:"blur(8px)",
-                borderBottom:"1px solid rgba(255,255,255,0.05)",
-                display:"flex", alignItems:"center", padding:"0 14px", gap:10,
-              }}>
-                {/* version */}
-                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                  <div style={{ width:6, height:6, borderRadius:"50%", background:C.green }} />
-                  <select value={version} onChange={e=>setVersion(e.target.value)} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", color:C.gray2, fontFamily:"'Inter',sans-serif", fontSize:12, borderRadius:5, padding:"2px 6px", cursor:"pointer", outline:"none" }}>
-                    {["Versão 01","Versão 02","Versão 03"].map(v=>(
-                      <option key={v} value={v} style={{ background:C.card }}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* zoom */}
-                <div style={{ flex:1, display:"flex", justifyContent:"center", alignItems:"center", gap:8 }}>
-                  <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><ZoomOut size={12}/></button>
-                  <span style={{ fontSize:11, color:C.gray, minWidth:36, textAlign:"center" }}>{zoom}%</span>
-                  <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><ZoomIn size={12}/></button>
-                </div>
-
-                {/* 2D/3D + compare */}
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <div style={{ display:"flex", background:"rgba(255,255,255,0.05)", borderRadius:6, overflow:"hidden" }}>
-                    {["2D","3D"].map(v=>(
-                      <button key={v} onClick={()=>setView(v)} style={{ background:view===v?C.green:"transparent", border:"none", color:view===v?"#fff":C.gray, fontFamily:"'Inter',sans-serif", fontSize:11, fontWeight:600, padding:"3px 11px", cursor:"pointer", transition:"all 0.15s ease" }}>{v}</button>
-                    ))}
-                  </div>
-                  <button style={{ background:"none", border:`1px solid ${C.purple}`, color:C.purple, borderRadius:6, padding:"3px 10px", fontSize:11, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}>Comparar versões</button>
-                </div>
+          {/* ── CANVAS (full width) ─────────────────────────────── */}
+          <div
+            data-canvas
+            style={{flex:1,position:"relative",background:C.ink2,cursor:"crosshair",overflow:"hidden"}}
+          >
+            {/* canvas controls */}
+            <div style={{
+              position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,
+              background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",
+              borderBottom:"1px solid rgba(255,255,255,0.05)",
+              display:"flex",alignItems:"center",padding:"0 14px",gap:10,
+            }}>
+              {/* version selector */}
+              <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
+                <div style={{width:6,height:6,borderRadius:"50%",background:C.green,flexShrink:0}}/>
+                <select value={version} onChange={e=>setVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none",flexShrink:0}}>
+                  {["Versão 01","Versão 02","Versão 03"].map(v=>(
+                    <option key={v} value={v} style={{background:C.card}}>{v}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* SVG */}
-              <svg
-                ref={svgRef}
-                width="100%" height="100%"
-                viewBox="0 0 640 440"
-                style={{ position:"absolute", top:0, left:0, userSelect:"none" }}
-                onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
-                onClick={() => { if (!dragging.current) setSel(null); }}
-              >
-                <defs>
-                  <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
-                  </pattern>
-                </defs>
-                <rect width="640" height="440" fill="url(#g)"/>
+              {/* zoom */}
+              <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6}}>
+                <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><Icon.ZoomOut/></button>
+                <span style={{fontSize:11,color:C.gray,minWidth:34,textAlign:"center"}}>{zoom}%</span>
+                <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><Icon.ZoomIn/></button>
+              </div>
 
-                {/* terrain */}
-                <polygon points={TERRAIN} fill="rgba(1,173,110,0.06)" stroke="rgba(1,173,110,0.4)" strokeWidth="1.5" strokeDasharray="6,4"/>
-                <text x="315" y="228" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif">847 m²</text>
-                <text x="598" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif">N ↑</text>
-
-                {/* towers */}
-                {towers.map((t,i) => {
-                  const st    = towerState(t);
-                  const isSel = sel === t.id;
-                  const clsName = shakeId===t.id ? "tower-shake" : isSel ? "tower-pulse" : "";
-
-                  const fill   = st==="conflict" ? "rgba(253,72,72,0.2)"  : st==="overlap" ? "rgba(255,188,0,0.15)" : isSel ? "rgba(1,173,110,0.35)" : "#344357";
-                  const stroke = st==="conflict" ? C.red : st==="overlap" ? C.yellow : isSel ? C.green2 : "#526171";
-                  const sw     = isSel || st!=="normal" ? 2 : 1.5;
-
-                  // stagger entrance
-                  const enterDelay = `${i*100+200}ms`;
-
-                  return (
-                    <g key={t.id} className={clsName}
-                      style={{ cursor: dragging.current?.id===t.id ? "grabbing" : "grab", transition:"all 0.15s ease" }}
-                      onMouseDown={e => onTowerDown(e, t.id)}
-                      onClick={e => { e.stopPropagation(); setSel(t.id); }}
-                    >
-                      <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4}
-                        fill={fill} stroke={stroke} strokeWidth={sw}
-                        style={{ filter: isSel ? "drop-shadow(0 0 7px rgba(51,224,161,0.45))" : "none", transition:"all 0.15s ease" }}
-                      />
-                      <text x={t.x+t.w/2} y={t.y+t.h/2+5} textAnchor="middle"
-                        fill="#fff" fontSize={14} fontWeight="bold" fontFamily="'Sora',sans-serif"
-                        style={{ pointerEvents:"none" }}
-                      >{t.id}</text>
-
-                      {/* overlap badge */}
-                      {st==="overlap" && <>
-                        <rect x={t.x+t.w/2-27} y={t.y-19} width={54} height={16} rx={4} fill={C.yellow}/>
-                        <text x={t.x+t.w/2} y={t.y-8} textAnchor="middle" fill="#000" fontSize={9} fontWeight="bold" fontFamily="'Inter',sans-serif">Conflito</text>
-                      </>}
-
-                      {/* resize handles */}
-                      {isSel && [["nw",t.x-4,t.y-4],["ne",t.x+t.w-4,t.y-4],["sw",t.x-4,t.y+t.h-4],["se",t.x+t.w-4,t.y+t.h-4]].map(([corner,hx,hy])=>(
-                        <rect key={corner} x={hx} y={hy} width={8} height={8} rx={1}
-                          fill="#fff" stroke={C.green2} strokeWidth={1}
-                          style={{ cursor:`${corner}-resize`, transition:"opacity 0.15s ease" }}
-                          onMouseDown={e=>{ e.stopPropagation(); onHandleDown(e,t.id,corner); }}
-                        />
-                      ))}
-                    </g>
-                  );
-                })}
-              </svg>
-
-              {/* prop panel (absolute over canvas div) */}
-              {selTower && (()=>{
-                const pos = panelPos(selTower);
-                return <PropPanel tower={{...selTower, ...pos}} onClose={()=>setSel(null)}/>;
-              })()}
+              {/* 2D/3D + compare */}
+              <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                <div style={{display:"flex",background:"rgba(255,255,255,0.05)",borderRadius:6,overflow:"hidden"}}>
+                  {["2D","3D"].map(v=>(
+                    <button key={v} onClick={()=>setView(v)} style={{background:view===v?C.green:"transparent",border:"none",color:view===v?"#fff":C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"4px 11px",cursor:"pointer",transition:"all 0.15s ease"}}>{v}</button>
+                  ))}
+                </div>
+                <button style={{background:"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap"}}>Comparar versões</button>
+              </div>
             </div>
 
-            {/* RIGHT PANEL */}
-            <div style={{ flex:"0 0 30%", background:C.ink, display:"flex", flexDirection:"column", borderLeft:"1px solid rgba(255,255,255,0.06)" }}>
+            {/* metrics HUD */}
+            {mode==="active" && (
+              <MetricsHUD m={m} open={metricsOpen} onToggle={()=>setMetricsOpen(o=>!o)}/>
+            )}
 
-              {/* metrics */}
-              <div style={{ padding:14, borderBottom:"1px solid rgba(255,255,255,0.05)", flexShrink:0 }}>
-                <div style={{ background:C.card, borderRadius:10, padding:14, border:"1px solid rgba(255,255,255,0.05)" }}>
-                  <div style={{ fontFamily:"'Sora',sans-serif", fontSize:11, fontWeight:600, color:C.green2, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:14 }}>
-                    Métricas do estudo
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px 10px" }}>
-                    <div>
-                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>Unidades totais</div>
-                      <FlipValue val={m.units}/>
-                      <MetricBar val={m.units} max={null}/>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>Área construída</div>
-                      <FlipValue val={m.area} suffix=" m²"/>
-                      <MetricBar val={m.area} max={null}/>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>Taxa de ocupação</div>
-                      <FlipValue val={m.occ} suffix="%"/>
-                      <MetricBar val={m.occ} max={50} warn={45} danger={50}/>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:C.gray, marginBottom:3 }}>CA utilizado</div>
-                      <FlipValue val={m.ca}/>
-                      <MetricBar val={m.ca} max={12} warn={11.5} danger={12}/>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* SVG */}
+            <svg
+              ref={svgRef}
+              width="100%" height="100%"
+              viewBox="0 0 640 440"
+              style={{position:"absolute",top:0,left:0,userSelect:"none"}}
+              onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+              onClick={()=>{ if(!dragging.current) setSel(null); }}
+            >
+              <defs>
+                <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
+                </pattern>
+              </defs>
+              <rect width="640" height="440" fill="url(#g)"/>
 
-              {/* chat */}
-              <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-                <div ref={chatRef} style={{ flex:1, background:C.ink2, overflowY:"auto", padding:"14px 14px 6px" }}>
-                  {msgs.map((msg,i) => <Bubble key={i} msg={msg}/>)}
-                  {typing && (
-                    <div style={{ marginBottom:10 }}>
-                      <div style={{ background:"rgba(1,173,110,0.1)", border:"1px solid rgba(51,224,161,0.15)", borderRadius:"2px 12px 12px 12px", display:"inline-block" }}>
-                        <TypingDots/>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div style={{ padding:12, background:C.card, borderTop:"1px solid rgba(255,255,255,0.05)", flexShrink:0 }}>
-                  <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
-                    <textarea
-                      rows={2}
-                      value={input}
-                      onChange={e=>setInput(e.target.value)}
-                      onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
-                      placeholder="Descreva o que quer ajustar..."
-                      style={{
-                        flex:1, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)",
-                        borderRadius:8, color:C.gray2, fontFamily:"'Inter',sans-serif", fontSize:13,
-                        padding:"8px 10px", resize:"none", outline:"none", maxHeight:100,
-                        transition:"border-color 0.15s ease",
-                      }}
-                      onFocus={e=>e.target.style.borderColor=C.green}
-                      onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.1)"}
+              {/* terrain */}
+              <polygon points={TERRAIN} fill="rgba(1,173,110,0.055)" stroke="rgba(1,173,110,0.38)" strokeWidth="1.5" strokeDasharray="6,4"/>
+              <text x="315" y="232" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">847 m²</text>
+              <text x="602" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">N ↑</text>
+
+              {/* towers */}
+              {towers.map((t,i)=>{
+                const st     = towerState(t);
+                const isSel  = sel===t.id;
+                const isHov  = hoverId===t.id && !isSel;
+                const isShk  = shakeId===t.id;
+                const cls    = isShk?"shake":isSel?"pulse-t":"";
+
+                const fill   = st==="conflict"?"rgba(253,72,72,0.2)":st==="overlap"?"rgba(255,188,0,0.12)":isSel?"rgba(1,173,110,0.3)":isHov?"rgba(52,67,87,0.9)":"#344357";
+                const stroke = st==="conflict"?C.red:st==="overlap"?C.yellow:isSel?C.green2:isHov?"#8899aa":"#526171";
+                const sw     = isSel?2:isHov?1.8:1.5;
+
+                return (
+                  <g key={t.id} className={cls}
+                    style={{cursor:dragging.current?.id===t.id?"grabbing":"grab",transition:"all 0.12s ease"}}
+                    onMouseDown={e=>onTowerDown(e,t.id)}
+                    onMouseEnter={()=>setHoverId(t.id)}
+                    onMouseLeave={()=>setHoverId(null)}
+                    onClick={e=>{e.stopPropagation();setSel(t.id);}}
+                  >
+                    <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4}
+                      fill={fill} stroke={stroke} strokeWidth={sw}
+                      style={{filter:isSel?"drop-shadow(0 0 8px rgba(51,224,161,0.4))":isHov?"drop-shadow(0 0 4px rgba(255,255,255,0.1))":"none",transition:"all 0.12s ease"}}
                     />
-                    <button onClick={send} style={{
-                      width:32, height:32, borderRadius:"50%", background:C.green, border:"none",
-                      display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0,
-                    }}>
-                      <Send size={14} color="#fff"/>
-                    </button>
-                  </div>
+                    {/* tower label */}
+                    <text x={t.x+t.w/2} y={t.y+t.h/2+(isHov||isSel?-4:5)} textAnchor="middle"
+                      fill="#fff" fontSize={13} fontWeight="bold" fontFamily="'Sora',sans-serif"
+                      style={{pointerEvents:"none",transition:"all 0.12s ease"}}
+                    >{t.id}</text>
+
+                    {/* hover/selected mini-stats */}
+                    {(isHov||isSel) && (
+                      <text x={t.x+t.w/2} y={t.y+t.h/2+9} textAnchor="middle"
+                        fill="rgba(255,255,255,0.5)" fontSize={9} fontFamily="'Inter',sans-serif"
+                        style={{pointerEvents:"none"}}
+                      >{t.floors}pav · {t.units}un</text>
+                    )}
+
+                    {/* overlap badge */}
+                    {st==="overlap"&&<>
+                      <rect x={t.x+t.w/2-27} y={t.y-19} width={54} height={16} rx={4} fill={C.yellow}/>
+                      <text x={t.x+t.w/2} y={t.y-8} textAnchor="middle" fill="#000" fontSize={9} fontWeight="bold" fontFamily="'Inter',sans-serif">Conflito</text>
+                    </>}
+
+                    {/* resize handles */}
+                    {isSel&&[["nw",t.x-4,t.y-4],["ne",t.x+t.w-4,t.y-4],["sw",t.x-4,t.y+t.h-4],["se",t.x+t.w-4,t.y+t.h-4]].map(([corner,hx,hy])=>(
+                      <rect key={corner} x={hx} y={hy} width={8} height={8} rx={1}
+                        fill="#fff" stroke={C.green2} strokeWidth={1}
+                        style={{cursor:`${corner}-resize`}}
+                        onMouseDown={e=>{e.stopPropagation();onHandleDown(e,t.id,corner);}}
+                      />
+                    ))}
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* tower prop panel */}
+            {selTower&&(()=>{
+              const {px,py}=panelPos(selTower);
+              return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)}/>;
+            })()}
+
+            {/* ── IDLE: centered input ── */}
+            {mode==="idle" && (
+              <>
+                {/* subtle prompt */}
+                <div style={{position:"absolute",top:"30%",left:"50%",transform:"translateX(-50%)",textAlign:"center",pointerEvents:"none",animation:"fadeIn 0.6s ease 0.4s both"}}>
+                  <div style={{fontFamily:"'Sora',sans-serif",fontSize:22,fontWeight:600,color:"rgba(255,255,255,0.12)",letterSpacing:"-0.02em"}}>O que vamos projetar?</div>
                 </div>
-              </div>
-            </div>
+                <IdleInput onSend={sendMessage}/>
+              </>
+            )}
+
+            {/* ── ACTIVE: floating chat at bottom ── */}
+            {mode==="active" && (
+              <FloatingChat
+                msgs={msgs} typing={typing}
+                input={input} setInput={setInput}
+                onSend={()=>sendMessage()}
+                open={chatOpen} onToggle={()=>setChatOpen(o=>!o)}
+              />
+            )}
           </div>
         </div>
       );
@@ -607,19 +731,18 @@
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<ArqgenNext/>);
   </script>
+
   <script>
-    // Run JSX with classic runtime (avoids import from react/jsx-runtime)
     window.addEventListener('DOMContentLoaded', () => {
       const src = document.getElementById('app-src').textContent;
       try {
         const compiled = Babel.transform(src, {
           presets: [['react', { runtime: 'classic' }]]
         }).code;
-        // eslint-disable-next-line no-eval
         (new Function(compiled))();
       } catch(e) {
         document.getElementById('root').innerHTML =
-          '<pre style="color:#FD4848;padding:20px;font-size:12px">' + e.message + '</pre>';
+          '<pre style="color:#FD4848;padding:20px;font-size:12px;white-space:pre-wrap">' + e.message + '</pre>';
       }
     });
   </script>
