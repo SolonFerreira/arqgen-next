@@ -51,13 +51,15 @@
       gray2:  "#CBD5E0",
     };
 
-    function getStatus(m) {
+    function getStatus(m, lim) {
+      const caLim=lim?.ca??CA_LIMIT, toMax=lim?.to??TO_LIMIT;
+      const caWarn=Math.max(caLim*0.83,caLim-2), toWarn=Math.max(toMax*0.83,toMax-8);
       if (!m?.valid||![m.ca,m.occ,m.units,m.area].every(value=>isRenderableNumber(value))) return {key:"invalid",label:"Dados insuficientes",detail:"Indicadores não calculados",dot:C.red,color:C.red,bg:"rgba(253,72,72,0.08)",border:"rgba(253,72,72,0.2)"};
-      if (m.ca>=CA_LIMIT||m.occ>=TO_LIMIT) return {key:"warning",label:"Limites informados excedidos",detail:`CA ${formatNumber(m.ca,{digits:1})} ou TO ${formatNumber(m.occ,{digits:1})}% — limite excedido · revisar`,nextStep:"Revisar pavimentos das torres maiores antes de avançar.",dot:C.yellow,color:C.yellow,bg:"rgba(255,188,0,0.08)",border:"rgba(255,188,0,0.25)"};
-      if (m.ca>=10||m.occ>=42) return {key:"caution",label:"Próximo aos limites informados",detail:`CA ${formatNumber(m.ca,{digits:1})} / ${CA_LIMIT} · TO ${formatNumber(m.occ,{digits:1})}% — margem reduzida`,nextStep:m.ca>=10?"Comparar com Mais área livre para redistribuir o risco.":null,dot:C.yellow,color:"#e5ab00",bg:"rgba(255,188,0,0.06)",border:"rgba(255,188,0,0.18)"};
-      const approxExtra=Math.max(1,Math.round((CA_LIMIT-m.ca)*LOT/52));
-      const nextStep=m.ca<7?"Explorar Máxima densidade para aumentar o aproveitamento do lote.":null;
-      return {key:"preliminary",label:"Avaliação preliminar",detail:`CA ${formatNumber(m.ca,{digits:1})} / ${CA_LIMIT} · ~${approxExtra} un de margem · legislação não validada`,nextStep,dot:C.purple,color:"rgba(203,200,255,0.95)",bg:"rgba(86,79,255,0.08)",border:"rgba(86,79,255,0.25)"};
+      if (m.ca>=caLim||m.occ>=toMax) return {key:"warning",label:"Limites informados excedidos",detail:`CA ${formatNumber(m.ca,{digits:1})} ou TO ${formatNumber(m.occ,{digits:1})}% — limite excedido · revisar`,nextStep:"Revisar pavimentos das torres maiores antes de avançar.",dot:C.yellow,color:C.yellow,bg:"rgba(255,188,0,0.08)",border:"rgba(255,188,0,0.25)"};
+      if (m.ca>=caWarn||m.occ>=toWarn) return {key:"caution",label:"Próximo aos limites informados",detail:`CA ${formatNumber(m.ca,{digits:1})} / ${caLim} · TO ${formatNumber(m.occ,{digits:1})}% — margem reduzida`,nextStep:m.ca>=caWarn?"Comparar com Mais área livre para redistribuir o risco.":null,dot:C.yellow,color:"#e5ab00",bg:"rgba(255,188,0,0.06)",border:"rgba(255,188,0,0.18)"};
+      const approxExtra=Math.max(1,Math.round((caLim-m.ca)*LOT/52));
+      const nextStep=m.ca<caLim*0.58?"Explorar Máxima densidade para aumentar o aproveitamento do lote.":null;
+      return {key:"preliminary",label:"Avaliação preliminar",detail:`CA ${formatNumber(m.ca,{digits:1})} / ${caLim} · ~${approxExtra} un de margem · legislação não validada`,nextStep,dot:C.purple,color:"rgba(203,200,255,0.95)",bg:"rgba(86,79,255,0.08)",border:"rgba(86,79,255,0.25)"};
     }
 
     /* ── icons ────────────────────────────────────────────────── */
@@ -550,16 +552,20 @@
     }
 
     /* ── ContextPanel ─────────────────────────────────────────── */
-    function LotOverview({m,towers,version,onSelectTower,onAddTower}) {
+    function LotOverview({m,towers,version,onSelectTower,onAddTower,limits,onSetLimits}) {
       const valid=m?.valid===true;
-      const status=getStatus(m);
+      const effCA=limits?.ca??CA_LIMIT, effTO=limits?.to??TO_LIMIT;
+      const status=getStatus(m,limits);
       const cleanTowers=sanitizeTowers(towers);
+      const [editLimits,setEditLimits]=useState(false);
+      const [draftCA,setDraftCA]=useState(String(effCA));
+      const [draftTO,setDraftTO]=useState(String(effTO));
       const metrics=[
         {label:"Torres",val:cleanTowers.length,suffix:""},
         {label:"Unidades",val:valid?m.units:null,suffix:""},
         {label:"Área construída",val:valid?m.area:null,suffix:" m²"},
-        {label:"CA utilizado",val:valid?m.ca:null,suffix:"",max:12,warn:10,danger:12,digits:1},
-        {label:"Taxa de ocup.",val:valid?m.occ:null,suffix:"%",max:50,warn:42,danger:50,digits:1},
+        {label:"CA utilizado",val:valid?m.ca:null,suffix:"",max:effCA,warn:effCA*0.83,danger:effCA,digits:1},
+        {label:"Taxa de ocup.",val:valid?m.occ:null,suffix:"%",max:effTO,warn:effTO*0.83,danger:effTO,digits:1},
       ];
       return (
         <>
@@ -594,21 +600,57 @@
             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
               <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em"}}>Premissas</span>
               <span style={{background:"rgba(255,188,0,0.1)",border:"1px solid rgba(255,188,0,0.28)",borderRadius:10,fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:600,color:C.yellow,padding:"1px 5px"}}>simulado</span>
+              <div style={{flex:1}}/>
+              <button onClick={()=>{setEditLimits(v=>{if(!v){setDraftCA(String(effCA));setDraftTO(String(effTO));}return!v;})}} style={{background:"none",border:"1px solid rgba(255,255,255,0.1)",borderRadius:4,color:editLimits?C.green2:C.gray,fontFamily:"'Inter',sans-serif",fontSize:8,padding:"1px 6px",cursor:"pointer"}}>
+                {editLimits?"fechar":"editar"}
+              </button>
             </div>
-            {[
-              {label:"CA máximo",val:"12",state:"simulado"},
-              {label:"Taxa de ocup. máx.",val:"50%",state:"simulado"},
-              {label:"Vagas por unidade",val:"1",state:"informado"},
-            ].map(({label,val,state})=>(
-              <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{label}</span>
-                <div style={{display:"flex",alignItems:"center",gap:5}}>
-                  <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:600,color:C.gray2}}>{val}</span>
-                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:state==="simulado"?C.yellow:"rgba(51,224,161,0.8)",border:`1px solid ${state==="simulado"?"rgba(255,188,0,0.22)":"rgba(51,224,161,0.2)"}`,borderRadius:8,padding:"1px 5px"}}>{state}</span>
+            {editLimits?(
+              <div style={{animation:"fadeIn 0.15s ease"}}>
+                <div style={{display:"flex",gap:8,marginBottom:8}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginBottom:3}}>CA máximo</div>
+                    <input type="number" value={draftCA} min="1" max="30" step="0.5"
+                      onChange={e=>setDraftCA(e.target.value)}
+                      style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:600,padding:"5px 8px",outline:"none"}}
+                    />
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginBottom:3}}>TO máx. (%)</div>
+                    <input type="number" value={draftTO} min="10" max="80" step="1"
+                      onChange={e=>setDraftTO(e.target.value)}
+                      style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:600,padding:"5px 8px",outline:"none"}}
+                    />
+                  </div>
                 </div>
+                <button onClick={()=>{
+                  const ca=parseFloat(draftCA),to=parseFloat(draftTO);
+                  if(isRenderableNumber(ca,30)&&ca>=1&&isRenderableNumber(to,80)&&to>=10){
+                    onSetLimits&&onSetLimits({ca,to});setEditLimits(false);
+                  }
+                }} style={{width:"100%",background:C.green,border:"none",borderRadius:5,color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:700,padding:"6px",cursor:"pointer",marginBottom:6}}>
+                  Aplicar premissas
+                </button>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:"rgba(113,128,150,0.5)",lineHeight:1.35}}>Aplicar recalcula status e barras. Parâmetros locais — não persistem após recarregar.</div>
               </div>
-            ))}
-            <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.45)",marginTop:5,lineHeight:1.4}}>Não validados com legislação local. Conferir antes de avançar.</div>
+            ):(
+              <>
+                {[
+                  {label:"CA máximo",val:String(effCA),state:effCA!==CA_LIMIT?"informado":"simulado"},
+                  {label:"Taxa de ocup. máx.",val:effTO+"%",state:effTO!==TO_LIMIT?"informado":"simulado"},
+                  {label:"Vagas por unidade",val:"1",state:"informado"},
+                ].map(({label,val,state})=>(
+                  <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{label}</span>
+                    <div style={{display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:600,color:C.gray2}}>{val}</span>
+                      <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:state==="simulado"?C.yellow:"rgba(51,224,161,0.8)",border:`1px solid ${state==="simulado"?"rgba(255,188,0,0.22)":"rgba(51,224,161,0.2)"}`,borderRadius:8,padding:"1px 5px"}}>{state}</span>
+                    </div>
+                  </div>
+                ))}
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.45)",marginTop:5,lineHeight:1.4}}>Não validados com legislação local. Conferir antes de avançar.</div>
+              </>
+            )}
           </div>
           <div style={{padding:"14px 16px",flex:1}}>
             <div style={{display:"flex",alignItems:"center",marginBottom:10}}>
@@ -693,11 +735,11 @@
       );
     }
 
-    function ContextPanel({m,towers,version,sel,onSelect,onSave,onAdjust,onRemove,onAddTower}) {
+    function ContextPanel({m,towers,version,sel,onSelect,onSave,onAdjust,onRemove,onAddTower,limits,onSetLimits}) {
       const tower=towers.find(item=>item.id===sel);
       return (
         <div style={{width:240,flexShrink:0,background:"rgba(12,16,23,0.98)",borderLeft:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",overflowY:"auto",animation:"slideInPanel 0.25s ease"}}>
-          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower}/>}
+          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower} limits={limits} onSetLimits={onSetLimits}/>}
         </div>
       );
     }
@@ -1375,6 +1417,7 @@
       const [exportOpen,   setExportOpen]   = useState(false);
       const [presenting,   setPresenting]   = useState(false);
       const [decision,     setDecision]     = useState(null); // {strategy, time, units, ca} | null
+      const [limits,       setLimits]       = useState({ca:CA_LIMIT,to:TO_LIMIT});
 
       const appRef   = useRef(null);
       const svgRef   = useRef(null);
@@ -1455,7 +1498,7 @@
       },[sel,mode]);
 
       const m = useMemo(()=>calcMetrics(towers),[towers]);
-      const status = useMemo(()=>getStatus(m),[m]);
+      const status = useMemo(()=>getStatus(m,limits),[m,limits]);
       const decisionStale = useMemo(()=>{
         if(!decision||!m?.valid||decision.strategy!==version)return false;
         const duPct=decision.units?Math.abs((m.units-decision.units)/Math.max(decision.units,1)):0;
@@ -1806,7 +1849,7 @@
       function downloadReport() {
         const reportMetrics=calcMetrics(towers);
         const rows=sanitizeTowers(towers).map(t=>`<tr><td>Torre ${t.id}</td><td>${safeValue(t.floors)}</td><td>${safeValue(t.units)}</td><td>${safeValue(t.area,{suffix:" m²"})}</td><td>${t.type}</td></tr>`).join("");
-        const st=getStatus(reportMetrics);
+        const st=getStatus(reportMetrics,limits);
         const intent=scenarioIntent(version);
         const tradeoff=scenarioTradeoff(version);
         const dec=decision&&decision.strategy===version?decision:null;
@@ -1817,7 +1860,7 @@
 ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="text">${intent}</div>${tradeoff?`<div class="text" style="color:#718096;margin-top:4px">${tradeoff}</div>`:""}</div>`:""}${dec?`<div class="strategy" style="background:#F0FFF8;border-left-color:#01AD6E"><div class="label" style="color:#276749">Registro de decisão · ${dec.time}</div>${dec.reason?`<div class="text"><strong>Motivo:</strong> ${dec.reason}</div>`:""}${dec.pending&&dec.pending.length>0?`<div class="text" style="color:#744210;margin-top:6px"><strong>Pendências registradas:</strong><ul style="margin:4px 0 0 18px;padding:0">${dec.pending.map(p=>`<li style="font-size:12px">${p}</li>`).join("")}</ul></div>`:""}</div>`:""}
 <div class="kpis"><div class="kpi"><b>${safeValue(towers.length)}</b>Torres</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.units):"--"}</b>Unidades</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--"}</b>CA utilizado</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--"}</b>Taxa de ocupação</div></div>
 <table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table>
-<div class="premises"><div class="label" style="font-size:11px;color:#744210;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Premissas utilizadas</div><table><tr><td>CA máximo</td><td>${CA_LIMIT}</td><td><span class="tag" style="background:#FEF3C7;color:#92400E">simulado</span></td><td style="color:#718096;font-size:11px">Confirmar com legislação local</td></tr><tr><td>Taxa de ocupação máxima</td><td>${TO_LIMIT}%</td><td><span class="tag" style="background:#FEF3C7;color:#92400E">simulado</span></td><td style="color:#718096;font-size:11px">Confirmar com legislação local</td></tr><tr><td>Vagas por unidade</td><td>1</td><td><span class="tag" style="background:#DCFCE7;color:#166534">informado</span></td><td></td></tr></table></div>
+<div class="premises"><div class="label" style="font-size:11px;color:#744210;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Premissas utilizadas</div><table><tr><td>CA máximo</td><td>${limits.ca}</td><td><span class="tag" style="${limits.ca!==CA_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.ca!==CA_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.ca!==CA_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Taxa de ocupação máxima</td><td>${limits.to}%</td><td><span class="tag" style="${limits.to!==TO_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.to!==TO_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.to!==TO_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Vagas por unidade</td><td>1</td><td><span class="tag" style="background:#DCFCE7;color:#166534">informado</span></td><td></td></tr></table></div>
 <div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados. Premissas marcadas como "simulado" não foram validadas com legislação municipal. Conferir antes de avançar em projeto.</div>
 </body></html>`;
         const blob=new Blob([html],{type:"text/html;charset=utf-8"});
@@ -2045,7 +2088,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
 
             {/* CONTEXT SIDE PANEL */}
             {mode==="active"&&!presenting&&!comparing&&(
-              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower}/>
+              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} onSetLimits={setLimits}/>
             )}
 
             {/* IDLE SCREEN */}
