@@ -543,13 +543,18 @@
     function InsightCard({insight,index,onDismiss,onAction}) {
       const dot=insight.type==="opportunity"?C.green2:insight.type==="warning"?C.yellow:C.purple;
       return (
-        <div style={{display:"flex",alignItems:"flex-start",gap:8,background:"rgba(15,19,26,0.94)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:9,padding:"8px 9px",animation:`insightIn 0.3s ease ${index*0.14}s both`}}>
+        <div 
+          onClick={()=>onAction&&onAction(insight)}
+          style={{display:"flex",alignItems:"flex-start",gap:8,background:"rgba(15,19,26,0.94)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:9,padding:"8px 9px",animation:`insightIn 0.3s ease ${index*0.14}s both`,cursor:"pointer",transition:"all 0.15s ease"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(1,173,110,0.3)";e.currentTarget.style.background="rgba(20,25,35,0.96)";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.background="rgba(15,19,26,0.94)";}}
+        >
           <div style={{width:6,height:6,borderRadius:"50%",background:dot,boxShadow:`0 0 6px ${dot}`,marginTop:4,flexShrink:0}}/>
           <div style={{flex:1}}>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,lineHeight:1.4}}>{insight.text}</div>
-            <button onClick={()=>onAction&&onAction(insight)} style={{marginTop:6,background:"none",border:"none",color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700,cursor:"pointer",padding:0}}>Gerar alternativas →</button>
+            <div style={{marginTop:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700}}>Explorar com a Teodora →</div>
           </div>
-          <button onClick={()=>onDismiss(insight.id)} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>
+          <button onClick={e=>{e.stopPropagation();onDismiss(insight.id);}} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>
         </div>
       );
     }
@@ -581,13 +586,11 @@
 
     /* ── ContextPanel ─────────────────────────────────────────── */
     function LotOverview({m,towers,version,onSelectTower,onAddTower,limits,onSetLimits,decision,decisionStale,onGenerate,decisionLog=[]}) {
+      const [localInput,setLocalInput]=useState("");
       const valid=m?.valid===true;
       const effCA=limits?.ca??CA_LIMIT, effTO=limits?.to??TO_LIMIT;
       const status=getStatus(m,limits);
       const cleanTowers=sanitizeTowers(towers);
-      const [editLimits,setEditLimits]=useState(false);
-      const [draftCA,setDraftCA]=useState(String(effCA));
-      const [draftTO,setDraftTO]=useState(String(effTO));
       const metrics=[
         {label:"Torres",val:cleanTowers.length,suffix:""},
         {label:"Unidades",val:valid?m.units:null,suffix:""},
@@ -607,7 +610,6 @@
                 <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:status.color}}>{status.label}</div>
                 <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginTop:3,lineHeight:1.35}}>{status.detail}</div>
                 {status.nextStep&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.green2,marginTop:5,paddingTop:5,borderTop:"1px solid rgba(255,255,255,0.05)",lineHeight:1.35}}>→ {status.nextStep}</div>}
-                <button onClick={()=>onGenerate&&onGenerate("reduzir risco mantendo o máximo de unidades")} style={{marginTop:7,background:"rgba(1,173,110,0.14)",border:"1px solid rgba(51,224,161,0.3)",borderRadius:5,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700,padding:"5px 8px",cursor:"pointer"}}>Gerar 3 alternativas seguras</button>
               </div>
             </div>
           </div>
@@ -643,59 +645,27 @@
             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
               <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em"}}>Premissas</span>
               <span style={{background:"rgba(255,188,0,0.1)",border:"1px solid rgba(255,188,0,0.28)",borderRadius:10,fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:600,color:C.yellow,padding:"1px 5px"}}>simulado</span>
-              <div style={{flex:1}}/>
-              <button onClick={()=>{setEditLimits(v=>{if(!v){setDraftCA(String(effCA));setDraftTO(String(effTO));}return!v;})}} style={{background:"none",border:"1px solid rgba(255,255,255,0.1)",borderRadius:4,color:editLimits?C.green2:C.gray,fontFamily:"'Inter',sans-serif",fontSize:8,padding:"1px 6px",cursor:"pointer"}}>
-                {editLimits?"fechar":"editar"}
-              </button>
             </div>
-            {editLimits?(
-              <div style={{animation:"fadeIn 0.15s ease"}}>
-                <div style={{display:"flex",gap:8,marginBottom:8}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginBottom:3}}>CA máximo</div>
-                    <input type="number" value={draftCA} min="1" max="30" step="0.5"
-                      onChange={e=>setDraftCA(e.target.value)}
-                      style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:600,padding:"5px 8px",outline:"none"}}
-                    />
-                  </div>
-                  <div style={{flex:1}}>
-                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginBottom:3}}>TO máx. (%)</div>
-                    <input type="number" value={draftTO} min="10" max="80" step="1"
-                      onChange={e=>setDraftTO(e.target.value)}
-                      style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:600,padding:"5px 8px",outline:"none"}}
-                    />
+            <>
+              {[
+                {label:"CA máximo",val:String(effCA),state:effCA!==CA_LIMIT?"informado":"simulado"},
+                {label:"Taxa de ocup. máx.",val:effTO+"%",state:effTO!==TO_LIMIT?"informado":"simulado"},
+                {label:"Vagas por unidade",val:"1",state:"informado"},
+              ].map(({label,val,state})=>(
+                <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{label}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:600,color:C.gray2}}>{val}</span>
+                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:state==="simulado"?C.yellow:"rgba(51,224,161,0.8)",border:`1px solid ${state==="simulado"?"rgba(255,188,0,0.22)":"rgba(51,224,161,0.2)"}`,borderRadius:8,padding:"1px 5px"}}>{state}</span>
                   </div>
                 </div>
-                <button onClick={()=>{
-                  const ca=parseFloat(draftCA),to=parseFloat(draftTO);
-                  if(isRenderableNumber(ca,30)&&ca>=1&&isRenderableNumber(to,80)&&to>=10){
-                    onSetLimits&&onSetLimits({ca,to});setEditLimits(false);
-                  }
-                }} style={{width:"100%",background:C.green,border:"none",borderRadius:5,color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:700,padding:"6px",cursor:"pointer",marginBottom:6}}>
-                  Aplicar premissas
-                </button>
-                <div style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:"rgba(113,128,150,0.5)",lineHeight:1.35}}>Aplicar recalcula status e barras. Parâmetros locais — não persistem após recarregar.</div>
+              ))}
+              <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.45)",marginTop:5,lineHeight:1.4}}>
+                Premissas regulatórias. Converse com a Teodora para alterá-las (ex: "definir CA máximo como 12").
               </div>
-            ):(
-              <>
-                {[
-                  {label:"CA máximo",val:String(effCA),state:effCA!==CA_LIMIT?"informado":"simulado"},
-                  {label:"Taxa de ocup. máx.",val:effTO+"%",state:effTO!==TO_LIMIT?"informado":"simulado"},
-                  {label:"Vagas por unidade",val:"1",state:"informado"},
-                ].map(({label,val,state})=>(
-                  <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{label}</span>
-                    <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:600,color:C.gray2}}>{val}</span>
-                      <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:state==="simulado"?C.yellow:"rgba(51,224,161,0.8)",border:`1px solid ${state==="simulado"?"rgba(255,188,0,0.22)":"rgba(51,224,161,0.2)"}`,borderRadius:8,padding:"1px 5px"}}>{state}</span>
-                    </div>
-                  </div>
-                ))}
-                <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.45)",marginTop:5,lineHeight:1.4}}>Não validados com legislação local. Conferir antes de avançar.</div>
-              </>
-            )}
+            </>
           </div>
-          <div style={{padding:"14px 16px",flex:1}}>
+          <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
             <div style={{display:"flex",alignItems:"center",marginBottom:10}}>
               <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em"}}>Torres</span>
               <div style={{flex:1}}/>
@@ -715,7 +685,54 @@
               ))}
             </div>
           </div>
-          <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+          <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>O que você gostaria de explorar?</div>
+            <div style={{position:"relative",display:"flex",alignItems:"center",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"4px 8px 4px 10px"}}>
+              <input 
+                type="text" 
+                value={localInput} 
+                onChange={e=>setLocalInput(e.target.value)} 
+                onKeyDown={e=>{
+                  e.stopPropagation();
+                  if(e.key==="Enter" && localInput.trim()){
+                    onGenerate(localInput.trim());
+                    setLocalInput("");
+                  }
+                }}
+                placeholder="Descreva seu objetivo para o lote..." 
+                style={{flex:1,background:"transparent",border:"none",outline:"none",color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0"}}
+              />
+              <button 
+                onClick={()=>{
+                  if(localInput.trim()){
+                    onGenerate(localInput.trim());
+                    setLocalInput("");
+                  }
+                }} 
+                disabled={!localInput.trim()}
+                style={{background:localInput.trim()?C.green:"rgba(255,255,255,0.04)",border:"none",borderRadius:4,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",cursor:localInput.trim()?"pointer":"default",transition:"all 0.2s ease"}}
+              >
+                <Icon.Send s={9} c="#fff"/>
+              </button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+              {[
+                "+ adicionar torre",
+                "+ maximizar unidades",
+                "+ reduzir risco",
+                "+ liberar área verde",
+                "+ alterar premissas",
+              ].map(s => (
+                <button key={s} onClick={() => setLocalInput(s)} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"4px 10px",fontSize:10,color:C.gray2,cursor:"pointer",transition:"all 0.15s ease"}}
+                  onMouseEnter={e=>{e.target.style.background="rgba(1,173,110,0.08)";e.target.style.borderColor="rgba(1,173,110,0.22)";e.target.style.color=C.green2;}}
+                  onMouseLeave={e=>{e.target.style.background="rgba(255,255,255,0.03)";e.target.style.borderColor="rgba(255,255,255,0.07)";e.target.style.color=C.gray2;}}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{padding:"12px 16px",borderTop:"none"}}>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Decisões do estudo</div>
             {decisionLog.length===0?<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.55)",lineHeight:1.4}}>Ações da Teodora e escolhas aplicadas aparecerão aqui.</div>:
               decisionLog.slice(-4).reverse().map(event=>(
@@ -731,20 +748,16 @@
     }
 
     function TowerDetail({tower,m,onClose,onSave,onAdjust,onRemove,limits,onAgentAction}) {
-      const [editing,setEditing]=useState(false);
-      const [draft,setDraft]=useState({...tower});
-      useEffect(()=>setDraft({...tower}),[tower.id,tower.floors,tower.units,tower.area,tower.type]);
-      const fieldStyle={width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"6px 7px",outline:"none"};
-      const numberField=(key,min,max)=><input type="number" min={min} max={max} value={draft[key]} onChange={e=>setDraft(d=>({...d,[key]:Math.max(min,Math.min(max,Number(e.target.value)||min))}))} style={fieldStyle}/>;
+      const [localInput,setLocalInput]=useState("");
+      const st=sanitizeTower(tower);
+      const tCaContrib=safeValue(st.area/LOT,{digits:2});
       function towerAiText(t,metrics) {
         const caLim=limits?.ca??CA_LIMIT;
         const caWarn=Math.max(caLim*0.83,caLim-2);
-        const st=sanitizeTower(t);
         if(!metrics?.valid) return "Indicadores não calculados. Verificar posição da torre no lote.";
         const caHeadroom=caLim-metrics.ca;
         const tM2=st.w*st.h/SVG_PER_M2;
-        const tCaContrib=safeValue(st.area/LOT,{digits:2});
-        if(st.floors>=15&&metrics.ca>=caWarn) return `CA total em ${safeValue(metrics.ca,{digits:1})} / ${caLim} — margem de ${safeValue(caHeadroom,{digits:1})}. Esta torre contribui com ~${tCaContrib} CA. Redução de 2 pav libera margem sem comprometer as demais.`;
+        if(st.floors>=15&&metrics.ca>=caWarn) return `CA total em ${safeValue(metrics.ca,{digits:1})} / ${caLim} — margem de ${safeValue(caHeadroom,{digits:1})}. Esta torre contribui com ~${tCaContrib} CA. Redução de altura libera margem sem comprometer as demais.`;
         if(st.floors<=8&&caHeadroom>1.5){
           const extra=Math.max(2,Math.min(6,Math.floor(caHeadroom*LOT/Math.max(tM2,1))));
           return `CA total em ${safeValue(metrics.ca,{digits:1})} de ${caLim}, com ${safeValue(caHeadroom,{digits:1})} de margem. Esta torre pode absorver até ${extra} pavimentos adicionais sem exceder os limites informados.`;
@@ -753,7 +766,14 @@
         return `A Torre ${st.id} contribui com ~${tCaContrib} de CA. O estudo mantém ${safeValue(caHeadroom,{digits:1})} de margem; o trade-off principal é usar essa folga para unidades ou preservá-la para reduzir risco regulatório.`;
       }
       const aiText=towerAiText(tower,m);
-      function save(){onSave(sanitizeTower({...tower,floors:Math.round(draft.floors),units:Math.round(draft.units),area:Math.round(draft.area),type:draft.type},tower));setEditing(false);}
+      const SUGGESTIONS = [
+        "+ aumentar unidades",
+        "+ reduzir altura",
+        "+ melhorar insolação",
+        "+ diminuir risco",
+        "+ preservar área livre",
+        "+ redistribuir potencial",
+      ];
       return (
         <>
           <div style={{padding:"16px",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",gap:9}}>
@@ -763,35 +783,64 @@
             <button onClick={onClose} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",display:"flex"}}><Icon.X s={13}/></button>
           </div>
           <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:11}}>Propriedades</div>
-            {editing?(
-              <div style={{display:"grid",gridTemplateColumns:"78px 1fr",gap:"8px",alignItems:"center"}}>
-                <span style={{fontSize:10,color:C.gray}}>Pavimentos</span>{numberField("floors",1,60)}
-                <span style={{fontSize:10,color:C.gray}}>Unidades</span>{numberField("units",1,999)}
-                <span style={{fontSize:10,color:C.gray}}>Área total</span>{numberField("area",1,99999)}
-                <span style={{fontSize:10,color:C.gray}}>Tipologia</span>
-                <select value={draft.type} onChange={e=>setDraft(d=>({...d,type:e.target.value}))} style={fieldStyle}>{["Studio 44m²","1 dorm 52m²","2 dorm 68m²","Uso misto"].map(type=><option key={type} value={type} style={{background:C.card}}>{type}</option>)}</select>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:11}}>Contexto</div>
+            {[
+              ["Pavimentos",safeValue(tower.floors)],
+              ["Unidades",safeValue(tower.units)],
+              ["Área total",safeValue(tower.area,{suffix:" m²"})],
+              ["Tipologia",tower.type||"--"],
+              ["Contribuição no CA",`~${tCaContrib} CA`],
+            ].map(([label,value])=>(
+              <div key={label} style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <span style={{fontSize:11,color:C.gray}}>{label}</span>
+                <span style={{fontSize:11,color:C.gray2,fontWeight:500}}>{value}</span>
               </div>
-            ):(
-              [["Pavimentos",safeValue(tower.floors)],["Unidades",safeValue(tower.units)],["Área total",safeValue(tower.area,{suffix:" m²"})],["Tipologia",tower.type||"--"]].map(([label,value])=><div key={label} style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:11,color:C.gray}}>{label}</span><span style={{fontSize:11,color:C.gray2,fontWeight:500}}>{value}</span></div>)
-            )}
+            ))}
           </div>
-          {!editing&&<div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+          <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Análise da Teodora</div>
             <div style={{background:"rgba(1,173,110,0.08)",border:"1px solid rgba(51,224,161,0.18)",borderRadius:8,padding:"10px 11px",fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,lineHeight:1.5}}>{aiText}</div>
-          </div>}
-          <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:7}}>
-            {editing?<div style={{display:"flex",gap:7}}><button onClick={()=>{setDraft({...tower});setEditing(false);}} style={{flex:1,background:"none",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,padding:"7px",cursor:"pointer"}}>Cancelar</button><button onClick={save} style={{flex:1,background:C.green,border:"none",borderRadius:6,color:"#fff",padding:"7px",cursor:"pointer"}}>Salvar</button></div>:<>
-              <button onClick={()=>onAgentAction&&onAgentAction(`otimize a Torre ${tower.id} reduzindo risco e preservando unidades`)} style={{background:"rgba(1,173,110,0.12)",border:"1px solid rgba(1,173,110,0.3)",borderRadius:6,color:C.green2,padding:"8px",cursor:"pointer",fontWeight:700}}>Otimizar com Teodora</button>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-                <button onClick={()=>onAgentAction&&onAgentAction(`redistribua pavimentos da Torre ${tower.id} entre as torres`)} style={{background:"rgba(86,79,255,0.1)",border:"1px solid rgba(86,79,255,0.25)",borderRadius:6,color:"rgba(203,200,255,0.95)",padding:"7px",cursor:"pointer",fontSize:10}}>Redistribuir pavimentos</button>
-                <button onClick={()=>onAgentAction&&onAgentAction(`gere uma variação da Torre ${tower.id} com mais área livre`)} style={{background:"rgba(86,79,255,0.1)",border:"1px solid rgba(86,79,255,0.25)",borderRadius:6,color:"rgba(203,200,255,0.95)",padding:"7px",cursor:"pointer",fontSize:10}}>Gerar variação</button>
-                <button onClick={()=>onAgentAction&&onAgentAction(`explique a contribuição da Torre ${tower.id} no CA`)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,padding:"7px",cursor:"pointer",fontSize:10}}>Explicar CA</button>
-                <button onClick={()=>setEditing(true)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,padding:"7px",cursor:"pointer",fontSize:10}}>Editar dados</button>
-              </div>
-              <button onClick={onAdjust} style={{background:"rgba(255,188,0,0.08)",border:"1px solid rgba(255,188,0,0.22)",borderRadius:6,color:C.yellow,padding:"8px",cursor:"pointer"}}>Aplicar redução direta de 20%</button>
-              <button onClick={onRemove} style={{background:"rgba(253,72,72,0.08)",border:"1px solid rgba(253,72,72,0.22)",borderRadius:6,color:C.red,padding:"8px",cursor:"pointer"}}>Remover torre</button>
-            </>}
+          </div>
+          <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>O que você gostaria de fazer?</div>
+            <div style={{position:"relative",display:"flex",alignItems:"center",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"4px 8px 4px 10px"}}>
+              <input 
+                type="text" 
+                value={localInput} 
+                onChange={e=>setLocalInput(e.target.value)} 
+                onKeyDown={e=>{
+                  e.stopPropagation();
+                  if(e.key==="Enter" && localInput.trim()){
+                    onAgentAction(localInput.trim());
+                    setLocalInput("");
+                  }
+                }}
+                placeholder={`Intenção para Torre ${tower.id}...`} 
+                style={{flex:1,background:"transparent",border:"none",outline:"none",color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0"}}
+              />
+              <button 
+                onClick={()=>{
+                  if(localInput.trim()){
+                    onAgentAction(localInput.trim());
+                    setLocalInput("");
+                  }
+                }} 
+                disabled={!localInput.trim()}
+                style={{background:localInput.trim()?C.green:"rgba(255,255,255,0.04)",border:"none",borderRadius:4,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",cursor:localInput.trim()?"pointer":"default",transition:"all 0.2s ease"}}
+              >
+                <Icon.Send s={9} c="#fff"/>
+              </button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+              {SUGGESTIONS.map(s => (
+                <button key={s} onClick={() => setLocalInput(s)} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"4px 10px",fontSize:10,color:C.gray2,cursor:"pointer",transition:"all 0.15s ease"}}
+                  onMouseEnter={e=>{e.target.style.background="rgba(1,173,110,0.08)";e.target.style.borderColor="rgba(1,173,110,0.22)";e.target.style.color=C.green2;}}
+                  onMouseLeave={e=>{e.target.style.background="rgba(255,255,255,0.03)";e.target.style.borderColor="rgba(255,255,255,0.07)";e.target.style.color=C.gray2;}}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       );
