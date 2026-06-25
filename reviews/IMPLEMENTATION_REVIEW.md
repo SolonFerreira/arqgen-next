@@ -104,3 +104,119 @@ Os nomes estratégicos passaram a ocupar a posição principal no seletor, paine
 ### Recomendação para o próximo ciclo
 
 Corrigir inconsistências numéricas estáticas antes de ampliar a interface de recomendação. Uma recomendação só é confiável quando o copiloto e o canvas compartilham a mesma base calculada.
+
+## Ciclo 3 — Inteligência dinâmica e consistência numérica
+
+### Problema e prioridade
+
+Quatro gaps interligados: insights estáticos desconectados dos cálculos reais; copiloto respondendo como chatbot simples sem análise estruturada; textos mockados com números desconectados do motor; premissas regulatórias invisíveis para o usuário.
+
+### Princípios constitucionais afetados
+
+- o produto deve parecer vivo — indicadores mudam, copiloto observa;
+- nunca apresentar estimativa como fato — premissas precisam de origem e estado;
+- copiloto deve chegar com contexto e observações;
+- separar cálculo, inferência e validação;
+- a recomendação deve ter objetivo, critérios, confiança, premissas e próximo passo.
+
+### Solução implementada
+
+**Insights dinâmicos:** `computeInsights(towers, m)` substituiu `INSIGHTS_DATA` estático. Gera insights contextuais com base em CA real, margem de CA, potencial de crescimento por torre, TO disponível, conflitos e sobreposições. InsightsRail recebe `towers` e `m` como props.
+
+**Copiloto análise estruturada:** seleção de torre agora produz `role:"copilot-analysis"` com campo `observation`, `suggestion`, `confidence` e array `facts[]` com `source` (calculado/informado). Substituiu o `role:"copilot-context"` simples com texto de status. Debounce de 500ms evita flooding.
+
+**Descrição dinâmica no getStatus:** `status.detail` agora inclui CA real, margem calculada e unidades estimadas. `status.nextStep` recomenda próxima ação de acordo com o estado atual. Ambos renderizados no `LotOverview`.
+
+**Premissas explícitas:** seção "Premissas" no LotOverview mostra CA max (12), TO max (50%) e vagas (1) com badges "simulado"/"informado" e disclaimer claro.
+
+**Intenção e trade-off nas estratégias:** `SCENARIO_META` expandido com campos `intent` e `tradeoff`. Renderizados no `ComparePanel` abaixo do seletor de estratégia.
+
+**Consistência numérica:** `const HISTORY` substituído por `function initialHistory()` que computa métricas reais via `calculateMetrics` nos `INIT_TOWERS`. O skill card inicial mostra unidades, CA e TO calculados.
+
+**Constantes de limite:** `CA_LIMIT = 12` e `TO_LIMIT = 50` promovidos para constantes de módulo.
+
+### Arquivos alterados
+
+- `index.html`
+
+### Verificações
+
+- `npm test`: 9 testes aprovados.
+- busca por valores hardcoded nas mensagens mockadas: substituídos por calculados.
+- `getStatus` não produz mais "Solução Viável".
+
+### Limitações e riscos
+
+- `copilot-analysis` fica visível apenas se o chat estiver aberto; usuário com chat minimizado não vê a análise;
+- insights são dispensáveis mas podem ser dispensados acidentalmente;
+- premissas regulatórias mostradas como "simulado" — necessitam validação antes de qualquer decisão real.
+
+### Oportunidades descobertas
+
+- badge de não-lida no botão do chat minimizado;
+- notificação do copiloto ao trocar de estratégia;
+- síntese de recomendação comparativa no ComparePanel;
+- alerta proativo quando CA ultrapassa limites;
+- atalhos de teclado para troca de estratégia.
+
+## Ciclo 4 — Copiloto proativo e encerramento do ciclo decisório
+
+### Problema e prioridade
+
+O copiloto reagia a ações do usuário mas não iniciava observações sobre o estado do canvas. O ComparePanel mostrava dados mas não fechava o ciclo de decisão. O usuário com chat minimizado não sabia quando o copiloto havia enviado análise.
+
+### Princípios constitucionais afetados
+
+- copiloto deve chegar cedo, enxergar relações, propor caminhos;
+- cada transição é oportunidade para o copiloto;
+- geração sem avaliação é espetáculo, avaliação sem decisão é relatório;
+- confiança exige tornar limitações visíveis na exportação.
+
+### Solução implementada
+
+**Badge de não-lida no chat minimizado:** `ChatPanel` rastreia mensagens recebidas enquanto minimizado. Botão em modo mini mostra badge verde + pulse quando novas mensagens chegam. Claro ao expandir.
+
+**Notificação ao trocar estratégia:** `switchVersion` envia `copilot-context` com métricas comparativas: unidades delta, CA delta e direção. Preservado ao selecionar torre (filtro anterior removia indevidamente `copilot-context`).
+
+**Alerta proativo de CA:** `useEffect` monitora `m.ca` e envia notificação ao cruzar 10 ou CA_LIMIT. Cooldown de 25s evita repetição durante drag contínuo.
+
+**Síntese de recomendação no ComparePanel:** função `compareRec(verL, mL, verR, mR)` gera texto condicional baseado em delta de unidades, CA e risco regulatório. Renderizada como bloco com cor púrpura abaixo da tabela de deltas.
+
+**Botão "Avançar com esta":** quando `compareRec` retorna uma estratégia recomendada, botão aparece no bloco de síntese. Ao clicar, chama `onSwitch(rec.rec)` e fecha o comparador. Fecha o ciclo Explorar → Comparar → Decidir.
+
+**Atalhos de teclado 1/2/3:** global `document.addEventListener` com ref para evitar stale closure. Ativado apenas em modo active e quando o foco não está em input/textarea.
+
+**Estratégias nas alternativas:** `contextualReply` usa `scenarioName` e `scenarioIntent` para labels das alternativas. Bubble de alternatives mostra `alt.intent` como sublabel.
+
+**Texto contextual no reply:** padrão de resposta do copiloto para `type==="increase"` menciona CA antes e depois; `type==="reduce"` menciona motivo baseado em CA real. Padrões regex expandidos (remov/exclu/apagar/deletar/tirar, aument/mais/ampli/pavimento/cresce/subir/sobe).
+
+**Exportação enriquecida:** `downloadReport` inclui estado da avaliação, intenção e trade-off da estratégia, e tabela de premissas com badges "simulado"/"informado" e disclaimer. Alinha o relatório com a epistemologia do produto.
+
+**SVG_PER_M2 constante:** elimina três computações repetidas de área de polígono em `computeInsights`, `towerAiText` e o efeito de seleção do copiloto. Usa `M_TO_SVG * M_TO_SVG`.
+
+### Arquivos alterados
+
+- `index.html`
+- `reviews/IMPLEMENTATION_REVIEW.md`
+- `reviews/NEXT_OPPORTUNITIES.md`
+
+### Verificações
+
+- `npm test`: 9 testes aprovados em todos os pontos de verificação intermediários.
+- brace/paren balance: 0 em todos os pontos.
+- todos os novos textos em português e alinhados com a linguagem estabelecida.
+
+### Limitações e riscos
+
+- atalhos 1/2/3 interferem se o usuário tiver extensão de browser que captura teclas numéricas;
+- `compareRec` usa lógica condicional heurística — pode não cobrir todos os casos de comparação;
+- notificação de CA usa cooldown de 25s que pode perder alertas consecutivos durante drag rápido;
+- botão "Avançar com esta" fecha o comparador mas não registra formalmente a decisão (modo Decidir ainda ausente).
+
+### Oportunidades descobertas
+
+- superfície explícita de "Decidir" para registro formal de decisão com motivo;
+- snapping de torres às linhas de recuo;
+- histórico de desfazer/refazer;
+- validação de premissas com link para consulta de legislação;
+- modo de edição de texto das premissas pelo usuário.

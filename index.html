@@ -53,9 +53,11 @@
 
     function getStatus(m) {
       if (!m?.valid||![m.ca,m.occ,m.units,m.area].every(value=>isRenderableNumber(value))) return {key:"invalid",label:"Dados insuficientes",detail:"Indicadores não calculados",dot:C.red,color:C.red,bg:"rgba(253,72,72,0.08)",border:"rgba(253,72,72,0.2)"};
-      if (m.ca>=12||m.occ>=50) return {key:"warning",label:"Limites informados excedidos",detail:"Revisar CA e taxa de ocupação",dot:C.yellow,color:C.yellow,bg:"rgba(255,188,0,0.08)",border:"rgba(255,188,0,0.25)"};
-      if (m.ca>=10||m.occ>=42) return {key:"caution",label:"Próximo aos limites informados",detail:"CA e ocupação exigem conferência",dot:C.yellow,color:"#e5ab00",bg:"rgba(255,188,0,0.06)",border:"rgba(255,188,0,0.18)"};
-      return {key:"preliminary",label:"Avaliação preliminar",detail:"CA e ocupação calculados · legislação não validada",dot:C.purple,color:"rgba(203,200,255,0.95)",bg:"rgba(86,79,255,0.08)",border:"rgba(86,79,255,0.25)"};
+      if (m.ca>=CA_LIMIT||m.occ>=TO_LIMIT) return {key:"warning",label:"Limites informados excedidos",detail:`CA ${formatNumber(m.ca,{digits:1})} ou TO ${formatNumber(m.occ,{digits:1})}% — limite excedido · revisar`,nextStep:"Revisar pavimentos das torres maiores antes de avançar.",dot:C.yellow,color:C.yellow,bg:"rgba(255,188,0,0.08)",border:"rgba(255,188,0,0.25)"};
+      if (m.ca>=10||m.occ>=42) return {key:"caution",label:"Próximo aos limites informados",detail:`CA ${formatNumber(m.ca,{digits:1})} / ${CA_LIMIT} · TO ${formatNumber(m.occ,{digits:1})}% — margem reduzida`,nextStep:m.ca>=10?"Comparar com Mais área livre para redistribuir o risco.":null,dot:C.yellow,color:"#e5ab00",bg:"rgba(255,188,0,0.06)",border:"rgba(255,188,0,0.18)"};
+      const approxExtra=Math.max(1,Math.round((CA_LIMIT-m.ca)*LOT/52));
+      const nextStep=m.ca<7?"Explorar Máxima densidade para aumentar o aproveitamento do lote.":null;
+      return {key:"preliminary",label:"Avaliação preliminar",detail:`CA ${formatNumber(m.ca,{digits:1})} / ${CA_LIMIT} · ~${approxExtra} un de margem · legislação não validada`,nextStep,dot:C.purple,color:"rgba(203,200,255,0.95)",bg:"rgba(86,79,255,0.08)",border:"rgba(86,79,255,0.25)"};
     }
 
     /* ── icons ────────────────────────────────────────────────── */
@@ -105,6 +107,8 @@
     /* ── data ─────────────────────────────────────────────────── */
     const TERRAIN = "160,60 480,40 560,120 540,360 420,400 180,380 80,280 100,140";
     const LOT = 847;
+    const CA_LIMIT = 12;
+    const TO_LIMIT = 50;
 
     const INIT_TOWERS = [
       { id:"A", x:185, y:145, w:72,  h:52, floors:12, units:48, area:2304, type:"Studio 44m²"  },
@@ -132,28 +136,125 @@
     };
 
     const SCENARIO_META = {
-      "Versão 01": {name:"Equilíbrio de implantação",revision:"v01"},
-      "Versão 02": {name:"Máxima densidade",revision:"v02"},
-      "Versão 03": {name:"Mais área livre",revision:"v03"},
+      "Versão 01": {
+        name:"Equilíbrio de implantação",
+        revision:"v01",
+        intent:"Três torres com alturas moderadas e distribuição equilibrada no lote.",
+        tradeoff:"Densidade média · menor risco de aprovação · área de permanência preservada.",
+      },
+      "Versão 02": {
+        name:"Máxima densidade",
+        revision:"v02",
+        intent:"Torres maiores para maximizar unidades e aproveitamento do CA disponível.",
+        tradeoff:"CA elevado · TO próxima ao limite · maior exposição a risco regulatório.",
+      },
+      "Versão 03": {
+        name:"Mais área livre",
+        revision:"v03",
+        intent:"Quatro torres menores liberando permeabilidade no centro do lote.",
+        tradeoff:"CA reduzido · TO baixa · quatro blocos ampliam complexidade construtiva.",
+      },
     };
     const scenarioName=key=>SCENARIO_META[key]?.name||key;
     const scenarioRevision=key=>SCENARIO_META[key]?.revision||key;
+    const scenarioIntent=key=>SCENARIO_META[key]?.intent||"";
+    const scenarioTradeoff=key=>SCENARIO_META[key]?.tradeoff||"";
 
-    const INSIGHTS_DATA = [
-      { id:"i1", type:"opportunity", text:"Espaço para +14 unidades na área NE do lote." },
-      { id:"i2", type:"info",        text:"CA em 92% do potencial — existe configuração que chega a 99%." },
-      { id:"i3", type:"opportunity", text:"Torre B pode ganhar 2 pavimentos sem comprometer o CA." },
-      { id:"i4", type:"warning",     text:"Insolação da Torre C ficará comprometida entre maio e julho." },
-    ];
+    function computeInsights(towers, m) {
+      const insights = [];
+      if (!m?.valid) return insights;
+      const clean = sanitizeTowers(towers);
+      const caHeadroom = CA_LIMIT - m.ca;
+      const toHeadroom = TO_LIMIT - m.occ;
 
-    const HISTORY = [
-      { role:"file", name:"lote_brooklin_topografia.kmz", ext:"kmz", size:"128 KB", meta:"Google Earth · São Paulo · Brooklin · 847m²", time:"14:21" },
-      { role:"user",  text:"Quero avaliar este terreno no Brooklin.\nGera três alternativas priorizando unidades, mantendo CA abaixo de 12.", time:"14:22" },
-      { role:"agent", text:"Arquivo recebido. Identifiquei o contorno do lote: 847m² em forma irregular, testada de ~22m.\nDuas premissas antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m², 1 dorm 52m² ou ambas?", time:"14:22" },
-      { role:"user",  text:"Confirmo 1 vaga. Usa ambas as tipologias.", time:"14:23" },
-      { role:"skill", fn:"gerar_solucoes_implantacao()", sub:"3 estratégias geradas · Equilíbrio de implantação ativo",
-        text:"Solução com 163 unidades posicionada. Torre B concentra maior densidade.\nTaxa de ocupação em 38% — dentro do limite.\nQuer explorar reduzir Torre A para abrir área de permeabilidade?", time:"14:23" },
-    ];
+      // CA opportunity or risk
+      if (caHeadroom > 2.5) {
+        const approxExtra = Math.max(1, Math.round(caHeadroom * LOT / 52));
+        insights.push({
+          id: "ca-headroom",
+          type: "opportunity",
+          text: `CA em ${safeValue(m.ca,{digits:1})} de ${CA_LIMIT} — margem para ~${approxExtra} unidades adicionais.`,
+        });
+      } else if (m.ca >= 11) {
+        insights.push({
+          id: "ca-risk",
+          type: "warning",
+          text: `CA em ${safeValue(m.ca,{digits:1})} / ${CA_LIMIT} — apenas ${safeValue(caHeadroom,{digits:1})} de margem. Qualquer adição pode exceder o limite.`,
+        });
+      }
+
+      // Tower growth opportunity
+      const lowTower = clean.find(t => t.floors < 10 && caHeadroom > 1.5);
+      if (lowTower) {
+        const towerM2 = Math.max(lowTower.w * lowTower.h, 1) / SVG_PER_M2;
+        const potentialFloors = Math.max(2, Math.min(6, Math.floor(caHeadroom * LOT / towerM2)));
+        insights.push({
+          id: `grow-${lowTower.id}`,
+          type: "opportunity",
+          text: `Torre ${lowTower.id} pode absorver ${potentialFloors} pavimentos adicionais sem comprometer o CA.`,
+        });
+      }
+
+      // TO space
+      if (toHeadroom > 12) {
+        const freeM2 = Math.round(toHeadroom / 100 * LOT);
+        insights.push({
+          id: "to-space",
+          type: "info",
+          text: `${safeValue(freeM2,{suffix:" m²"})} de área disponível no lote · TO em ${safeValue(m.occ,{digits:1})}% de ${TO_LIMIT}%.`,
+        });
+      }
+
+      // Conflict/overlap warnings
+      clean.forEach(t => {
+        if (!rectInPoly(t.x,t.y,t.w,t.h,TERRAIN)) {
+          insights.push({ id:`conflict-${t.id}`, type:"warning", text:`Torre ${t.id} fora dos limites do lote — regularizar posição antes de calcular.` });
+        }
+      });
+      for (let i = 0; i < clean.length; i++) {
+        for (let j = i+1; j < clean.length; j++) {
+          if (overlaps(clean[i], clean[j])) {
+            insights.push({ id:`overlap-${clean[i].id}-${clean[j].id}`, type:"warning", text:`Torres ${clean[i].id} e ${clean[j].id} se sobrepõem — métricas estão inconsistentes.` });
+          }
+        }
+      }
+
+      // Low units / high floor warning
+      const highTower = clean.find(t => t.floors >= 15 && m.ca >= 10);
+      if (highTower && !insights.some(i => i.id === "ca-risk")) {
+        insights.push({
+          id: `tall-${highTower.id}`,
+          type: "warning",
+          text: `Torre ${highTower.id} com ${safeValue(highTower.floors)} pavimentos mantém CA em ${safeValue(m.ca,{digits:1})} — conferir margem antes de crescer.`,
+        });
+      }
+
+      return insights.slice(0, 4);
+    }
+
+    function initialHistory() {
+      const pts = "160,60 480,40 560,120 540,360 420,400 180,380 80,280 100,140".split(" ").map(p=>p.split(",").map(Number));
+      const m = calculateMetrics(sanitizeTowers(INIT_TOWERS), LOT, pts);
+      const units = m.valid ? m.units : 163;
+      const occ   = m.valid ? formatNumber(m.occ, {digits:1}) : "38";
+      const ca    = m.valid ? formatNumber(m.ca,  {digits:1}) : "3.7";
+      const tB    = INIT_TOWERS.find(t=>t.id==="B");
+      const bShare= (m.valid&&m.units>0&&tB) ? Math.round(tB.units/m.units*100) : 46;
+      return [
+        { role:"file", name:"lote_brooklin_topografia.kmz", ext:"kmz", size:"128 KB", meta:"Google Earth · São Paulo · Brooklin · 847m²", time:"14:21" },
+        { role:"user", text:"Quero avaliar este terreno no Brooklin.\nGera três alternativas priorizando unidades, mantendo CA abaixo de 12.", time:"14:22" },
+        { role:"agent", text:"Arquivo recebido. Identifiquei o contorno do lote: 847m² em forma irregular, testada de ~22m.\nDuas premissas antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m², 1 dorm 52m² ou ambas?", time:"14:22" },
+        { role:"user", text:"Confirmo 1 vaga. Usa ambas as tipologias.", time:"14:23" },
+        { role:"skill", fn:"gerar_solucoes_implantacao()", sub:"3 estratégias geradas · Equilíbrio de implantação ativo",
+          text:`Implantação com ${units} unidades posicionada. Torre B concentra ${bShare}% das unidades.\nTaxa de ocupação em ${occ}% — dentro do limite informado de ${TO_LIMIT}%.\nCA em ${ca} de ${CA_LIMIT}. Quer explorar reduzir Torre A para abrir área de permeabilidade?`, time:"14:23",
+          preview:[
+            {label:"Unidades",before:"—",after:String(units),good:true},
+            {label:"Taxa de ocupação",before:"—",after:`${occ}%`,good:true},
+            {label:"CA utilizado",before:"—",after:ca,good:true},
+          ],
+        },
+      ];
+    }
 
     /* ── geometry ─────────────────────────────────────────────── */
     function pip(px, py, pts) {
@@ -191,6 +292,7 @@
 
     /* ── geometry extra ───────────────────────────────────────── */
     const M_TO_SVG = 13.06; // 1m ≈ 13.06 SVG units (847m² = 144400 SVG²)
+    const SVG_PER_M2 = M_TO_SVG * M_TO_SVG; // ≈ 170.56 SVG² per m² — precomputed to avoid repeated polygon area computation
 
     function insetPoly(pts, distances) {
       const n = pts.length;
@@ -290,13 +392,40 @@
           <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,lineHeight:1.4}}>{msg.text}</span>
         </div>
       );
+      if (msg.role==="copilot-analysis") return (
+        <div style={{marginBottom:8,...enter}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:C.green2,boxShadow:`0 0 6px ${C.green2}`,flexShrink:0}}/>
+            <span style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:C.green2}}>Torre {msg.towerId}</span>
+            <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>· confiança {msg.confidence}</span>
+          </div>
+          <div style={{background:"rgba(1,173,110,0.09)",border:"1px solid rgba(51,224,161,0.16)",borderRadius:"2px 10px 10px 10px",padding:"10px 12px",maxWidth:"94%"}}>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray2,lineHeight:1.55,marginBottom:9}}>{msg.observation}</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:9}}>
+              {(msg.facts||[]).map(f=>(
+                <div key={f.label} style={{background:"rgba(17,21,29,0.65)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:5,padding:"3px 8px",display:"flex",alignItems:"center",gap:5}}>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray}}>{f.label}</span>
+                  <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:700,color:"#fff"}}>{f.val}</span>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:"rgba(113,128,150,0.45)",borderLeft:"1px solid rgba(255,255,255,0.07)",paddingLeft:4}}>{f.source}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:7,display:"flex",gap:5,alignItems:"flex-start"}}>
+              <span style={{fontSize:11,color:C.green2,flexShrink:0,marginTop:1}}>→</span>
+              <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.green2,lineHeight:1.45}}>{msg.suggestion}</span>
+            </div>
+          </div>
+          <div style={{marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
+        </div>
+      );
       if (msg.role==="alternatives") return (
         <div style={{marginBottom:8,...enter}}>
           <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,marginBottom:7}}>{msg.text}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {(msg.alternatives||[]).map((alt,altIndex)=>(
               <div key={alt.label} style={{background:"rgba(15,19,26,0.92)",border:`1px solid ${alt.applied?"rgba(51,224,161,0.4)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"9px 10px"}}>
-                <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",marginBottom:6}}>{alt.label}</div>
+                <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",marginBottom:alt.intent?3:6}}>{alt.label}</div>
+                {alt.intent&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginBottom:6,lineHeight:1.35}}>{alt.intent}</div>}
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,color:alt.deltaUnits>=0?C.green2:C.red}}>{alt.deltaUnits>=0?"+":""}{safeValue(alt.deltaUnits)} un.</span>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>CA {alt.ca}</span>
@@ -384,14 +513,23 @@
       );
     }
 
-    function InsightsRail() {
+    function InsightsRail({towers,m}) {
       const [visible,setVisible]=useState(false);
       const [dismissed,setDismissed]=useState([]);
-      useEffect(()=>{const timer=setTimeout(()=>setVisible(true),2000);return()=>clearTimeout(timer);},[]);
-      const active=INSIGHTS_DATA.filter(item=>!dismissed.includes(item.id)).slice(0,3);
+      const activeInsights=computeInsights(towers,m);
+      const activeIds=activeInsights.map(i=>i.id).join(",");
+      const prevIds=useRef(activeIds);
+      useEffect(()=>{
+        if(prevIds.current!==activeIds){
+          setDismissed(prev=>prev.filter(id=>activeInsights.some(i=>i.id===id)));
+          prevIds.current=activeIds;
+        }
+      },[activeIds]);
+      useEffect(()=>{const timer=setTimeout(()=>setVisible(true),1800);return()=>clearTimeout(timer);},[]);
+      const active=activeInsights.filter(item=>!dismissed.includes(item.id)).slice(0,3);
       if(!visible||!active.length)return null;
       return (
-        <div style={{position:"absolute",top:80,left:14,zIndex:20,width:220,display:"flex",flexDirection:"column",gap:5}}>
+        <div style={{position:"absolute",top:80,left:14,zIndex:20,width:226,display:"flex",flexDirection:"column",gap:5}}>
           {active.map((insight,index)=><InsightCard key={insight.id} insight={insight} index={index} onDismiss={id=>setDismissed(prev=>[...prev,id])}/>)}
         </div>
       );
@@ -414,11 +552,12 @@
           <div style={{padding:"16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
             <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:C.gray2,marginBottom:3}}>{scenarioName(version)}</div>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginBottom:10}}>{scenarioRevision(version)} · estratégia ativa</div>
-            <div style={{background:status.bg,border:`1px solid ${status.border}`,borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",gap:7}}>
-              <div style={{width:7,height:7,borderRadius:"50%",background:status.dot,boxShadow:`0 0 6px ${status.dot}`}}/>
+            <div style={{background:status.bg,border:`1px solid ${status.border}`,borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"flex-start",gap:7}}>
+              <div style={{width:7,height:7,borderRadius:"50%",background:status.dot,boxShadow:`0 0 6px ${status.dot}`,flexShrink:0,marginTop:2}}/>
               <div>
                 <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:status.color}}>{status.label}</div>
                 <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginTop:3,lineHeight:1.35}}>{status.detail}</div>
+                {status.nextStep&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.green2,marginTop:5,paddingTop:5,borderTop:"1px solid rgba(255,255,255,0.05)",lineHeight:1.35}}>→ {status.nextStep}</div>}
               </div>
             </div>
           </div>
@@ -435,6 +574,26 @@
                 </div>
               ))}
             </div>
+          </div>
+          <div style={{padding:"10px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+              <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em"}}>Premissas</span>
+              <span style={{background:"rgba(255,188,0,0.1)",border:"1px solid rgba(255,188,0,0.28)",borderRadius:10,fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:600,color:C.yellow,padding:"1px 5px"}}>simulado</span>
+            </div>
+            {[
+              {label:"CA máximo",val:"12",state:"simulado"},
+              {label:"Taxa de ocup. máx.",val:"50%",state:"simulado"},
+              {label:"Vagas por unidade",val:"1",state:"informado"},
+            ].map(({label,val,state})=>(
+              <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{label}</span>
+                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                  <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:600,color:C.gray2}}>{val}</span>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:state==="simulado"?C.yellow:"rgba(51,224,161,0.8)",border:`1px solid ${state==="simulado"?"rgba(255,188,0,0.22)":"rgba(51,224,161,0.2)"}`,borderRadius:8,padding:"1px 5px"}}>{state}</span>
+                </div>
+              </div>
+            ))}
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.45)",marginTop:5,lineHeight:1.4}}>Não validados com legislação local. Conferir antes de avançar.</div>
           </div>
           <div style={{padding:"14px 16px",flex:1}}>
             <div style={{display:"flex",alignItems:"center",marginBottom:10}}>
@@ -466,7 +625,21 @@
       useEffect(()=>setDraft({...tower}),[tower.id,tower.floors,tower.units,tower.area,tower.type]);
       const fieldStyle={width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"6px 7px",outline:"none"};
       const numberField=(key,min,max)=><input type="number" min={min} max={max} value={draft[key]} onChange={e=>setDraft(d=>({...d,[key]:Math.max(min,Math.min(max,Number(e.target.value)||min))}))} style={fieldStyle}/>;
-      const aiText=tower.floors>=15?"CA próximo ao limite. Redução de 2 pavimentos libera margem.":tower.floors<=10?"Potencial disponível. Esta torre pode absorver pavimentos adicionais.":"Configuração equilibrada dentro dos parâmetros.";
+      function towerAiText(t,metrics) {
+        const st=sanitizeTower(t);
+        if(!metrics?.valid) return "Indicadores não calculados. Verificar posição da torre no lote.";
+        const caHeadroom=CA_LIMIT-metrics.ca;
+        const tM2=st.w*st.h/SVG_PER_M2;
+        const tCaContrib=safeValue(st.area/LOT,{digits:2});
+        if(st.floors>=15&&metrics.ca>=10) return `CA total em ${safeValue(metrics.ca,{digits:1})} / ${CA_LIMIT} — margem de ${safeValue(caHeadroom,{digits:1})}. Esta torre contribui com ~${tCaContrib} CA. Redução de 2 pav libera margem sem comprometer as demais.`;
+        if(st.floors<=8&&caHeadroom>1.5){
+          const extra=Math.max(2,Math.min(6,Math.floor(caHeadroom*LOT/Math.max(tM2,1))));
+          return `CA total em ${safeValue(metrics.ca,{digits:1})} de ${CA_LIMIT}, com ${safeValue(caHeadroom,{digits:1})} de margem. Esta torre pode absorver até ${extra} pavimentos adicionais sem exceder os limites informados.`;
+        }
+        if(metrics.ca>=10) return `CA em ${safeValue(metrics.ca,{digits:1})} / ${CA_LIMIT} — próximo ao limite. Ajustar com cuidado para não ultrapassar os parâmetros informados.`;
+        return `Configuração dentro dos parâmetros. CA em ${safeValue(metrics.ca,{digits:1})} de ${CA_LIMIT}, com ${safeValue(caHeadroom,{digits:1})} de margem disponível.`;
+      }
+      const aiText=towerAiText(tower,m);
       function save(){onSave(sanitizeTower({...tower,floors:Math.round(draft.floors),units:Math.round(draft.units),area:Math.round(draft.area),type:draft.type},tower));setEditing(false);}
       return (
         <>
@@ -748,7 +921,30 @@
     }
 
     /* ── ComparePanel — 2.2 ──────────────────────────────────── */
-    function ComparePanel({versions, currentVersion, onClose}) {
+    function compareRec(verL, mL, verR, mR) {
+      if (!mL?.valid || !mR?.valid) return null;
+      const du = mR.units - mL.units;
+      const nameL = scenarioName(verL), nameR = scenarioName(verR);
+      const riskR = mR.ca >= CA_LIMIT, riskL = mL.ca >= CA_LIMIT;
+      const highR = mR.ca >= 10, highL = mL.ca >= 10;
+      const pct = (a,b) => `${Math.round(Math.abs(a-b)/Math.max(Math.min(a,b),1)*100)}%`;
+      if(Math.abs(du)<=2&&Math.abs(mR.ca-mL.ca)<=0.2) return {text:`Configurações equivalentes em unidades e CA. Diferença principal é a distribuição das torres no lote.`,rec:null};
+      if(du>5){
+        if(riskR&&!riskL) return {text:`${nameR} gera ${du} unidades a mais (+${pct(mR.units,mL.units)}), mas CA ${safeValue(mR.ca,{digits:1})} excede o limite informado. Avançar com ${nameR} exige revisão regulatória.`,rec:verL,label:`Menor risco · ${nameL}`};
+        if(highR&&!highL) return {text:`${nameR} gera ${du} unidades a mais (+${pct(mR.units,mL.units)}), com CA ${safeValue(mR.ca,{digits:1})} próximo ao limite. ${nameL} preserva margem de ${safeValue(CA_LIMIT-mL.ca,{digits:1})}.`,rec:null};
+        return {text:`${nameR} produz ${du} unidades a mais (+${pct(mR.units,mL.units)}) e CA ${safeValue(mR.ca,{digits:1})} dentro dos parâmetros.`,rec:verR,label:`Mais unidades · ${nameR}`};
+      }
+      if(du<-5){
+        const ad=Math.abs(du);
+        if(riskL&&!riskR) return {text:`${nameL} tem ${ad} unidades a mais, mas CA ${safeValue(mL.ca,{digits:1})} excede o limite informado. ${nameR} preserva segurança regulatória.`,rec:verR,label:`Menor risco · ${nameR}`};
+        return {text:`${nameL} produz ${ad} unidades a mais (+${pct(mL.units,mR.units)}) — CA ${safeValue(mL.ca,{digits:1})} ${riskL?"acima do limite":"dentro dos parâmetros"}.`,rec:null};
+      }
+      if(mR.ca<mL.ca-0.3) return {text:`Unidades similares. ${nameR} tem CA ${safeValue(mR.ca,{digits:1})} — ${safeValue(mL.ca-mR.ca,{digits:1})} abaixo de ${nameL}. Menor CA amplia margem regulatória.`,rec:verR,label:`Menor risco · ${nameR}`};
+      if(mL.ca<mR.ca-0.3) return {text:`Unidades similares. ${nameL} tem CA ${safeValue(mL.ca,{digits:1})} — ${safeValue(mR.ca-mL.ca,{digits:1})} abaixo de ${nameR}. Menor CA amplia margem regulatória.`,rec:verL,label:`Menor risco · ${nameL}`};
+      return {text:`Diferença pequena em unidades (${du>0?"+":""}${du}) e CA similar. Fator diferenciador é a distribuição no lote.`,rec:null};
+    }
+
+    function ComparePanel({versions, currentVersion, onClose, onSwitch}) {
       const VERS = ["Versão 01","Versão 02","Versão 03"];
       const [left,  setLeft]  = useState(currentVersion);
       const [right, setRight] = useState(VERS.find(v=>v!==currentVersion)||"Versão 02");
@@ -797,14 +993,22 @@
           <div style={{display:"flex",flex:1,gap:12,padding:"14px 20px 12px",overflow:"hidden",minHeight:0}}>
             {[{ver:left,setVer:setLeft,tw:tL,m:mL,accent:"rgba(51,224,161,0.2)"},{ver:right,setVer:setRight,tw:tR,m:mR,accent:"rgba(86,79,255,0.2)"}].map(({ver,setVer,tw,m,accent},si)=>(
               <div key={si} style={{flex:1,display:"flex",flexDirection:"column",gap:8,minHeight:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-                  <select value={ver} onChange={e=>setVer(e.target.value)}
-                    style={{background:"rgba(32,38,47,0.95)",border:`1px solid ${accent}`,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,borderRadius:6,padding:"4px 10px",cursor:"pointer",outline:"none"}}>
-                    {VERS.map(v=><option key={v} value={v} style={{background:C.card}}>{scenarioName(v)} · {scenarioRevision(v)}</option>)}
-                  </select>
-                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
-                    {safeValue(tw.length)} torres · {m.valid?safeValue(m.units):"--"} un · CA <span style={{color:m.valid&&m.ca>=12?C.yellow:"#fff",fontWeight:600}}>{m.valid?safeValue(m.ca,{digits:1}):"--"}</span>
-                  </span>
+                <div style={{display:"flex",flexDirection:"column",gap:7,flexShrink:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <select value={ver} onChange={e=>setVer(e.target.value)}
+                      style={{background:"rgba(32,38,47,0.95)",border:`1px solid ${accent}`,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,borderRadius:6,padding:"4px 10px",cursor:"pointer",outline:"none"}}>
+                      {VERS.map(v=><option key={v} value={v} style={{background:C.card}}>{scenarioName(v)} · {scenarioRevision(v)}</option>)}
+                    </select>
+                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
+                      {safeValue(tw.length)} torres · {m.valid?safeValue(m.units):"--"} un · CA <span style={{color:m.valid&&m.ca>=12?C.yellow:"#fff",fontWeight:600}}>{m.valid?safeValue(m.ca,{digits:1}):"--"}</span>
+                    </span>
+                  </div>
+                  {scenarioIntent(ver)&&(
+                    <div style={{background:"rgba(17,21,29,0.55)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:6,padding:"6px 9px"}}>
+                      <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray2,lineHeight:1.4,marginBottom:3}}>{scenarioIntent(ver)}</div>
+                      <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,lineHeight:1.4}}>{scenarioTradeoff(ver)}</div>
+                    </div>
+                  )}
                 </div>
                 <div style={{flex:1,border:`1px solid ${accent}`,borderRadius:10,overflow:"hidden",background:C.ink2,minHeight:0}}>
                   <MiniCanvas towers={tw}/>
@@ -837,9 +1041,25 @@
                 );
               })}
             </div>
-            <div style={{marginTop:8,textAlign:"center",fontFamily:"'Inter',sans-serif",fontSize:10,color:"rgba(113,128,150,0.5)"}}>
-              {scenarioName(left)} → {scenarioName(right)}
-            </div>
+            {(()=>{const rec=compareRec(left,mL,right,mR);if(!rec)return null;return(
+              <div style={{marginTop:10,background:"rgba(86,79,255,0.08)",border:"1px solid rgba(86,79,255,0.22)",borderRadius:8,padding:"10px 14px"}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                  <span style={{color:C.purple,fontSize:12,fontFamily:"'Sora',sans-serif",fontWeight:700,flexShrink:0,lineHeight:1.4}}>→</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,lineHeight:1.55}}>{rec.text}</div>
+                    {rec.rec&&(
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8}}>
+                        <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.purple,fontWeight:600}}>{rec.label}</span>
+                        <button onClick={()=>onSwitch&&onSwitch(rec.rec)}
+                          style={{background:"rgba(86,79,255,0.22)",border:"1px solid rgba(86,79,255,0.45)",borderRadius:5,color:"rgba(203,200,255,0.95)",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,padding:"4px 11px",cursor:"pointer"}}>
+                          Avançar com esta →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );})()}
           </div>
         </div>
       );
@@ -975,18 +1195,27 @@
     function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt}) {
       const scrollRef=useRef(null);
       const chatFileRef=useRef(null);
+      const [hasNew,setHasNew]=useState(false);
+      const prevMsgsLen=useRef(msgs.length);
       useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing,size]);
+      useEffect(()=>{
+        if(size==="mini"){
+          if(msgs.length>prevMsgsLen.current){const last=msgs[msgs.length-1];if(last&&last.role!=="user"&&last.role!=="file")setHasNew(true);}
+        } else {setHasNew(false);}
+        prevMsgsLen.current=msgs.length;
+      },[msgs.length,size]);
 
       const W = "min(320px,calc(100vw - 24px))";
 
       if (size==="mini") return (
         <div style={{position:"absolute",bottom:16,right:16,zIndex:25,animation:"springIn 0.3s cubic-bezier(0.34,1.56,0.64,1)"}}>
-          <button onClick={()=>setSize("medium")}
-            style={{display:"flex",alignItems:"center",gap:8,borderRadius:22,padding:"8px 14px 8px 10px",background:"rgba(32,38,47,0.95)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.12)",cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,0.4)"}}
+          <button onClick={()=>{setSize("medium");setHasNew(false);}}
+            style={{position:"relative",display:"flex",alignItems:"center",gap:8,borderRadius:22,padding:"8px 14px 8px 10px",background:"rgba(32,38,47,0.95)",backdropFilter:"blur(12px)",border:`1px solid ${hasNew?"rgba(51,224,161,0.3)":"rgba(255,255,255,0.12)"}`,cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",transition:"border-color 0.2s ease"}}
           >
-            <div style={{width:7,height:7,borderRadius:"50%",background:C.green2,boxShadow:`0 0 6px ${C.green2}`}}/>
+            <div style={{width:7,height:7,borderRadius:"50%",background:C.green2,boxShadow:`0 0 ${hasNew?"10px":"6px"} ${C.green2}`,animation:hasNew?"pulseT 0.9s ease infinite":"none"}}/>
             <span style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:C.gray2}}>Copilot</span>
             <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>· {msgs.length} msgs</span>
+            {hasNew&&<div style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:C.green,border:"2px solid rgba(17,21,29,0.95)"}}/>}
           </button>
         </div>
       );
@@ -1076,7 +1305,7 @@
       const [viewportWidth,setViewportWidth]=useState(window.innerWidth);
       const [version,     setVersion]     = useState("Versão 01");
       const [view,        setView]        = useState("2D");
-      const [msgs,        setMsgs]        = useState(HISTORY);
+      const [msgs,        setMsgs]        = useState(initialHistory);
       const [input,       setInput]       = useState("");
       const [typing,      setTyping]      = useState(false);
       const [mounted,     setMounted]     = useState(false);
@@ -1093,6 +1322,7 @@
       const [attachedFile, setAttachedFile] = useState(null);
       const [exportOpen,   setExportOpen]   = useState(false);
       const [presenting,   setPresenting]   = useState(false);
+      const [decision,     setDecision]     = useState(null); // {strategy, time, units, ca} | null
 
       const appRef   = useRef(null);
       const svgRef   = useRef(null);
@@ -1116,17 +1346,102 @@
       useEffect(()=>{ towersRef.current=towers; },[towers]);
       useEffect(()=>{
         if(!sel||mode!=="active")return;
-        const t=towersRef.current.find(item=>item.id===sel);
-        if(!t)return;
-        const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-        setMsgs(prev=>[
-          ...prev.filter(message=>message.role!=="copilot-context"),
-          {id:`ctx-${Date.now()}`,role:"copilot-context",time:now,text:`Torre ${t.id} selecionada · ${safeValue(t.floors)} pav · ${safeValue(t.units)} un · ${t.type}`}
-        ]);
+        const timer=setTimeout(()=>{
+          const t=towersRef.current.find(item=>item.id===sel);
+          if(!t)return;
+          const allTowers=towersRef.current;
+          const currentM=calcMetrics(allTowers);
+          const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+
+          let observation,suggestion,confidence;
+          const caHeadroom=CA_LIMIT-(currentM.valid?currentM.ca:0);
+          const tUnitShare=currentM.valid&&currentM.units>0?Math.round(t.units/currentM.units*100):null;
+
+          if(!currentM.valid){
+            observation=`Torre ${t.id} com ${safeValue(t.floors)} pav e ${safeValue(t.units)} unidades. Indicadores não calculados — verificar posição no lote.`;
+            suggestion="Reposicionar a torre dentro do contorno para recalcular as métricas.";
+            confidence="baixa";
+          } else if(t.floors>=15&&currentM.ca>=10){
+            observation=`Torre ${t.id} com ${t.floors} pav${tUnitShare!==null?` representa ${tUnitShare}% das unidades`:""} — CA total em ${safeValue(currentM.ca,{digits:1})} de ${CA_LIMIT}, margem de ${safeValue(caHeadroom,{digits:1})}.`;
+            suggestion=`Redução de 2 pavimentos liberaria ~${safeValue(caHeadroom+0.3,{digits:1})} de CA sem comprometer as demais torres. Premissa calculada; legislação não validada.`;
+            confidence="média";
+          } else if(t.floors<=8&&caHeadroom>1.5){
+            const tM2=(t.w*t.h)/SVG_PER_M2;
+            const extra=Math.max(2,Math.min(6,Math.floor(caHeadroom*LOT/Math.max(tM2,1))));
+            observation=`Torre ${t.id} com ${t.floors} pavimentos — abaixo do potencial. CA total em ${safeValue(currentM.ca,{digits:1})} de ${CA_LIMIT}, com ${safeValue(caHeadroom,{digits:1})} de margem disponível.`;
+            suggestion=`Pode absorver até ${extra} pavimentos adicionais. Confiança: CA e TO calculados; legislação informada pelo usuário, não validada.`;
+            confidence="média";
+          } else {
+            const toHeadroom=TO_LIMIT-(currentM.valid?currentM.occ:0);
+            observation=`Torre ${t.id} com ${t.floors} pav${tUnitShare!==null?`, representando ${tUnitShare}% das unidades`:""} — CA total em ${safeValue(currentM.ca,{digits:1})} de ${CA_LIMIT}.`;
+            suggestion=caHeadroom>1.5
+              ?`Margem de ${safeValue(caHeadroom,{digits:1})} disponível no CA — explorar variação de densidade ou tipologia.`
+              :`CA próximo ao limite. Considere redistribuir pavimentos entre as torres para equilibrar o aproveitamento.`;
+            confidence="média";
+          }
+
+          setMsgs(prev=>[
+            ...prev.filter(msg=>msg.role!=="copilot-analysis"),
+            {
+              id:`ctx-${Date.now()}`,
+              role:"copilot-analysis",
+              time:now,
+              towerId:t.id,
+              observation,
+              suggestion,
+              confidence,
+              facts:[
+                {label:"Pavimentos",val:safeValue(t.floors),source:"calculado"},
+                {label:"Unidades",val:safeValue(t.units),source:"calculado"},
+                {label:"Área",val:safeValue(t.area,{suffix:" m²"}),source:"calculado"},
+                ...(currentM.valid?[{label:"CA total",val:safeValue(currentM.ca,{digits:1}),source:"calculado"}]:[]),
+              ],
+            },
+          ]);
+        },500);
+        return()=>clearTimeout(timer);
       },[sel,mode]);
 
       const m = useMemo(()=>calcMetrics(towers),[towers]);
       const status = useMemo(()=>getStatus(m),[m]);
+
+      // Proactive copilot alert when CA crosses warning thresholds during editing
+      const prevCaRef=useRef(null);
+      const lastCaAlertRef=useRef(0);
+      useEffect(()=>{
+        if(mode!=="active"||!m?.valid)return;
+        const prev=prevCaRef.current;
+        prevCaRef.current=m.ca;
+        if(prev===null)return; // skip initial mount
+        const now=Date.now();
+        if(now-lastCaAlertRef.current<25000)return; // 25s cooldown between alerts
+        const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        if(prev<CA_LIMIT&&m.ca>=CA_LIMIT){
+          lastCaAlertRef.current=now;
+          setMsgs(prev2=>[...prev2,{id:`ca-exc-${now}`,role:"copilot-context",time:nowStr,
+            text:`CA excedeu ${CA_LIMIT} — ${safeValue(m.ca,{digits:1})} calculado. Revisar configuração antes de avançar.`}]);
+        } else if(prev<10&&m.ca>=10){
+          lastCaAlertRef.current=now;
+          setMsgs(prev2=>[...prev2,{id:`ca-warn-${now}`,role:"copilot-context",time:nowStr,
+            text:`CA em ${safeValue(m.ca,{digits:1})} / ${CA_LIMIT} — margem de ${safeValue(CA_LIMIT-m.ca,{digits:1})} restante. Legislação não validada.`}]);
+        }
+      },[m?.ca,mode]);
+
+      // Keyboard shortcut: 1/2/3 to switch strategies when not in an input field
+      const switchVRef=useRef(null);
+      switchVRef.current=switchVersion;
+      useEffect(()=>{
+        function handler(e){
+          if(mode!=="active")return;
+          const el=document.activeElement;
+          if(el&&(el.tagName==="INPUT"||el.tagName==="TEXTAREA"))return;
+          if(e.key==="1") switchVRef.current("Versão 01");
+          else if(e.key==="2") switchVRef.current("Versão 02");
+          else if(e.key==="3") switchVRef.current("Versão 03");
+        }
+        document.addEventListener("keydown",handler);
+        return()=>document.removeEventListener("keydown",handler);
+      },[mode]);
 
       function svgPt(e) {
         const svg=svgRef.current; const p=svg.createSVGPoint();
@@ -1237,9 +1552,9 @@
           return {
             id:`alt-${Date.now()}`,role:"alternatives",time:now,text:"Três configurações para explorar:",
             alternatives:[
-              {label:"Máxima densidade",towers:VERSIONS_INIT["Versão 02"]},
-              {label:"Equilíbrio unidades / área verde",towers:VERSIONS_INIT["Versão 01"]},
-              {label:"Tipologia premium · 2 dorm",towers:VERSIONS_INIT["Versão 03"]},
+              {label:scenarioName("Versão 02"),intent:scenarioIntent("Versão 02"),towers:VERSIONS_INIT["Versão 02"]},
+              {label:scenarioName("Versão 01"),intent:scenarioIntent("Versão 01"),towers:VERSIONS_INIT["Versão 01"]},
+              {label:scenarioName("Versão 03"),intent:scenarioIntent("Versão 03"),towers:VERSIONS_INIT["Versão 03"]},
             ].map(candidate=>{
               const cm=calcMetrics(sanitizeTowers(candidate.towers));
               const curM=calcMetrics(currentTowers);
@@ -1249,9 +1564,9 @@
         }
 
         let type="reduce",label=`Reduzir Torre ${tower.id} em 20%`,after=scaleTower(tower,0.8);
-        if(/remov|exclu|apagar/.test(lower)){
+        if(/remov|exclu|apagar|deletar|tirar/.test(lower)){
           type="remove"; label=`Remover Torre ${tower.id}`; after=null;
-        } else if(/aument|mais|ampli|pavimento/.test(lower)){
+        } else if(/aument|mais|ampli|pavimento|cresce|subir|sobe/.test(lower)){
           type="increase"; label=`Adicionar 2 pavimentos à Torre ${tower.id}`;
           after=increaseFloors(tower,2);
         }
@@ -1261,13 +1576,17 @@
           : currentTowers.map(t=>t.id===tower.id?after:t);
         const beforeM=calcMetrics(currentTowers),afterM=calcMetrics(nextTowers);
         const previewValid=beforeM.valid&&afterM.valid;
+        const caHeadroom=beforeM.valid?CA_LIMIT-beforeM.ca:0;
+        const reduceReason=caHeadroom<=1.5?`CA total em ${safeValue(beforeM.ca,{digits:1})} / ${CA_LIMIT} — redução libera margem regulatória.`:`Torre ${tower.id} com ${safeValue(tower.floors)} pav — redução de 20% para ajustar ocupação no lote.`;
         return {
           id:`skill-${Date.now()}`,role:"skill",time:now,
           fn:type==="remove"?"remover_torre()":type==="increase"?"aumentar_pavimentos()":"reduzir_projecao()",
           sub:`Torre ${tower.id} · prévia calculada`,
           text:type==="remove"
             ? `A remoção da Torre ${tower.id} ${afterM.valid?`reduz o CA para ${safeValue(afterM.ca,{digits:1})}`:"recalcula os indicadores"} e libera sua área de projeção.`
-            : `A Torre ${tower.id} está com ${safeValue(tower.floors)} pavimentos e ${safeValue(tower.units)} unidades. Preparei um ajuste coerente com seu pedido.`,
+            : type==="increase"
+              ? `Torre ${tower.id} com ${safeValue(tower.floors)} pavimentos. Adicionando 2 pavimentos — CA passaria de ${previewValid?safeValue(beforeM.ca,{digits:1}):"--"} para ${previewValid?safeValue(afterM.ca,{digits:1}):"--"}.`
+              : reduceReason,
           preview:[
             {label:"Unidades",before:previewValid?safeValue(beforeM.units):"--",after:previewValid?safeValue(afterM.units):"--",good:type==="increase"},
             {label:"Área total",before:previewValid?safeValue(beforeM.area,{suffix:" m²"}):"--",after:previewValid?safeValue(afterM.area,{suffix:" m²"}):"--",good:type!=="increase"},
@@ -1323,6 +1642,8 @@
 
       function switchVersion(newVer) {
         if (newVer === version) return;
+        const oldVer = version;
+        const oldTowers = sanitizeTowers(towers);
         const newTowers = sanitizeTowers(versions[newVer]);
         setVersions(v=>({...v,[version]:sanitizeTowers(towers)}));
         setTransitioning(true);
@@ -1332,6 +1653,19 @@
           setSel(null);
           setPan({x:0,y:0});
           setTimeout(()=>setTransitioning(false), 180);
+          const oldM=calcMetrics(oldTowers);
+          const newM=calcMetrics(newTowers);
+          const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+          const text=(oldM.valid&&newM.valid)
+            ?(()=>{
+                const du=newM.units-oldM.units;
+                const dc=safeValue(Math.abs(newM.ca-oldM.ca),{digits:1});
+                const caDir=newM.ca>oldM.ca?"↑":"↓";
+                const unDir=du>=0?"+":"";
+                return `Estratégia alterada · ${scenarioName(newVer)} · ${safeValue(newM.units)} un (${unDir}${du}) · CA ${safeValue(newM.ca,{digits:1})} ${caDir}${dc} vs ${scenarioName(oldVer)}`;
+              })()
+            :`Estratégia alterada para ${scenarioName(newVer)}`;
+          setMsgs(prev=>[...prev,{id:`switch-${Date.now()}`,role:"copilot-context",time:now,text}]);
         }, 200);
       }
 
@@ -1376,7 +1710,19 @@
       function downloadReport() {
         const reportMetrics=calcMetrics(towers);
         const rows=sanitizeTowers(towers).map(t=>`<tr><td>Torre ${t.id}</td><td>${safeValue(t.floors)}</td><td>${safeValue(t.units)}</td><td>${safeValue(t.area,{suffix:" m²"})}</td><td>${t.type}</td></tr>`).join("");
-        const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório Arqgen · ${scenarioName(version)}</title><style>body{font-family:Arial,sans-serif;color:#1A202C;margin:40px}h1{margin-bottom:4px}.sub{color:#718096}.kpis{display:flex;gap:12px;margin:28px 0}.kpi{border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px}.kpi b{display:block;font-size:22px;color:#01AD6E}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #E2E8F0}th{font-size:12px;color:#718096}.note{margin-top:28px;padding:14px;background:#F0FFF8;color:#276749;border-radius:8px}</style><body><h1>Estudo de viabilidade</h1><div class="sub">Lote Brooklin · 847 m² · ${scenarioName(version)} · ${scenarioRevision(version)}</div><div class="kpis"><div class="kpi"><b>${safeValue(towers.length)}</b>Torres</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.units):"--"}</b>Unidades</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--"}</b>CA</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--"}</b>Taxa de ocupação</div></div><table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table><div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados.</div></body></html>`;
+        const st=getStatus(reportMetrics);
+        const intent=scenarioIntent(version);
+        const tradeoff=scenarioTradeoff(version);
+        const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório Arqgen · ${scenarioName(version)}</title><style>body{font-family:Arial,sans-serif;color:#1A202C;margin:40px;max-width:860px}h1{margin-bottom:4px;font-size:24px}.sub{color:#718096;margin-bottom:8px}.badge{display:inline-block;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600;margin-top:8px}.kpis{display:flex;gap:12px;margin:24px 0;flex-wrap:wrap}.kpi{border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px}.kpi b{display:block;font-size:22px;color:#01AD6E}.strategy{background:#F7FAFC;border-left:3px solid #01AD6E;padding:12px 16px;margin:20px 0;border-radius:0 8px 8px 0}.strategy .label{font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}.strategy .text{font-size:13px;color:#2D3748}.premises{background:#FFFBEB;border:1px solid #F6E05E;border-radius:8px;padding:12px 16px;margin:20px 0}.premises table{width:auto;margin:0}.premises td{padding:4px 8px;font-size:12px;border:none}.premises .tag{display:inline-block;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #E2E8F0}th{font-size:12px;color:#718096}.note{margin-top:28px;padding:14px;background:#F0FFF8;color:#276749;border-radius:8px;font-size:13px}</style><body>
+<h1>Estudo de viabilidade</h1>
+<div class="sub">Lote Brooklin · 847 m² · ${scenarioName(version)} · ${scenarioRevision(version)}</div>
+<span class="badge" style="background:#EBF8FF;color:#2B6CB0">${st.label}</span>
+${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="text">${intent}</div>${tradeoff?`<div class="text" style="color:#718096;margin-top:4px">${tradeoff}</div>`:""}</div>`:""}
+<div class="kpis"><div class="kpi"><b>${safeValue(towers.length)}</b>Torres</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.units):"--"}</b>Unidades</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--"}</b>CA utilizado</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--"}</b>Taxa de ocupação</div></div>
+<table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="premises"><div class="label" style="font-size:11px;color:#744210;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Premissas utilizadas</div><table><tr><td>CA máximo</td><td>${CA_LIMIT}</td><td><span class="tag" style="background:#FEF3C7;color:#92400E">simulado</span></td><td style="color:#718096;font-size:11px">Confirmar com legislação local</td></tr><tr><td>Taxa de ocupação máxima</td><td>${TO_LIMIT}%</td><td><span class="tag" style="background:#FEF3C7;color:#92400E">simulado</span></td><td style="color:#718096;font-size:11px">Confirmar com legislação local</td></tr><tr><td>Vagas por unidade</td><td>1</td><td><span class="tag" style="background:#DCFCE7;color:#166534">informado</span></td><td></td></tr></table></div>
+<div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados. Premissas marcadas como "simulado" não foram validadas com legislação municipal. Conferir antes de avançar em projeto.</div>
+</body></html>`;
         const blob=new Blob([html],{type:"text/html;charset=utf-8"});
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");
@@ -1454,11 +1800,17 @@
                     {m?.valid?`${safeValue(towers.length)} torres · ${safeValue(m.units)} un. · CA ${safeValue(m.ca,{digits:1})} / 12 · TO ${safeValue(m.occ,{digits:1})}%`:"Calculando indicadores..."}
                   </span>
                   <div style={{flex:1}}/>
+                  {decision&&decision.strategy===version&&(
+                    <span style={{display:"flex",alignItems:"center",gap:4,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.green2,flexShrink:0}}>
+                      <span style={{display:"inline-block",width:5,height:5,borderRadius:"50%",background:C.green2,boxShadow:`0 0 5px ${C.green2}`}}/>
+                      Decisão registrada · {decision.time}
+                    </span>
+                  )}
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:"rgba(113,128,150,0.55)"}}>{status.detail}</span>
                 </div>
               )}
               {presenting && <PresentationHUD m={m} towerCount={towers.length} version={version} onExit={exitPresentation}/>}
-              {!presenting&&mode==="active"&&<InsightsRail/>}
+              {!presenting&&mode==="active"&&<InsightsRail towers={towers} m={m}/>}
 
               {/* SVG */}
               <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease",cursor:panning.current?"grabbing":zoom>100?"grab":"crosshair"}}
@@ -1569,6 +1921,15 @@
                 versions={{...versions,[version]:towers}}
                 currentVersion={version}
                 onClose={()=>setComparing(false)}
+                onSwitch={v=>{
+                  const newM=calcMetrics(sanitizeTowers(versions[v]||[]));
+                  const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+                  switchVersion(v);
+                  setComparing(false);
+                  setDecision({strategy:v,time:now,units:newM.valid?newM.units:null,ca:newM.valid?newM.ca:null});
+                  setMsgs(prev=>[...prev,{id:`decide-${Date.now()}`,role:"copilot-context",time:now,
+                    text:`Estratégia registrada: ${scenarioName(v)} · ${newM.valid?safeValue(newM.units)+"  un · CA "+safeValue(newM.ca,{digits:1}):"indicadores calculados"}. Validar premissas regulatórias antes de avançar em projeto.`}]);
+                }}
               />}
             </div>
 

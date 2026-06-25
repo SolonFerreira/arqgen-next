@@ -32,47 +32,57 @@ Mantém a metáfora de arquivo e enfraquece o princípio “hipóteses em vez de
 
 O ciclo 2 promoveu nomes estratégicos em todas as superfícies relevantes e rebaixou a numeração para metadado de revisão. Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
-## Prioridade 1 — Corrigir inconsistências numéricas do protótipo
+## Concluído — Ciclo 3 — Inconsistências numéricas
 
-### Evidência
+Textos mockados derivados dos cálculos reais. Copiloto usa `copilot-analysis` com fatos estruturados. Premissas explícitas com badges de estado. Intenção e trade-off nas estratégias. Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
-Textos mockados mencionam taxa de ocupação de 38% e CA em 92% do potencial, enquanto o motor atual calcula outros valores para os mesmos cenários.
+## Concluído — Ciclo 3 — Recomendação condicional
 
-### Impacto
+`getStatus` retorna `nextStep` contextual. LotOverview renderiza recomendação em verde. Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
-Reduz confiança e faz o copiloto parecer desconectado do canvas.
+## Concluído — Ciclo 3 — Premissas regulatórias explícitas
 
-### Direção
+Seção "Premissas" no LotOverview com CA max, TO max e vagas com badges "simulado"/"informado". Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
-Derivar mensagens dos cálculos reais ou remover números estáticos.
+## Concluído — Ciclo 4 — Copiloto proativo e encerramento decisório
 
-## Prioridade 2 — Tornar a recomendação condicionada visível
+Badge de não-lida no chat minimizado. Notificação ao trocar estratégia. Alerta de CA. Síntese comparativa com botão "Avançar com esta". Atalhos 1/2/3. Exportação com premissas e avaliação. Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
-### Evidência
+---
 
-O produto apresenta indicadores e insights, mas não possui uma superfície persistente que declare objetivo, recomendação, confiança, premissas críticas e validações necessárias.
+## Próximas oportunidades
 
-### Impacto
+### P1 — Superfície explícita de "Decidir"
 
-O canvas mostra geometria e métricas, mas ainda não fecha o ciclo decisório definido na constituição.
+**Evidência:** O modo "Decidir" da constituição não tem superfície própria. O usuário pode avançar com uma estratégia via ComparePanel, mas não registra motivo, critérios ou pendências da decisão.
 
-### Direção
+**Impacto:** A constituição define "A unidade de trabalho é a decisão" e "Avaliação sem decisão é relatório." Sem esta superfície, o produto ainda não fecha o ciclo.
 
-Criar uma síntese compacta e contextual ligada ao comparador, sem transformar a interface em dashboard.
+**Direção:** Um painel leve (não modal) onde o usuário registra estratégia escolhida, motivo e pendências antes de avançar. Não requer backend — estado em memória para V0.
 
-## Prioridade 3 — Explicitar premissas regulatórias simuladas
+### P2 — Snapping de torres às linhas de recuo
 
-### Evidência
+**Evidência:** Ao arrastar torres perto das linhas de recuo, não há indicação visual de proximidade nem snapping automático.
 
-Os limites de CA 12 e taxa de ocupação 50% estão incorporados ao comportamento, mas não existem como premissas com origem, estado e escopo.
+**Impacto:** Torna o posicionamento impreciso e força o usuário a estimar distâncias visualmente.
 
-### Impacto
+**Direção:** Ao fazer drag, se a torre se aproximar a < 3 SVG units de uma linha de recuo, snap automático para o ponto exato. Linha de recuo pisca para confirmar o snap.
 
-Mesmo com a nova linguagem preliminar, o usuário ainda não consegue distinguir facilmente parâmetros informados, simulados e validados.
+### P3 — Histórico de desfazer (Ctrl+Z)
 
-### Direção
+**Evidência:** Qualquer operação no canvas é irreversível sem trocar de versão.
 
-Apresentar os limites usados como premissas simuladas e conectá-los aos estados da avaliação, sem sugerir validação legal.
+**Impacto:** Eleva a ansiedade ao explorar. Usuários tendem a ser mais conservadores quando não podem desfazer.
+
+**Direção:** Stack de snapshots de `towers` com profundidade de ~20. Ctrl+Z restaura o snapshot anterior.
+
+### P4 — Edição de premissas pelo usuário
+
+**Evidência:** CA 12 e TO 50% estão hardcoded. O usuário não pode informar os limites reais do seu terreno.
+
+**Impacto:** O produto não consegue calcular corretamente para lotes com legislação diferente do padrão simulado.
+
+**Direção:** Modal de "Configurar premissas" acessível pelo ícone da seção Premissas. Permite editar CA max, TO max e vagas. Recalcula tudo ao salvar.
 
 ## Regra para o próximo ciclo
 
