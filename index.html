@@ -677,25 +677,27 @@
       );
     }
 
-    function TowerDetail({tower,m,onClose,onSave,onAdjust,onRemove}) {
+    function TowerDetail({tower,m,onClose,onSave,onAdjust,onRemove,limits}) {
       const [editing,setEditing]=useState(false);
       const [draft,setDraft]=useState({...tower});
       useEffect(()=>setDraft({...tower}),[tower.id,tower.floors,tower.units,tower.area,tower.type]);
       const fieldStyle={width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"6px 7px",outline:"none"};
       const numberField=(key,min,max)=><input type="number" min={min} max={max} value={draft[key]} onChange={e=>setDraft(d=>({...d,[key]:Math.max(min,Math.min(max,Number(e.target.value)||min))}))} style={fieldStyle}/>;
       function towerAiText(t,metrics) {
+        const caLim=limits?.ca??CA_LIMIT;
+        const caWarn=Math.max(caLim*0.83,caLim-2);
         const st=sanitizeTower(t);
         if(!metrics?.valid) return "Indicadores não calculados. Verificar posição da torre no lote.";
-        const caHeadroom=CA_LIMIT-metrics.ca;
+        const caHeadroom=caLim-metrics.ca;
         const tM2=st.w*st.h/SVG_PER_M2;
         const tCaContrib=safeValue(st.area/LOT,{digits:2});
-        if(st.floors>=15&&metrics.ca>=10) return `CA total em ${safeValue(metrics.ca,{digits:1})} / ${CA_LIMIT} — margem de ${safeValue(caHeadroom,{digits:1})}. Esta torre contribui com ~${tCaContrib} CA. Redução de 2 pav libera margem sem comprometer as demais.`;
+        if(st.floors>=15&&metrics.ca>=caWarn) return `CA total em ${safeValue(metrics.ca,{digits:1})} / ${caLim} — margem de ${safeValue(caHeadroom,{digits:1})}. Esta torre contribui com ~${tCaContrib} CA. Redução de 2 pav libera margem sem comprometer as demais.`;
         if(st.floors<=8&&caHeadroom>1.5){
           const extra=Math.max(2,Math.min(6,Math.floor(caHeadroom*LOT/Math.max(tM2,1))));
-          return `CA total em ${safeValue(metrics.ca,{digits:1})} de ${CA_LIMIT}, com ${safeValue(caHeadroom,{digits:1})} de margem. Esta torre pode absorver até ${extra} pavimentos adicionais sem exceder os limites informados.`;
+          return `CA total em ${safeValue(metrics.ca,{digits:1})} de ${caLim}, com ${safeValue(caHeadroom,{digits:1})} de margem. Esta torre pode absorver até ${extra} pavimentos adicionais sem exceder os limites informados.`;
         }
-        if(metrics.ca>=10) return `CA em ${safeValue(metrics.ca,{digits:1})} / ${CA_LIMIT} — próximo ao limite. Ajustar com cuidado para não ultrapassar os parâmetros informados.`;
-        return `Configuração dentro dos parâmetros. CA em ${safeValue(metrics.ca,{digits:1})} de ${CA_LIMIT}, com ${safeValue(caHeadroom,{digits:1})} de margem disponível.`;
+        if(metrics.ca>=caWarn) return `CA em ${safeValue(metrics.ca,{digits:1})} / ${caLim} — próximo ao limite. Ajustar com cuidado para não ultrapassar os parâmetros informados.`;
+        return `Configuração dentro dos parâmetros. CA em ${safeValue(metrics.ca,{digits:1})} de ${caLim}, com ${safeValue(caHeadroom,{digits:1})} de margem disponível.`;
       }
       const aiText=towerAiText(tower,m);
       function save(){onSave(sanitizeTower({...tower,floors:Math.round(draft.floors),units:Math.round(draft.units),area:Math.round(draft.area),type:draft.type},tower));setEditing(false);}
@@ -740,7 +742,7 @@
       const tower=towers.find(item=>item.id===sel);
       return (
         <div style={{width:240,flexShrink:0,background:"rgba(12,16,23,0.98)",borderLeft:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",overflowY:"auto",animation:"slideInPanel 0.25s ease"}}>
-          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower} limits={limits} onSetLimits={onSetLimits}/>}
+          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)} limits={limits}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower} limits={limits} onSetLimits={onSetLimits}/>}
         </div>
       );
     }
@@ -1450,26 +1452,28 @@
           const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
 
           let observation,suggestion,confidence;
-          const caHeadroom=CA_LIMIT-(currentM.valid?currentM.ca:0);
+          const caLimEff=limits.ca, toMaxEff=limits.to;
+          const caWarnEff=Math.max(caLimEff*0.83,caLimEff-2);
+          const caHeadroom=caLimEff-(currentM.valid?currentM.ca:0);
           const tUnitShare=currentM.valid&&currentM.units>0?Math.round(t.units/currentM.units*100):null;
 
           if(!currentM.valid){
             observation=`Torre ${t.id} com ${safeValue(t.floors)} pav e ${safeValue(t.units)} unidades. Indicadores não calculados — verificar posição no lote.`;
             suggestion="Reposicionar a torre dentro do contorno para recalcular as métricas.";
             confidence="baixa";
-          } else if(t.floors>=15&&currentM.ca>=10){
-            observation=`Torre ${t.id} com ${t.floors} pav${tUnitShare!==null?` representa ${tUnitShare}% das unidades`:""} — CA total em ${safeValue(currentM.ca,{digits:1})} de ${CA_LIMIT}, margem de ${safeValue(caHeadroom,{digits:1})}.`;
+          } else if(t.floors>=15&&currentM.ca>=caWarnEff){
+            observation=`Torre ${t.id} com ${t.floors} pav${tUnitShare!==null?` representa ${tUnitShare}% das unidades`:""} — CA total em ${safeValue(currentM.ca,{digits:1})} de ${caLimEff}, margem de ${safeValue(caHeadroom,{digits:1})}.`;
             suggestion=`Redução de 2 pavimentos liberaria ~${safeValue(caHeadroom+0.3,{digits:1})} de CA sem comprometer as demais torres. Premissa calculada; legislação não validada.`;
             confidence="média";
           } else if(t.floors<=8&&caHeadroom>1.5){
             const tM2=(t.w*t.h)/SVG_PER_M2;
             const extra=Math.max(2,Math.min(6,Math.floor(caHeadroom*LOT/Math.max(tM2,1))));
-            observation=`Torre ${t.id} com ${t.floors} pavimentos — abaixo do potencial. CA total em ${safeValue(currentM.ca,{digits:1})} de ${CA_LIMIT}, com ${safeValue(caHeadroom,{digits:1})} de margem disponível.`;
+            observation=`Torre ${t.id} com ${t.floors} pavimentos — abaixo do potencial. CA total em ${safeValue(currentM.ca,{digits:1})} de ${caLimEff}, com ${safeValue(caHeadroom,{digits:1})} de margem disponível.`;
             suggestion=`Pode absorver até ${extra} pavimentos adicionais. Confiança: CA e TO calculados; legislação informada pelo usuário, não validada.`;
             confidence="média";
           } else {
-            const toHeadroom=TO_LIMIT-(currentM.valid?currentM.occ:0);
-            observation=`Torre ${t.id} com ${t.floors} pav${tUnitShare!==null?`, representando ${tUnitShare}% das unidades`:""} — CA total em ${safeValue(currentM.ca,{digits:1})} de ${CA_LIMIT}.`;
+            const toHeadroom=toMaxEff-(currentM.valid?currentM.occ:0);
+            observation=`Torre ${t.id} com ${t.floors} pav${tUnitShare!==null?`, representando ${tUnitShare}% das unidades`:""} — CA total em ${safeValue(currentM.ca,{digits:1})} de ${caLimEff}.`;
             suggestion=caHeadroom>1.5
               ?`Margem de ${safeValue(caHeadroom,{digits:1})} disponível no CA — explorar variação de densidade ou tipologia.`
               :`CA próximo ao limite. Considere redistribuir pavimentos entre as torres para equilibrar o aproveitamento.`;
