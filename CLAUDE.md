@@ -4,6 +4,14 @@ Contexto para continuar o desenvolvimento deste protótipo em uma nova conversa.
 
 ---
 
+## Referência canônica de produto
+
+Antes de qualquer decisão de produto, UX, interação, priorização ou escrita, ler [`PRODUCT_MANIFESTO.md`](PRODUCT_MANIFESTO.md).
+
+O manifesto tem precedência sobre convenções genéricas de SaaS e preferências de implementação. Se uma solução contrariar seus princípios, parar, reavaliar e simplificar.
+
+---
+
 ## O que é este projeto
 
 **Arqgen Next V0** — protótipo navegável de produto para a Arqgen, startup brasileira de SaaS de viabilidade arquitetônica. O objetivo da V0 é demonstrar direção de produto: interface orientada a intenção, onde o arquiteto descreve o que quer e o canvas responde em tempo real.
