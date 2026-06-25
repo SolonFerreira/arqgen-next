@@ -162,12 +162,13 @@
     const scenarioIntent=key=>SCENARIO_META[key]?.intent||"";
     const scenarioTradeoff=key=>SCENARIO_META[key]?.tradeoff||"";
 
-    function computeInsights(towers, m) {
+    function computeInsights(towers, m, lim) {
       const insights = [];
       if (!m?.valid) return insights;
+      const caLim=lim?.ca??CA_LIMIT, toMax=lim?.to??TO_LIMIT;
       const clean = sanitizeTowers(towers);
-      const caHeadroom = CA_LIMIT - m.ca;
-      const toHeadroom = TO_LIMIT - m.occ;
+      const caHeadroom = caLim - m.ca;
+      const toHeadroom = toMax - m.occ;
 
       // CA opportunity or risk
       if (caHeadroom > 2.5) {
@@ -175,13 +176,13 @@
         insights.push({
           id: "ca-headroom",
           type: "opportunity",
-          text: `CA em ${safeValue(m.ca,{digits:1})} de ${CA_LIMIT} — margem para ~${approxExtra} unidades adicionais.`,
+          text: `CA em ${safeValue(m.ca,{digits:1})} de ${caLim} — margem para ~${approxExtra} unidades adicionais.`,
         });
-      } else if (m.ca >= 11) {
+      } else if (m.ca >= caLim - 1) {
         insights.push({
           id: "ca-risk",
           type: "warning",
-          text: `CA em ${safeValue(m.ca,{digits:1})} / ${CA_LIMIT} — apenas ${safeValue(caHeadroom,{digits:1})} de margem. Qualquer adição pode exceder o limite.`,
+          text: `CA em ${safeValue(m.ca,{digits:1})} / ${caLim} — apenas ${safeValue(caHeadroom,{digits:1})} de margem. Qualquer adição pode exceder o limite.`,
         });
       }
 
@@ -203,7 +204,7 @@
         insights.push({
           id: "to-space",
           type: "info",
-          text: `${safeValue(freeM2,{suffix:" m²"})} de área disponível no lote · TO em ${safeValue(m.occ,{digits:1})}% de ${TO_LIMIT}%.`,
+          text: `${safeValue(freeM2,{suffix:" m²"})} de área disponível no lote · TO em ${safeValue(m.occ,{digits:1})}% de ${toMax}%.`,
         });
       }
 
@@ -529,10 +530,10 @@
       );
     }
 
-    function InsightsRail({towers,m}) {
+    function InsightsRail({towers,m,limits}) {
       const [visible,setVisible]=useState(false);
       const [dismissed,setDismissed]=useState([]);
-      const activeInsights=computeInsights(towers,m);
+      const activeInsights=computeInsights(towers,m,limits);
       const activeIds=activeInsights.map(i=>i.id).join(",");
       const prevIds=useRef(activeIds);
       useEffect(()=>{
@@ -1957,7 +1958,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 </div>
               )}
               {presenting && <PresentationHUD m={m} towerCount={towers.length} version={version} onExit={exitPresentation}/>}
-              {!presenting&&mode==="active"&&<InsightsRail towers={towers} m={m}/>}
+              {!presenting&&mode==="active"&&<InsightsRail towers={towers} m={m} limits={limits}/>}
 
               {/* SVG */}
               <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease",cursor:panning.current?"grabbing":zoom>100?"grab":"crosshair"}}
