@@ -44,6 +44,15 @@ Textos mockados derivados dos cálculos reais. Copiloto usa `copilot-analysis` c
 
 Seção "Premissas" no LotOverview com CA max, TO max e vagas com badges "simulado"/"informado". Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
+## Concluído — Ciclo 5 — Decidir, desfazer e resposta a intenção
+
+- Estado `decision` registra estratégia, hora e métricas ao clicar "Avançar com esta"
+- Badge "Decisão registrada · HH:MM" na faixa do canvas para a estratégia decidida
+- Histórico de desfazer com Ctrl+Z (stack de 20 snapshots, instrumented em: drag, resize, save, remove, add, adjust, applyChatAction, applyAlt)
+- Alternativas do chat reordenadas por intenção detectada na mensagem (densidade / área livre / equilíbrio)
+
+Detalhes em `IMPLEMENTATION_REVIEW.md`.
+
 ## Concluído — Ciclo 4 — Copiloto proativo e encerramento decisório
 
 Badge de não-lida no chat minimizado. Notificação ao trocar estratégia. Alerta de CA. Síntese comparativa com botão "Avançar com esta". Atalhos 1/2/3. Exportação com premissas e avaliação. Detalhes em `IMPLEMENTATION_REVIEW.md`.

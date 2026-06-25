@@ -1427,14 +1427,30 @@
         }
       },[m?.ca,mode]);
 
-      // Keyboard shortcut: 1/2/3 to switch strategies when not in an input field
+      // Undo history (push-before-mutate approach)
+      const towerHistoryRef=useRef([sanitizeTowers(INIT_TOWERS)]);
+      function pushHistorySnapshot(currentTowers){
+        towerHistoryRef.current=[...towerHistoryRef.current.slice(-19),sanitizeTowers(currentTowers)];
+      }
+      function undo(){
+        if(towerHistoryRef.current.length===0)return;
+        const prev=towerHistoryRef.current[towerHistoryRef.current.length-1];
+        towerHistoryRef.current=towerHistoryRef.current.slice(0,-1);
+        setTowers(sanitizeTowers(prev));
+        setSel(null);
+      }
+
+      // Keyboard shortcut: 1/2/3 to switch strategies; Ctrl+Z to undo
       const switchVRef=useRef(null);
       switchVRef.current=switchVersion;
+      const undoRef=useRef(null);
+      undoRef.current=undo;
       useEffect(()=>{
         function handler(e){
           if(mode!=="active")return;
           const el=document.activeElement;
           if(el&&(el.tagName==="INPUT"||el.tagName==="TEXTAREA"))return;
+          if((e.ctrlKey||e.metaKey)&&e.key==="z"){e.preventDefault();undoRef.current();return;}
           if(e.key==="1") switchVRef.current("Versão 01");
           else if(e.key==="2") switchVRef.current("Versão 02");
           else if(e.key==="3") switchVRef.current("Versão 03");
@@ -1457,12 +1473,14 @@
 
       function onTowerDown(e,id) {
         e.stopPropagation(); setSel(id); setLiveId(id);
+        pushHistorySnapshot(towers);
         const t=towers.find(t=>t.id===id); const p=svgPt(e);
         dragging.current={id,ox:p.x-t.x,oy:p.y-t.y,orig:{x:t.x,y:t.y}};
       }
 
       function onHandleDown(e,id,corner) {
         e.stopPropagation(); setLiveId(id);
+        pushHistorySnapshot(towers);
         const t=towers.find(t=>t.id===id); const p=svgPt(e);
         resizing.current={id,corner,sp:p,snapshot:{...t}};
       }
@@ -1551,11 +1569,18 @@
         if(!tower){
           return {
             id:`alt-${Date.now()}`,role:"alternatives",time:now,text:"Três configurações para explorar:",
-            alternatives:[
-              {label:scenarioName("Versão 02"),intent:scenarioIntent("Versão 02"),towers:VERSIONS_INIT["Versão 02"]},
-              {label:scenarioName("Versão 01"),intent:scenarioIntent("Versão 01"),towers:VERSIONS_INIT["Versão 01"]},
-              {label:scenarioName("Versão 03"),intent:scenarioIntent("Versão 03"),towers:VERSIONS_INIT["Versão 03"]},
-            ].map(candidate=>{
+            alternatives:(()=>{
+              const base=[
+                {ver:"Versão 02",label:scenarioName("Versão 02"),intent:scenarioIntent("Versão 02"),towers:VERSIONS_INIT["Versão 02"]},
+                {ver:"Versão 01",label:scenarioName("Versão 01"),intent:scenarioIntent("Versão 01"),towers:VERSIONS_INIT["Versão 01"]},
+                {ver:"Versão 03",label:scenarioName("Versão 03"),intent:scenarioIntent("Versão 03"),towers:VERSIONS_INIT["Versão 03"]},
+              ];
+              const wantMax=/densidade|maximiz|unidades|mais un|produt/.test(lower);
+              const wantFree=/área livre|permeab|menos|espaço|verde|equilibr/.test(lower);
+              if(wantMax) return [base[0],base[1],base[2]];
+              if(wantFree) return [base[2],base[1],base[0]];
+              return [base[1],base[0],base[2]];
+            })().map(candidate=>{
               const cm=calcMetrics(sanitizeTowers(candidate.towers));
               const curM=calcMetrics(currentTowers);
               return {...candidate,deltaUnits:(cm.valid&&curM.valid)?cm.units-curM.units:0,ca:cm.valid?safeValue(cm.ca,{digits:1}):"--",applied:false};
@@ -1622,6 +1647,7 @@
       function applyChatAction(message) {
         const action=message.action;
         if(!action||action.applied)return;
+        pushHistorySnapshot(towers);
         if(action.type==="remove"){
           setTowers(prev=>prev.filter(t=>t.id!==action.targetId));
           setSel(null);
@@ -1635,6 +1661,7 @@
       function applyAlt(message,altIdx) {
         const alt=message.alternatives?.[altIdx];
         if(!alt||alt.applied)return;
+        pushHistorySnapshot(towers);
         setTowers(sanitizeTowers(alt.towers));
         setSel(null);
         setMsgs(prev=>prev.map(item=>item.id===message.id?{...item,alternatives:item.alternatives.map((candidate,index)=>({...candidate,applied:index===altIdx}))}:item));
@@ -1674,19 +1701,23 @@
         if(towers.length>=6) return;
         const newId=ids.find(id=>!towers.some(t=>t.id===id));
         const t={id:newId,x:240,y:185,w:60,h:44,floors:10,units:40,area:1760,type:"Studio 44m²"};
+        pushHistorySnapshot(towers);
         setTowers(prev=>sanitizeTowers([...prev,t]));
         setSel(newId);
       }
 
       function adjustTower(id) {
+        pushHistorySnapshot(towers);
         setTowers(prev=>prev.map(t=>t.id===id?scaleTower(t,0.8):t));
       }
 
       function saveTower(updated) {
+        pushHistorySnapshot(towers);
         setTowers(prev=>prev.map(t=>t.id===updated.id?sanitizeTower(updated,t):t));
       }
 
       function removeTower(id) {
+        pushHistorySnapshot(towers);
         setTowers(prev=>prev.filter(t=>t.id!==id));
         setSel(null);
       }
