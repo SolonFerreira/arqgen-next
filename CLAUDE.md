@@ -10,10 +10,10 @@ Contexto para continuar o desenvolvimento deste protótipo em uma nova conversa.
 
 **Tudo é mockado.** Sem backend real, sem LLM real. O objetivo é parecer funcional o suficiente para decisões de produto e design.
 
-**Repo:** `https://github.com/SolonFerreira/arqgen-next` (privado)
+**Repo:** `https://github.com/SolonFerreira/arqgen-next` (público)
 **Como rodar:** `python3 -m http.server 8080` na pasta do projeto → abrir `http://localhost:8080`
-**Deploy:** espelho público estático no repositório `SolonFerreira/arqgen-next-demo`
-**URL:** `https://solonferreira.github.io/arqgen-next-demo/`
+**Deploy:** GitHub Pages via `.github/workflows/pages.yml`, atualizado a cada push na `main`
+**URL:** `https://solonferreira.github.io/arqgen-next/`
 
 ---
 
