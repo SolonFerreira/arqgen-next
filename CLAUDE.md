@@ -25,6 +25,8 @@ Contexto para continuar o desenvolvimento deste protótipo em uma nova conversa.
 - **Zero dependências externas além de React** — lucide-react UMD estava vazio; ícones foram substituídos por SVG inline
 - **Fontes:** Google Fonts — `Sora` (display/headings) e `Inter` (body/UI)
 - **Estilos:** inline via `style={{}}` — sem Tailwind, sem CSS modules
+- **Cálculos:** `calculations.js` — funções puras, sanitização, limites e formatação segura
+- **Testes:** `npm test` usa o runner nativo do Node em `tests/calculations.test.cjs`
 
 ### Como o Babel é executado
 
@@ -81,6 +83,7 @@ Tipografia: `'Sora', sans-serif` para headings e labels de destaque. `'Inter', s
 | `ExportModal` | ~525 | Preview A4 e download demonstrativo do relatório |
 | `PresentationHUD` | ~575 | HUD compacto do modo apresentação |
 | `ComparePanel` | ~515 | Comparação de versões com dois canvas e deltas |
+| `ExecutiveSidePanel` | ~330 | Status executivo, indicadores e resumo por torre |
 | `IdleScreen` | ~600 | Tela inicial, sugestões e upload mockado |
 | `ChatPanel` | ~725 | Chat em estados `mini` / `medium` / `full` |
 | `ArqgenNext` | ~820 | Componente raiz e estado da aplicação |
@@ -157,6 +160,13 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Cotas calculadas contra as arestas reais do terreno
 - [x] Recuos variáveis por grupo de arestas
 - [x] Ajustes responsivos na topbar, controles e chat
+- [x] Auditoria numérica de unidades, área, TO e CA
+- [x] Resize determinístico sem crescimento acumulativo
+- [x] Guards contra NaN, Infinity, notação científica e valores absurdos
+- [x] Testes unitários dos cálculos e transformações principais
+- [x] Painel executivo lateral com status e potencial utilizado
+- [x] Faixa-resumo da versão ativa
+- [x] Tooltips 2D e detalhamento visual das torres 3D
 
 ---
 
