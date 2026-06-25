@@ -1729,8 +1729,9 @@
           : currentTowers.map(t=>t.id===tower.id?after:t);
         const beforeM=calcMetrics(currentTowers),afterM=calcMetrics(nextTowers);
         const previewValid=beforeM.valid&&afterM.valid;
-        const caHeadroom=beforeM.valid?CA_LIMIT-beforeM.ca:0;
-        const reduceReason=caHeadroom<=1.5?`CA total em ${safeValue(beforeM.ca,{digits:1})} / ${CA_LIMIT} — redução libera margem regulatória.`:`Torre ${tower.id} com ${safeValue(tower.floors)} pav — redução de 20% para ajustar ocupação no lote.`;
+        const caLimCtx=limits.ca;
+        const caHeadroom=beforeM.valid?caLimCtx-beforeM.ca:0;
+        const reduceReason=caHeadroom<=1.5?`CA total em ${safeValue(beforeM.ca,{digits:1})} / ${caLimCtx} — redução libera margem regulatória.`:`Torre ${tower.id} com ${safeValue(tower.floors)} pav — redução de 20% para ajustar ocupação no lote.`;
         return {
           id:`skill-${Date.now()}`,role:"skill",time:now,
           fn:type==="remove"?"remover_torre()":type==="increase"?"aumentar_pavimentos()":"reduzir_projecao()",
