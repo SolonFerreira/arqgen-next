@@ -1941,7 +1941,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <div style={{width:6,height:6,borderRadius:"50%",background:status.dot,flexShrink:0,transition:"background 0.4s ease",boxShadow:`0 0 5px ${status.dot}99`}}/>
                   <select value={version} onChange={e=>switchVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none"}}>
-                    {["Versão 01","Versão 02","Versão 03"].map(v=><option key={v} value={v} style={{background:C.card}}>{scenarioName(v)} · {scenarioRevision(v)}</option>)}
+                    {["Versão 01","Versão 02","Versão 03"].map(v=><option key={v} value={v} style={{background:C.card}}>{decision?.strategy===v?"★ ":""}{scenarioName(v)} · {scenarioRevision(v)}</option>)}
                   </select>
                 </div>
                 <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6,minWidth:118}}>
