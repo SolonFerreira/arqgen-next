@@ -220,3 +220,62 @@ O copiloto reagia a ações do usuário mas não iniciava observações sobre o 
 - histórico de desfazer/refazer;
 - validação de premissas com link para consulta de legislação;
 - modo de edição de texto das premissas pelo usuário.
+
+## Ciclo 6 — Integridade regulatória e premissas informadas
+
+### Problema e prioridade
+
+Quatro gaps restantes após Ciclo 5: (P1) decisão sem motivo nem pendências; (P2) recuos sem detecção visual de violação nem snap; (P4) premissas CA/TO hardcoded impossibilitando cenários com legislação diferente.
+
+### Princípios constitucionais afetados
+
+- nunca apresentar estimativa como fato — premissas precisam de origem e estado;
+- histórico importa porque organizações precisam lembrar por que escolheram;
+- o canvas importa porque decisões espaciais precisam ser vistas;
+- copiloto deve chegar cedo, observar e contestar premissas.
+
+### Solução implementada
+
+**Recuo visual:** `towerState()` retorna `"setback"` quando `showSetbacks` é true e algum canto da torre está fora de `INSET_TERRAIN`. Torres em recuo recebem fill e stroke amarelos + badge "Recuo" no canvas.
+
+**Snap de recuo:** `nudgeInsidePoly(x,y,w,h,pts)` calcula deslocamento mínimo para trazer todos os cantos para dentro do polígono insetado. `onUp` aplica o snap quando `showSetbacksRef.current` é true.
+
+**Constantes de módulo:** `SETBACK_METERS=[5,1.5,1.5,3,3,1.5,1.5,5]` e `INSET_TERRAIN=insetPoly(...)` promovidos para módulo, reutilizados em `SetbackOverlay`, `towerState` e `onUp`.
+
+**Intenção visível no LotOverview:** `scenarioIntent(version)` renderizado abaixo da revisão no header do painel, dispensando abertura do comparador.
+
+**Formulário "Decidir":** `deciding` state no `ComparePanel`. Ao clicar "Avançar com esta →", abre form inline com textarea de motivo e checklist de 4 pendências pré-definidas. Ao confirmar, `onSwitch(v, {reason, pending})` fecha comparador, registra decisão enriquecida e envia mensagem ao copiloto.
+
+**Decision stale:** `decisionStale = useMemo(...)` detecta quando unidades derivam > 10% ou CA > 0,5 da baseline da decisão. Version banner muda para amarelo. Copiloto envia notificação na primeira transição true.
+
+**Premissas editáveis:** `limits = useState({ca:12,to:50})` em `ArqgenNext`. LotOverview ganha botão "editar" que abre inputs in-place para CA máx e TO máx. Ao aplicar, copiloto notifica. Premissas alteradas recebem badge "informado".
+
+**Propagação de limits:** `getStatus(m,lim)`, `computeInsights(towers,m,lim)`, `compareRec(verL,mL,verR,mR,lim)`, `TowerDetail.towerAiText(t,metrics)` (via prop `limits`), copilot analysis useEffect, alerta de CA, `contextualReply` e ComparePanel METRICS strip — todos usam `limits.ca`/`limits.to` efetivos.
+
+**Relatório exportado:** premissas com badges "informado"/"simulado" conforme `limits` ativos. Registro de decisão incluído quando presente (motivo, pendências, hora).
+
+### Arquivos alterados
+
+- `index.html`
+- `reviews/NEXT_OPPORTUNITIES.md`
+- `reviews/IMPLEMENTATION_REVIEW.md`
+
+### Verificações
+
+- `npm test`: 9 testes aprovados em todos os pontos de checkpoint.
+- brace/paren balance: 0 em todos os commits.
+- `limits` propagado por: getStatus, computeInsights, compareRec, towerAiText, copilot analysis, CA alert, contextualReply, ComparePanel METRICS.
+- snap de recuo funciona para qualquer polígono insetado via `nudgeInsidePoly`.
+
+### Limitações e riscos
+
+- snap ocorre apenas no drop (onUp); durante drag não há atração magnética às linhas de recuo;
+- `nudgeInsidePoly` usa heurística de maior deslocamento por eixo; pode não ser ótimo em polígonos côncavos;
+- vagas por unidade ainda hardcoded (1) — não afeta métricas nesta V0;
+- `calculateMetrics` em `calculations.js` usa seus próprios `LIMITS` internos; limites do usuário não propagam para `m.ca` nem `m.occ` calculados (apenas para a avaliação de status e textos do produto).
+
+### Oportunidades descobertas
+
+- snap magnético em tempo real durante drag (aresta da torre atrai para aresta do inset polygon);
+- vagas editáveis nas premissas;
+- migração para Vite + React (Sprint 5 do roadmap).

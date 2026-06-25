@@ -59,39 +59,54 @@ Badge de não-lida no chat minimizado. Notificação ao trocar estratégia. Aler
 
 ---
 
-## Próximas oportunidades
+## Concluído — Ciclo 6 — Integridade regulatória e premissas informadas
 
-### P1 — Superfície explícita de "Decidir"
+### Evidência
 
-**Evidência:** O modo "Decidir" da constituição não tem superfície própria. O usuário pode avançar com uma estratégia via ComparePanel, mas não registra motivo, critérios ou pendências da decisão.
+Premissas CA/TO hardcoded, sem surface de decisão com motivo, sem detecção visual de recuos, sem snapping.
 
-**Impacto:** A constituição define "A unidade de trabalho é a decisão" e "Avaliação sem decisão é relatório." Sem esta superfície, o produto ainda não fecha o ciclo.
+### Resultado
 
-**Direção:** Um painel leve (não modal) onde o usuário registra estratégia escolhida, motivo e pendências antes de avançar. Não requer backend — estado em memória para V0.
+- Badge "Recuo" no canvas quando torre viola INSET_TERRAIN com recuos visíveis
+- SETBACK_METERS e INSET_TERRAIN extraídos para constantes de módulo (reutilizadas em SetbackOverlay e towerState)
+- `nudgeInsidePoly` faz snap da torre para dentro do polígono insetado ao soltar
+- Intenção da estratégia visível no LotOverview sem precisar abrir comparador
+- Formulário "Decidir" in-place no ComparePanel: motivo livre + checklist de pendências
+- Badge de pendências no version banner; badge amarelo "Decisão desatualizada" ao derivar
+- `decisionStale` detecta deriva de métricas pós-decisão (>10% unidades ou >0.5 CA)
+- Copiloto envia mensagem quando decisão fica stale
+- `limits` state editável via inline form em Premissas: CA máx e TO máx
+- `getStatus`, `computeInsights`, `compareRec`, `towerAiText`, `contextualReply`, `InsightsRail`, alerta de CA e ComparePanel METRICS todos propagam `limits`
+- Relatório exportado reflete limites informados com badges "informado"/"simulado"
+- Copiloto envia mensagem ao aplicar novos limites
 
-### P2 — Snapping de torres às linhas de recuo
+Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
-**Evidência:** Ao arrastar torres perto das linhas de recuo, não há indicação visual de proximidade nem snapping automático.
+## Próximas oportunidades residuais
 
-**Impacto:** Torna o posicionamento impreciso e força o usuário a estimar distâncias visualmente.
+### R1 — Snapping magnético em tempo real durante drag
 
-**Direção:** Ao fazer drag, se a torre se aproximar a < 3 SVG units de uma linha de recuo, snap automático para o ponto exato. Linha de recuo pisca para confirmar o snap.
+**Evidência:** O snap atual ocorre apenas no drop (onUp). Durante o drag a torre mostra badge "Recuo" mas não há atração visual para as linhas de recuo.
 
-### P3 — Histórico de desfazer (Ctrl+Z)
+**Impacto:** Dificulta o alinhamento preciso. Para posicionamento rápido seria útil sentir o snap enquanto arrasta.
 
-**Evidência:** Qualquer operação no canvas é irreversível sem trocar de versão.
+**Direção:** Em `onMove`, se a aresta mais próxima da torre estiver a < 6 SVG units de uma aresta do INSET_TERRAIN, snap automático e flash na aresta de recuo.
 
-**Impacto:** Eleva a ansiedade ao explorar. Usuários tendem a ser mais conservadores quando não podem desfazer.
+### R2 — Migração para Vite + React (Sprint 5)
 
-**Direção:** Stack de snapshots de `towers` com profundidade de ~20. Ctrl+Z restaura o snapshot anterior.
+**Evidência:** O arquivo index.html tem ~2200 linhas. Todo o código está inline. Sem TypeScript, sem linting, sem hot reload.
 
-### P4 — Edição de premissas pelo usuário
+**Impacto:** Dificulta manutenção à medida que o produto cresce. Bloqueador para integração real com Claude API.
 
-**Evidência:** CA 12 e TO 50% estão hardcoded. O usuário não pode informar os limites reais do seu terreno.
+**Direção:** Seguir Sprint 5 do roadmap no CLAUDE.md — manter paleta e estrutura, separar em arquivos, adicionar TypeScript.
 
-**Impacto:** O produto não consegue calcular corretamente para lotes com legislação diferente do padrão simulado.
+### R3 — Vagas editáveis nas premissas
 
-**Direção:** Modal de "Configurar premissas" acessível pelo ícone da seção Premissas. Permite editar CA max, TO max e vagas. Recalcula tudo ao salvar.
+**Evidência:** "Vagas por unidade" está hardcoded como 1 com badge "informado". O usuário não pode alterar.
+
+**Impacto:** Menor; vagas não afetam as métricas calculadas nesta V0.
+
+**Direção:** Adicionar field de vagas ao formulário de premissas. Propagar para o relatório exportado.
 
 ## Regra para o próximo ciclo
 
