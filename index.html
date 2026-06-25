@@ -1301,15 +1301,53 @@
     function IdleScreen({onSend,leaving,attachedFile,onAttachFile,onRemoveFile}) {
       const [val,setVal]=useState("");
       const ref=useRef(null);
+      const [phIdx,setPhIdx]=useState(0);
+      const [phFade,setPhFade]=useState(true);
+
       useEffect(()=>{ const t=setTimeout(()=>ref.current?.focus(),600); return ()=>clearTimeout(t); },[]);
 
       const FILE_EXT_COLOR = {dwg:"#7B68EE",ifc:C.green,dxf:C.yellow,kmz:"#E05252",rvt:"#00B4D8",nwc:"#FF8C42"};
 
-      const SUGGESTIONS = [
-        "Lote de 600m² no Brooklin, quero explorar densidade máxima",
-        "Terreno irregular 900m² — três alternativas de implantação",
-        "Studio 44m² vs 1 dorm 52m² — qual maximiza CA 12?",
+      const PLACEHOLDERS_GENERIC = [
+        "Quero explorar o potencial máximo deste terreno...",
+        "Gere três alternativas de implantação...",
+        "Explique por que não consigo atingir o CA máximo...",
+        "Quero reduzir a altura mantendo o mesmo número de unidades...",
+        "Maximize o VGV respeitando a legislação...",
+        "Onde estou desperdiçando potencial construtivo?",
+        "Faça uma proposta voltada para HIS.",
+        "Compare esta implantação com outra.",
+        "O que você faria neste terreno?",
+        "Quero preservar mais área permeável.",
       ];
+
+      const PLACEHOLDERS_ATTACHED = [
+        "Quero maximizar o CA.",
+        "Gere três alternativas.",
+        "Explique os gargalos deste projeto.",
+        "Como reduzir custo mantendo a área construída?",
+        "Quero diminuir a altura.",
+        "Preserve mais área verde.",
+        "Como melhorar este estudo?",
+      ];
+
+      const pool = attachedFile ? PLACEHOLDERS_ATTACHED : PLACEHOLDERS_GENERIC;
+
+      useEffect(() => {
+        setPhIdx(0);
+        setPhFade(true);
+      }, [Boolean(attachedFile)]);
+
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setPhFade(false);
+          setTimeout(() => {
+            setPhIdx(prev => (prev + 1) % pool.length);
+            setPhFade(true);
+          }, 400);
+        }, 4500);
+        return () => clearInterval(interval);
+      }, [pool]);
 
       function send(text) {
         const msg = text || val;
@@ -1347,7 +1385,7 @@
               Do terreno à decisão,<br/>em segundos.
             </h1>
             <p style={{fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray,maxWidth:380,lineHeight:1.55,margin:"0 auto"}}>
-              Comece anexando o arquivo do projeto ou descrevendo o que quer explorar.
+              Anexe um arquivo de projeto e conte o que você quer explorar.
             </p>
           </div>
 
@@ -1379,45 +1417,48 @@
             )}
           </div>
 
-          {/* divider */}
-          <div style={{width:"min(600px,82vw)",display:"flex",alignItems:"center",gap:12,margin:"14px 0 0",animation:"fadeUp 0.5s ease 0.38s both"}}>
-            <div style={{flex:1,height:1,background:"rgba(255,255,255,0.06)"}}/>
-            <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:"rgba(113,128,150,0.45)"}}>ou descreva o projeto</span>
-            <div style={{flex:1,height:1,background:"rgba(255,255,255,0.06)"}}/>
-          </div>
-
           {/* input */}
-          <div style={{marginTop:14,width:"min(600px,82vw)",animation:"fadeUp 0.5s ease 0.42s both"}}>
+          <div style={{marginTop:20,width:"min(600px,82vw)",animation:"fadeUp 0.5s ease 0.4s both"}}>
             <div style={{background:"rgba(32,38,47,0.8)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"8px 8px 8px 18px",display:"flex",alignItems:"flex-end",gap:8,transition:"border-color 0.2s ease"}}
               onFocusCapture={e=>e.currentTarget.style.borderColor="rgba(1,173,110,0.45)"}
               onBlurCapture={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.1)"}
             >
-              <textarea
-                ref={ref}
-                rows={2}
-                value={val}
-                onChange={e=>setVal(e.target.value)}
-                onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();} }}
-                placeholder="Descreva o projeto ou o terreno que quer avaliar…"
-                style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:14,resize:"none",lineHeight:1.6,padding:"6px 0"}}
-              />
-              <button onClick={()=>send()} style={{width:40,height:40,borderRadius:"50%",background:canSend?C.green:"rgba(255,255,255,0.07)",border:`1px solid ${canSend?"transparent":"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all 0.2s ease",marginBottom:2}}>
+              <div style={{position:"relative",flex:1,minHeight:44,display:"flex",alignItems:"center"}}>
+                <textarea
+                  ref={ref}
+                  rows={2}
+                  value={val}
+                  onChange={e=>setVal(e.target.value)}
+                  onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();} }}
+                  style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:14,resize:"none",lineHeight:1.6,padding:"6px 0",zIndex:2}}
+                />
+                {!val && (
+                  <div style={{
+                    position:"absolute",
+                    left:0,
+                    top:6,
+                    right:0,
+                    fontFamily:"'Inter',sans-serif",
+                    fontSize:14,
+                    color:C.gray,
+                    opacity: phFade ? 0.55 : 0,
+                    transition:"opacity 0.4s ease-in-out",
+                    pointerEvents:"none",
+                    whiteSpace:"pre-line",
+                    lineHeight:1.6,
+                    zIndex:1
+                  }}>
+                    {pool[phIdx % pool.length]}
+                  </div>
+                )}
+              </div>
+              <button onClick={()=>send()} style={{width:40,height:40,borderRadius:"50%",background:canSend?C.green:"rgba(255,255,255,0.07)",border:`1px solid ${canSend?"transparent":"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:canSend?"pointer":"default",transition:"all 0.2s ease",marginBottom:2}}>
                 <Icon.Send s={15} c="#fff"/>
               </button>
             </div>
             <p style={{textAlign:"center",marginTop:8,fontFamily:"'Inter',sans-serif",fontSize:11,color:"rgba(113,128,150,0.5)"}}>
               Enter para enviar · Shift+Enter para nova linha
             </p>
-          </div>
-
-          {/* suggestion chips */}
-          <div style={{marginTop:16,display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",maxWidth:620,padding:"0 16px",animation:"fadeUp 0.5s ease 0.5s both"}}>
-            {SUGGESTIONS.map((s,i)=>(
-              <button key={i} onClick={()=>send(s)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:"6px 14px",fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray,cursor:"pointer",transition:"all 0.15s ease",whiteSpace:"nowrap"}}
-                onMouseEnter={e=>{e.target.style.background="rgba(1,173,110,0.1)";e.target.style.borderColor="rgba(1,173,110,0.3)";e.target.style.color=C.green2;}}
-                onMouseLeave={e=>{e.target.style.background="rgba(255,255,255,0.04)";e.target.style.borderColor="rgba(255,255,255,0.08)";e.target.style.color=C.gray;}}
-              >{s}</button>
-            ))}
           </div>
         </div>
       );
