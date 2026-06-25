@@ -180,6 +180,12 @@ Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
 **Resultado:** no ciclo 22, a presença visível foi nomeada Teodora. Ao selecionar uma torre em 2D ou 3D, seu painel ou botão minimizado recebe um halo curto e discreto, sem abrir, mover ou roubar foco.
 
+### Concluído — Fluxo operacional de alternativas
+
+**Evidência:** alertas e análises descreviam problemas, mas não formavam uma cadeia clara entre intenção, geração, comparação, aplicação e decisão.
+
+**Resultado:** no ciclo 23, alertas e ações do painel acionam a Teodora; três alternativas são geradas pelo estado atual, avaliadas por CA, TO, unidades e risco, recomendadas segundo a intenção, aplicáveis no canvas e registradas no histórico. O comparador ganhou área livre, risco e ações explícitas.
+
 ### Concluído — Snapping magnético durante drag
 
 **Evidência atual:** `onMove` aplica `nudgeInsidePoly` quando recuos estão visíveis e a correção está a menos de 10 unidades SVG.
@@ -193,6 +199,14 @@ Detalhes em `IMPLEMENTATION_REVIEW.md`.
 **Impacto:** Dificulta manutenção à medida que o produto cresce. Bloqueador para integração real com Claude API.
 
 **Direção:** Seguir Sprint 5 do roadmap no CLAUDE.md — manter paleta e estrutura, separar em arquivos, adicionar TypeScript.
+
+### R1.1 — Persistência e entidades reais do fluxo operacional
+
+**Evidência:** alternativas e histórico agora existem na experiência, mas continuam em memória e dentro do `index.html`.
+
+**Impacto:** a demonstração é operacional, porém não preserva execuções entre sessões nem possui IDs/versionamento de domínio suficientes para backend.
+
+**Direção:** na migração Vite, promover `AgentRun`, `MassingAlternative`, `DecisionEvent` e `Recommendation` a tipos persistíveis e substituir o motor simulado por serviços versionados.
 
 ### R2 — Vagas editáveis nas premissas
 

@@ -45,7 +45,7 @@
 
   <script id="app-src" type="text/plain">
     const { useState, useRef, useEffect, useCallback, useMemo } = React;
-    const { LIMITS, sanitizeTower, sanitizeTowers, calcMetrics:calculateMetrics, scaleTower, resizeTowerFromSnapshot, increaseFloors, isRenderableNumber, formatNumber, escapeHtml, decisionStaleness, clampFloatingPosition } = ArqgenCalc;
+    const { LIMITS, sanitizeTower, sanitizeTowers, calcMetrics:calculateMetrics, scaleTower, resizeTowerFromSnapshot, increaseFloors, generateMassingAlternatives, isRenderableNumber, formatNumber, escapeHtml, decisionStaleness, clampFloatingPosition } = ArqgenCalc;
 
     /* ── palette ──────────────────────────────────────────────── */
     const C = {
@@ -441,21 +441,38 @@
       );
       if (msg.role==="alternatives") return (
         <div style={{marginBottom:8,...enter}}>
-          <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,marginBottom:7}}>{msg.text}</div>
+          <div style={{background:"rgba(1,173,110,0.06)",border:"1px solid rgba(51,224,161,0.14)",borderRadius:8,padding:"8px 9px",marginBottom:7}}>
+            <div style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:700,color:C.green2,marginBottom:6}}>Teodora · estudo em 7 etapas</div>
+            <div style={{display:"flex",alignItems:"center",gap:3}}>
+              {["Intenção","Diagnóstico","Gerar","Comparar","Recomendar","Aplicar","Registrar"].map((step,index)=>(
+                <React.Fragment key={step}>
+                  <span title={step} style={{width:18,height:18,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:index<5?"rgba(1,173,110,0.2)":"rgba(255,255,255,0.05)",border:`1px solid ${index<5?"rgba(51,224,161,0.35)":"rgba(255,255,255,0.08)"}`,fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:700,color:index<5?C.green2:C.gray}}>{index+1}</span>
+                  {index<6&&<span style={{flex:1,height:1,background:index<4?"rgba(51,224,161,0.28)":"rgba(255,255,255,0.07)"}}/>}
+                </React.Fragment>
+              ))}
+            </div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray2,marginTop:7,lineHeight:1.45}}>{msg.text}</div>
+            {msg.diagnosis&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginTop:4,lineHeight:1.4}}>{msg.diagnosis}</div>}
+          </div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {(msg.alternatives||[]).map((alt,altIndex)=>(
-              <div key={alt.label} style={{background:"rgba(15,19,26,0.92)",border:`1px solid ${alt.applied?"rgba(51,224,161,0.4)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"9px 10px"}}>
-                <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",marginBottom:alt.intent?3:6}}>{alt.label}</div>
+              <div key={alt.label} style={{background:"rgba(15,19,26,0.92)",border:`1px solid ${alt.applied||alt.recommended?"rgba(51,224,161,0.4)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"9px 10px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:alt.intent?3:6}}>
+                  <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff"}}>{alt.label}</div>
+                  {alt.recommended&&<span style={{background:"rgba(1,173,110,0.14)",border:"1px solid rgba(51,224,161,0.3)",borderRadius:8,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:700,padding:"1px 5px"}}>recomendada</span>}
+                </div>
                 {alt.intent&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginBottom:6,lineHeight:1.35}}>{alt.intent}</div>}
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,auto) 1fr",alignItems:"center",gap:8}}>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,color:alt.deltaUnits>=0?C.green2:C.red}}>{alt.deltaUnits>=0?"+":""}{safeValue(alt.deltaUnits)} un.</span>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>CA {alt.ca}</span>
-                  <div style={{flex:1}}/>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>TO {alt.occ}</span>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:alt.risk==="baixo"?C.green2:alt.risk==="médio"?C.yellow:C.red}}>risco {alt.risk}</span>
                   <button disabled={alt.applied} onClick={()=>onApplyAlt&&onApplyAlt(msg,altIndex)}
                     style={{background:alt.applied?"rgba(1,173,110,0.12)":"rgba(86,79,255,0.18)",border:`1px solid ${alt.applied?"rgba(51,224,161,0.3)":"rgba(86,79,255,0.35)"}`,borderRadius:5,color:alt.applied?C.green2:"rgba(203,200,255,0.95)",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,padding:"4px 9px",cursor:alt.applied?"default":"pointer"}}>
-                    {alt.applied?"✓":"Aplicar"}
+                    {alt.applied?"✓ Aplicada":"Aplicar no canvas"}
                   </button>
                 </div>
+                {alt.impact&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.75)",marginTop:6,lineHeight:1.35}}>{alt.impact}</div>}
               </div>
             ))}
           </div>
@@ -474,7 +491,7 @@
         <div style={{marginBottom:8,...enter}}>
           <div style={{background:"rgba(86,79,255,0.12)",border:"1px solid rgba(203,200,255,0.2)",borderRadius:"2px 12px 12px 12px",padding:"10px 13px",maxWidth:"92%"}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
-              <span style={{background:C.purple,color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:4,letterSpacing:"0.05em"}}>Skill</span>
+              <span style={{background:C.purple,color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:4,letterSpacing:"0.05em"}}>Execução</span>
               <code style={{fontFamily:"monospace",fontSize:11,color:"rgba(203,200,255,0.8)"}}>{msg.fn}</code>
             </div>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,marginBottom:5}}>↳ {msg.sub}</div>
@@ -523,18 +540,21 @@
     }
 
     /* ── Insights ─────────────────────────────────────────────── */
-    function InsightCard({insight,index,onDismiss}) {
+    function InsightCard({insight,index,onDismiss,onAction}) {
       const dot=insight.type==="opportunity"?C.green2:insight.type==="warning"?C.yellow:C.purple;
       return (
         <div style={{display:"flex",alignItems:"flex-start",gap:8,background:"rgba(15,19,26,0.94)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:9,padding:"8px 9px",animation:`insightIn 0.3s ease ${index*0.14}s both`}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:dot,boxShadow:`0 0 6px ${dot}`,marginTop:4,flexShrink:0}}/>
-          <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,lineHeight:1.4,flex:1}}>{insight.text}</span>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,lineHeight:1.4}}>{insight.text}</div>
+            <button onClick={()=>onAction&&onAction(insight)} style={{marginTop:6,background:"none",border:"none",color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700,cursor:"pointer",padding:0}}>Gerar alternativas →</button>
+          </div>
           <button onClick={()=>onDismiss(insight.id)} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>
         </div>
       );
     }
 
-    function InsightsRail({towers,m,limits}) {
+    function InsightsRail({towers,m,limits,onAction}) {
       const [visible,setVisible]=useState(false);
       const [dismissed,setDismissed]=useState([]);
       const activeInsights=computeInsights(towers,m,limits);
@@ -554,13 +574,13 @@
       if(!visible||!active.length)return null;
       return (
         <div style={{position:"absolute",top:80,left:14,zIndex:20,width:226,display:"flex",flexDirection:"column",gap:5}}>
-          {active.map((insight,index)=><InsightCard key={insight.id} insight={insight} index={index} onDismiss={id=>setDismissed(prev=>[...prev,id])}/>)}
+          {active.map((insight,index)=><InsightCard key={insight.id} insight={insight} index={index} onAction={onAction} onDismiss={id=>setDismissed(prev=>[...prev,id])}/>)}
         </div>
       );
     }
 
     /* ── ContextPanel ─────────────────────────────────────────── */
-    function LotOverview({m,towers,version,onSelectTower,onAddTower,limits,onSetLimits,decision,decisionStale}) {
+    function LotOverview({m,towers,version,onSelectTower,onAddTower,limits,onSetLimits,decision,decisionStale,onGenerate,decisionLog=[]}) {
       const valid=m?.valid===true;
       const effCA=limits?.ca??CA_LIMIT, effTO=limits?.to??TO_LIMIT;
       const status=getStatus(m,limits);
@@ -587,6 +607,7 @@
                 <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:status.color}}>{status.label}</div>
                 <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginTop:3,lineHeight:1.35}}>{status.detail}</div>
                 {status.nextStep&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.green2,marginTop:5,paddingTop:5,borderTop:"1px solid rgba(255,255,255,0.05)",lineHeight:1.35}}>→ {status.nextStep}</div>}
+                <button onClick={()=>onGenerate&&onGenerate("reduzir risco mantendo o máximo de unidades")} style={{marginTop:7,background:"rgba(1,173,110,0.14)",border:"1px solid rgba(51,224,161,0.3)",borderRadius:5,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700,padding:"5px 8px",cursor:"pointer"}}>Gerar 3 alternativas seguras</button>
               </div>
             </div>
           </div>
@@ -694,11 +715,22 @@
               ))}
             </div>
           </div>
+          <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Decisões do estudo</div>
+            {decisionLog.length===0?<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.55)",lineHeight:1.4}}>Ações da Teodora e escolhas aplicadas aparecerão aqui.</div>:
+              decisionLog.slice(-4).reverse().map(event=>(
+                <div key={event.id} style={{display:"grid",gridTemplateColumns:"34px 1fr",gap:6,marginBottom:7}}>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:C.gray}}>{event.time}</span>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray2,lineHeight:1.4}}>{event.text}</span>
+                </div>
+              ))
+            }
+          </div>
         </>
       );
     }
 
-    function TowerDetail({tower,m,onClose,onSave,onAdjust,onRemove,limits}) {
+    function TowerDetail({tower,m,onClose,onSave,onAdjust,onRemove,limits,onAgentAction}) {
       const [editing,setEditing]=useState(false);
       const [draft,setDraft]=useState({...tower});
       useEffect(()=>setDraft({...tower}),[tower.id,tower.floors,tower.units,tower.area,tower.type]);
@@ -717,8 +749,8 @@
           const extra=Math.max(2,Math.min(6,Math.floor(caHeadroom*LOT/Math.max(tM2,1))));
           return `CA total em ${safeValue(metrics.ca,{digits:1})} de ${caLim}, com ${safeValue(caHeadroom,{digits:1})} de margem. Esta torre pode absorver até ${extra} pavimentos adicionais sem exceder os limites informados.`;
         }
-        if(metrics.ca>=caWarn) return `CA em ${safeValue(metrics.ca,{digits:1})} / ${caLim} — próximo ao limite. Ajustar com cuidado para não ultrapassar os parâmetros informados.`;
-        return `Configuração dentro dos parâmetros. CA em ${safeValue(metrics.ca,{digits:1})} de ${caLim}, com ${safeValue(caHeadroom,{digits:1})} de margem disponível.`;
+        if(metrics.ca>=caWarn) return `O estudo usa ${safeValue(metrics.ca/caLim*100,{digits:1,suffix:"%"})} do CA informado. A Torre ${st.id} contribui com ~${tCaContrib}; alterar sua altura sem redistribuição reduz a margem para ajustes futuros. Recomendo comparar uma transferência de 1 a 2 pavimentos para a torre mais baixa.`;
+        return `A Torre ${st.id} contribui com ~${tCaContrib} de CA. O estudo mantém ${safeValue(caHeadroom,{digits:1})} de margem; o trade-off principal é usar essa folga para unidades ou preservá-la para reduzir risco regulatório.`;
       }
       const aiText=towerAiText(tower,m);
       function save(){onSave(sanitizeTower({...tower,floors:Math.round(draft.floors),units:Math.round(draft.units),area:Math.round(draft.area),type:draft.type},tower));setEditing(false);}
@@ -745,13 +777,19 @@
             )}
           </div>
           {!editing&&<div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Análise IA</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Análise da Teodora</div>
             <div style={{background:"rgba(1,173,110,0.08)",border:"1px solid rgba(51,224,161,0.18)",borderRadius:8,padding:"10px 11px",fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,lineHeight:1.5}}>{aiText}</div>
           </div>}
           <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:7}}>
             {editing?<div style={{display:"flex",gap:7}}><button onClick={()=>{setDraft({...tower});setEditing(false);}} style={{flex:1,background:"none",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,padding:"7px",cursor:"pointer"}}>Cancelar</button><button onClick={save} style={{flex:1,background:C.green,border:"none",borderRadius:6,color:"#fff",padding:"7px",cursor:"pointer"}}>Salvar</button></div>:<>
-              <button onClick={()=>setEditing(true)} style={{background:"rgba(1,173,110,0.12)",border:"1px solid rgba(1,173,110,0.3)",borderRadius:6,color:C.green2,padding:"8px",cursor:"pointer"}}>Editar propriedades</button>
-              <button onClick={onAdjust} style={{background:"rgba(255,188,0,0.08)",border:"1px solid rgba(255,188,0,0.22)",borderRadius:6,color:C.yellow,padding:"8px",cursor:"pointer"}}>Reduzir 20%</button>
+              <button onClick={()=>onAgentAction&&onAgentAction(`otimize a Torre ${tower.id} reduzindo risco e preservando unidades`)} style={{background:"rgba(1,173,110,0.12)",border:"1px solid rgba(1,173,110,0.3)",borderRadius:6,color:C.green2,padding:"8px",cursor:"pointer",fontWeight:700}}>Otimizar com Teodora</button>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+                <button onClick={()=>onAgentAction&&onAgentAction(`redistribua pavimentos da Torre ${tower.id} entre as torres`)} style={{background:"rgba(86,79,255,0.1)",border:"1px solid rgba(86,79,255,0.25)",borderRadius:6,color:"rgba(203,200,255,0.95)",padding:"7px",cursor:"pointer",fontSize:10}}>Redistribuir pavimentos</button>
+                <button onClick={()=>onAgentAction&&onAgentAction(`gere uma variação da Torre ${tower.id} com mais área livre`)} style={{background:"rgba(86,79,255,0.1)",border:"1px solid rgba(86,79,255,0.25)",borderRadius:6,color:"rgba(203,200,255,0.95)",padding:"7px",cursor:"pointer",fontSize:10}}>Gerar variação</button>
+                <button onClick={()=>onAgentAction&&onAgentAction(`explique a contribuição da Torre ${tower.id} no CA`)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,padding:"7px",cursor:"pointer",fontSize:10}}>Explicar CA</button>
+                <button onClick={()=>setEditing(true)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,padding:"7px",cursor:"pointer",fontSize:10}}>Editar dados</button>
+              </div>
+              <button onClick={onAdjust} style={{background:"rgba(255,188,0,0.08)",border:"1px solid rgba(255,188,0,0.22)",borderRadius:6,color:C.yellow,padding:"8px",cursor:"pointer"}}>Aplicar redução direta de 20%</button>
               <button onClick={onRemove} style={{background:"rgba(253,72,72,0.08)",border:"1px solid rgba(253,72,72,0.22)",borderRadius:6,color:C.red,padding:"8px",cursor:"pointer"}}>Remover torre</button>
             </>}
           </div>
@@ -759,11 +797,11 @@
       );
     }
 
-    function ContextPanel({m,towers,version,sel,onSelect,onSave,onAdjust,onRemove,onAddTower,limits,onSetLimits,decision,decisionStale}) {
+    function ContextPanel({m,towers,version,sel,onSelect,onSave,onAdjust,onRemove,onAddTower,limits,onSetLimits,decision,decisionStale,onAgentAction,decisionLog}) {
       const tower=towers.find(item=>item.id===sel);
       return (
         <div style={{width:240,flexShrink:0,background:"rgba(12,16,23,0.98)",borderLeft:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",overflowY:"auto",animation:"slideInPanel 0.25s ease"}}>
-          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)} limits={limits}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower} limits={limits} onSetLimits={onSetLimits} decision={decision} decisionStale={decisionStale}/>}
+          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)} limits={limits} onAgentAction={onAgentAction}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower} limits={limits} onSetLimits={onSetLimits} decision={decision} decisionStale={decisionStale} onGenerate={onAgentAction} decisionLog={decisionLog}/>}
         </div>
       );
     }
@@ -1049,7 +1087,7 @@
 
     const PENDING_ITEMS=["Conferir legislação urbanística","Validar viabilidade econômica","Revisar setores de recuo","Confirmar disponibilidade de vagas"];
 
-    function ComparePanel({versions, currentVersion, onClose, onSwitch, limits}) {
+    function ComparePanel({versions, currentVersion, onClose, onSwitch, onPreview, limits}) {
       const VERS = ["Versão 01","Versão 02","Versão 03"];
       const [left,  setLeft]  = useState(currentVersion);
       const [right, setRight] = useState(VERS.find(v=>v!==currentVersion)||"Versão 02");
@@ -1062,6 +1100,7 @@
       const mL = calcMetrics(tL);
       const mR = calcMetrics(tR);
       const metricsValid=mL.valid&&mR.valid;
+      const riskFor=metrics=>!metrics.valid?"bloqueante":metrics.ca>=(limits?.ca??CA_LIMIT)?"alto":metrics.ca>=(limits?.ca??CA_LIMIT)*0.9?"médio":"baixo";
 
       function MiniCanvas({towers}) {
         return (
@@ -1083,6 +1122,7 @@
         {label:"Torres",   lv:tL.length, rv:tR.length, fmt:v=>safeValue(v),higher:true},
         {label:"Unidades", lv:mL.units,  rv:mR.units,  fmt:v=>safeValue(v),higher:true},
         {label:"Área m²",  lv:mL.area,   rv:mR.area,   fmt:v=>safeValue(v),higher:true},
+        {label:"Área livre",lv:mL.valid?LOT*(100-mL.occ)/100:null,rv:mR.valid?LOT*(100-mR.occ)/100:null,fmt:v=>safeValue(v,{suffix:" m²"}),higher:true},
         {label:"CA",       lv:mL.ca,     rv:mR.ca,     fmt:v=>safeValue(v,{digits:1}),higher:false,limit:limits?.ca??CA_LIMIT},
         {label:"TO %",     lv:mL.occ,    rv:mR.occ,    fmt:v=>safeValue(v,{digits:1,suffix:"%"}),higher:false,limit:limits?.to??TO_LIMIT},
       ];
@@ -1111,6 +1151,7 @@
                     <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
                       {safeValue(tw.length)} torres · {m.valid?safeValue(m.units):"--"} un · CA <span style={{color:m.valid&&m.ca>=(limits?.ca??CA_LIMIT)?C.yellow:"#fff",fontWeight:600}}>{m.valid?safeValue(m.ca,{digits:1}):"--"}</span>
                     </span>
+                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:700,color:riskFor(m)==="baixo"?C.green2:riskFor(m)==="médio"?C.yellow:C.red}}>risco {riskFor(m)}</span>
                   </div>
                   {scenarioIntent(ver)&&(
                     <div style={{background:"rgba(17,21,29,0.55)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:6,padding:"6px 9px"}}>
@@ -1121,6 +1162,10 @@
                 </div>
                 <div style={{flex:1,border:`1px solid ${accent}`,borderRadius:10,overflow:"hidden",background:C.ink2,minHeight:0}}>
                   <MiniCanvas towers={tw}/>
+                </div>
+                <div style={{display:"flex",gap:7,flexShrink:0}}>
+                  <button onClick={()=>onPreview&&onPreview(ver)} style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:10,padding:"6px",cursor:"pointer"}}>Ver no canvas</button>
+                  <button onClick={()=>{setDeciding({strategy:ver,label:`Aplicar ${scenarioName(ver)}`});setReason("");setPending(PENDING_ITEMS.slice(0,2));}} style={{flex:1,background:"rgba(1,173,110,0.14)",border:"1px solid rgba(51,224,161,0.3)",borderRadius:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:700,padding:"6px",cursor:"pointer"}}>Aplicar esta versão</button>
                 </div>
               </div>
             ))}
@@ -1548,6 +1593,9 @@
       const [presenting,   setPresenting]   = useState(false);
       const [decision,     setDecision]     = useState(null); // {strategy, time, units, ca} | null
       const [limits,       setLimits]       = useState({ca:CA_LIMIT,to:TO_LIMIT});
+      const [decisionLog,  setDecisionLog]  = useState(()=>[
+        {id:"initial-analysis",time:"14:23",text:"Teodora calculou o estudo inicial: 163 unidades, CA 11,0 e TO 8,4%."},
+      ]);
 
       const appRef   = useRef(null);
       const svgRef   = useRef(null);
@@ -1556,6 +1604,12 @@
       const panning   = useRef(null);
       const towersRef = useRef(towers);
       const versionTransitionRef=useRef({target:null,switchTimer:null,fadeTimer:null});
+      const lastAlternativesRef=useRef([]);
+
+      function recordDecisionEvent(text){
+        const time=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        setDecisionLog(prev=>[...prev.slice(-19),{id:`event-${Date.now()}-${prev.length}`,time,text}]);
+      }
 
       useEffect(()=>{ const t=setTimeout(()=>setMounted(true),100); return ()=>clearTimeout(t); },[]);
       useEffect(()=>{
@@ -1840,25 +1894,52 @@
       function contextualReply(text,tower,currentTowers) {
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
         const lower=text.toLowerCase();
-        if(!tower){
+        const asksApplyRecommended=/apli(que|car).*(recomendada|melhor)|alternativa recomendada/.test(lower);
+        if(asksApplyRecommended&&lastAlternativesRef.current.length){
+          const recommended=lastAlternativesRef.current.find(item=>item.recommended)||lastAlternativesRef.current[0];
+          const currentMetrics=calcMetrics(currentTowers);
           return {
-            id:`alt-${Date.now()}`,role:"alternatives",time:now,text:"Três configurações para explorar:",
-            alternatives:(()=>{
-              const base=[
-                {ver:"Versão 02",label:scenarioName("Versão 02"),intent:scenarioIntent("Versão 02"),towers:VERSIONS_INIT["Versão 02"]},
-                {ver:"Versão 01",label:scenarioName("Versão 01"),intent:scenarioIntent("Versão 01"),towers:VERSIONS_INIT["Versão 01"]},
-                {ver:"Versão 03",label:scenarioName("Versão 03"),intent:scenarioIntent("Versão 03"),towers:VERSIONS_INIT["Versão 03"]},
-              ];
-              const wantMax=/densidade|maximiz|unidades|mais un|produt/.test(lower);
-              const wantFree=/área livre|permeab|menos|espaço|verde|equilibr/.test(lower);
-              if(wantMax) return [base[0],base[1],base[2]];
-              if(wantFree) return [base[2],base[1],base[0]];
-              return [base[1],base[0],base[2]];
-            })().map(candidate=>{
-              const cm=calcMetrics(sanitizeTowers(candidate.towers));
-              const curM=calcMetrics(currentTowers);
-              return {...candidate,deltaUnits:(cm.valid&&curM.valid)?cm.units-curM.units:0,ca:cm.valid?safeValue(cm.ca,{digits:1}):"--",applied:false};
-            }),
+            id:`apply-rec-${Date.now()}`,role:"skill",time:now,
+            fn:"aplicar_alternativa_recomendada()",
+            sub:`${recommended.name} · prévia rastreável`,
+            text:`Segundo o objetivo informado, ${recommended.name} é a alternativa recomendada. O principal trade-off é: ${recommended.impact}`,
+            preview:[
+              {label:"Unidades",before:currentMetrics.valid?safeValue(currentMetrics.units):"--",after:recommended.metrics.valid?safeValue(recommended.metrics.units):"--",good:recommended.metrics.units>=currentMetrics.units},
+              {label:"CA",before:currentMetrics.valid?safeValue(currentMetrics.ca,{digits:1}):"--",after:recommended.metrics.valid?safeValue(recommended.metrics.ca,{digits:1}):"--",good:recommended.metrics.ca<=limits.ca},
+              {label:"Risco",before:currentMetrics.valid&&currentMetrics.ca>=limits.ca*0.9?"médio":"baixo",after:recommended.risk,good:recommended.risk==="baixo"},
+            ],
+            action:{id:`action-${Date.now()}`,type:"applyAlternative",targetId:null,label:`Aplicar ${recommended.name}`,after:recommended.towers,alternativeName:recommended.name},
+          };
+        }
+
+        const asksAlternatives=/alternativ|redistrib|otimiz|maximiz|máximo|densidade|área livre|permeab|reduz.*risco|menor risco|variação/.test(lower);
+        if(!tower||asksAlternatives){
+          const generated=generateMassingAlternatives(currentTowers,lower,limits.ca,LOT,TERRAIN_POINTS);
+          lastAlternativesRef.current=generated;
+          const currentMetrics=calcMetrics(currentTowers);
+          const tallest=[...sanitizeTowers(currentTowers)].sort((a,b)=>b.floors-a.floors)[0];
+          const recommended=generated.find(item=>item.recommended);
+          return {
+            id:`alt-${Date.now()}`,role:"alternatives",time:now,
+            text:`Objetivo interpretado: ${/livre|permeab/.test(lower)?"ampliar área livre":/unidade|dens|max/.test(lower)?"maximizar unidades dentro do CA":"reduzir risco preservando potencial"}. ${recommended?`${recommended.name} lidera segundo esse critério.`:""}`,
+            diagnosis:`Diagnóstico: CA ${currentMetrics.valid?safeValue(currentMetrics.ca,{digits:1}):"--"} / ${limits.ca}. ${tallest?`Torre ${tallest.id} concentra a maior altura, com ${tallest.floors} pavimentos.`:""} Premissas regulatórias ainda requerem validação local.`,
+            alternatives:generated.map(candidate=>({
+              id:candidate.id,label:candidate.name,intent:candidate.description,impact:candidate.impact,
+              towers:candidate.towers,deltaUnits:(candidate.metrics.valid&&currentMetrics.valid)?candidate.metrics.units-currentMetrics.units:0,
+              ca:candidate.metrics.valid?safeValue(candidate.metrics.ca,{digits:1}):"--",
+              occ:candidate.metrics.valid?safeValue(candidate.metrics.occ,{digits:1,suffix:"%"}):"--",
+              risk:candidate.risk,recommended:candidate.recommended,applied:false,
+            })),
+          };
+        }
+
+        if(/explique|contribui|contribuição|impacto/.test(lower)){
+          const metrics=calcMetrics(currentTowers);
+          const contribution=tower.area/LOT;
+          const share=metrics.valid&&metrics.units?Math.round(tower.units/metrics.units*100):null;
+          return {
+            id:`explain-${Date.now()}`,role:"agent",time:now,
+            text:`Torre ${tower.id} contribui com aproximadamente ${safeValue(contribution,{digits:2})} de CA e ${share!==null?safeValue(share,{suffix:"%"}):"--"} das unidades do estudo. ${tower.floors>=15?"Ela concentra altura e é o primeiro ponto para redistribuição.":"Sua contribuição é moderada; ajustes locais têm impacto controlado."}\n\nRecomendação: comparar uma redistribuição antes de alterar a projeção. Confiança média — CA e unidades são calculados; legislação permanece não validada.`,
           };
         }
 
@@ -1915,7 +1996,9 @@
         setTyping(true);
         setTimeout(()=>{
           setTyping(false);
-          setMsgs(m=>[...m,contextualReply(msg,selected,currentTowers)]);
+          const response=contextualReply(msg,selected,currentTowers);
+          setMsgs(m=>[...m,response]);
+          if(response.role==="alternatives")recordDecisionEvent("Teodora gerou 3 alternativas e recomendou uma estratégia segundo o objetivo informado.");
         },1700);
       }
 
@@ -1923,7 +2006,13 @@
         const action=message.action;
         if(!action||action.applied)return;
         pushHistorySnapshot(towers);
-        if(action.type==="remove"){
+        const before=calcMetrics(towers);
+        if(action.type==="applyAlternative"){
+          setTowers(sanitizeTowers(action.after));
+          setSel(null);
+          const after=calcMetrics(sanitizeTowers(action.after));
+          recordDecisionEvent(`Aplicada “${action.alternativeName}”: CA ${before.valid?safeValue(before.ca,{digits:1}):"--"} → ${after.valid?safeValue(after.ca,{digits:1}):"--"}; unidades ${before.valid?safeValue(before.units):"--"} → ${after.valid?safeValue(after.units):"--"}.`);
+        } else if(action.type==="remove"){
           setTowers(prev=>prev.filter(t=>t.id!==action.targetId));
           setSel(null);
         } else {
@@ -1954,6 +2043,8 @@
         }
         setTowers(nextTowers);
         setSel(null);
+        const before=calcMetrics(towers),after=calcMetrics(nextTowers);
+        recordDecisionEvent(`Aplicada “${alt.label}”: CA ${before.valid?safeValue(before.ca,{digits:1}):"--"} → ${after.valid?safeValue(after.ca,{digits:1}):"--"}; unidades ${before.valid?safeValue(before.units):"--"} → ${after.valid?safeValue(after.units):"--"}.`);
         setMsgs(prev=>prev.map(item=>item.id===message.id?{...item,alternatives:item.alternatives.map((candidate,index)=>({...candidate,applied:index===altIdx}))}:item));
       }
 
@@ -2166,7 +2257,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 </div>
               )}
               {presenting && <PresentationHUD m={m} towerCount={towers.length} version={version} onExit={exitPresentation}/>}
-              {!presenting&&mode==="active"&&<InsightsRail towers={towers} m={m} limits={limits}/>}
+              {!presenting&&mode==="active"&&<InsightsRail towers={towers} m={m} limits={limits} onAction={insight=>{setChatSize("full");sendMessage(insight.type==="warning"?"reduza o risco mantendo o máximo de unidades":"gere 3 alternativas para aproveitar esta oportunidade");}}/>}
               {mode==="active"&&<NorthIndicator presenting={presenting}/>}
 
               {/* SVG */}
@@ -2279,12 +2370,14 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 versions={{...versions,[version]:towers}}
                 currentVersion={version}
                 onClose={()=>setComparing(false)}
+                onPreview={v=>{switchVersion(v);setComparing(false);recordDecisionEvent(`Estratégia “${scenarioName(v)}” aberta no canvas para inspeção.`);}}
                 onSwitch={(v,meta={})=>{
                   const newM=calcMetrics(sanitizeTowers(versions[v]||[]));
                   const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
                   switchVersion(v);
                   setComparing(false);
                   setDecision({strategy:v,time:now,units:newM.valid?newM.units:null,ca:newM.valid?newM.ca:null,limits:{...limits},reason:meta.reason||null,pending:meta.pending||[]});
+                  recordDecisionEvent(`Decisão registrada: avançar com “${scenarioName(v)}”${meta.reason?` — ${meta.reason}`:""}.`);
                   const reasonPart=meta.reason?` · "${meta.reason}"`:"";
                   const pendingPart=meta.pending&&meta.pending.length>0?` · Pendências: ${meta.pending.join(", ")}.`:" Sem pendências registradas.";
                   setMsgs(prev=>[...prev,{id:`decide-${Date.now()}`,role:"copilot-context",time:now,
@@ -2296,8 +2389,9 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
 
             {/* CONTEXT SIDE PANEL */}
             {mode==="active"&&!presenting&&!comparing&&(
-              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} decision={decision} decisionStale={decisionStale} onSetLimits={newLim=>{
+              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} decision={decision} decisionStale={decisionStale} decisionLog={decisionLog} onAgentAction={prompt=>{setChatSize("full");sendMessage(prompt);}} onSetLimits={newLim=>{
                   setLimits(newLim);
+                  recordDecisionEvent(`Premissas alteradas: CA máximo ${newLim.ca} e TO máxima ${newLim.to}%.`);
                   const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
                   setMsgs(prev=>[...prev,{id:`limits-${Date.now()}`,role:"copilot-context",time:nowStr,
                     text:`Premissas atualizadas: CA máx ${newLim.ca} · TO máx ${newLim.to}%. Status e barras recalculados. Confirmar com legislação local antes de avançar.`}]);

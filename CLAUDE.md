@@ -184,6 +184,11 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Teodora arrastável em todos os estados, inclusive minimizada
 - [x] Teodora preserva cabeçalho acessível ao mudar de tamanho
 - [x] Teodora sinaliza presença discretamente ao selecionar elementos
+- [x] Alertas acionáveis geram três alternativas estratégicas
+- [x] Teodora aplica alternativa recomendada com prévia calculada
+- [x] Painel da torre oferece otimização, redistribuição, variação e explicação
+- [x] Comparador mostra área livre, risco e ações de visualizar/aplicar
+- [x] Histórico registra geração, aplicação, premissas e decisões
 - [x] Rosa dos ventos fixa na viewport, independente de zoom e pan
 
 ---

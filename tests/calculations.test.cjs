@@ -7,6 +7,7 @@ const {
   scaleTower,
   resizeTowerFromSnapshot,
   increaseFloors,
+  generateMassingAlternatives,
   formatNumber,
   escapeHtml,
   decisionStaleness,
@@ -56,6 +57,19 @@ test("aumento de pavimentos é linear e respeita o limite",()=>{
   assert.equal(increased.area,2688);
   const capped=increaseFloors({...towers[0],floors:60},20);
   assert.equal(capped.floors,60);
+});
+
+test("gera alternativas estratégicas distintas, calculadas e aplicáveis",()=>{
+  const alternatives=generateMassingAlternatives(towers,"máximo de unidades",12,lot,terrain);
+  assert.equal(alternatives.length,3);
+  assert.equal(alternatives.filter(item=>item.recommended).length,1);
+  assert.equal(alternatives.find(item=>item.recommended).id,"max-units");
+  for(const alternative of alternatives){
+    assert.equal(alternative.metrics.valid,true);
+    assert.ok(Array.isArray(alternative.towers));
+    assert.ok(["baixo","médio","alto","bloqueante"].includes(alternative.risk));
+  }
+  assert.ok(alternatives.find(item=>item.id==="max-units").metrics.ca<=11.9);
 });
 
 test("entradas inválidas são sanitizadas",()=>{

@@ -130,6 +130,57 @@
     },source);
   }
 
+  function generateMassingAlternatives(towers,objective,caLimit,lotArea,terrainPoints){
+    const base=sanitizeTowers(towers);
+    const limit=Math.max(1,finite(caLimit,12));
+    const intent=String(objective||"equilíbrio").toLowerCase();
+    const metricsFor=value=>calcMetrics(value,lotArea,terrainPoints);
+    const classifyRisk=metrics=>{
+      if(!metrics.valid)return "bloqueante";
+      if(metrics.ca>=limit)return "alto";
+      if(metrics.ca>=limit*0.9)return "médio";
+      return "baixo";
+    };
+    const build=(id,name,description,nextTowers,impact)=>{
+      const clean=sanitizeTowers(nextTowers);
+      const metrics=metricsFor(clean);
+      return {id,name,description,towers:clean,metrics,risk:classifyRisk(metrics),impact};
+    };
+
+    const tallest=[...base].sort((a,b)=>b.floors-a.floors)[0];
+    const shortest=[...base].sort((a,b)=>a.floors-b.floors)[0];
+    const safer=base.map(t=>{
+      if(t.id===tallest?.id)return increaseFloors(t,-2);
+      if(t.id===shortest?.id&&shortest.id!==tallest?.id)return increaseFloors(t,1);
+      return t;
+    });
+
+    let density=sanitizeTowers(base);
+    for(let step=0;step<24;step++){
+      const target=[...density].sort((a,b)=>a.floors-b.floors||a.units-b.units)[0];
+      if(!target)break;
+      const candidate=density.map(t=>t.id===target.id?increaseFloors(t,1):t);
+      const candidateMetrics=metricsFor(candidate);
+      if(!candidateMetrics.valid||candidateMetrics.ca>limit-0.1)break;
+      density=candidate;
+    }
+
+    const largest=[...base].sort((a,b)=>b.w*b.h-a.w*a.h)[0];
+    let freeArea=base.map(t=>t.id===largest?.id?scaleTower(t,0.84):t);
+    const freeMetrics=metricsFor(freeArea);
+    if(freeMetrics.valid&&freeMetrics.ca<limit-1&&shortest){
+      freeArea=freeArea.map(t=>t.id===shortest.id?increaseFloors(t,1):t);
+    }
+
+    const alternatives=[
+      build("lower-risk","Menor risco regulatório","Redistribui altura da torre dominante e preserva margem para ajustes.",safer,"Reduz pressão sobre o CA com perda controlada de unidades."),
+      build("max-units","Máximo de unidades seguro","Acrescenta pavimentos gradualmente sem ultrapassar o CA informado.",density,"Usa a margem disponível para ampliar o potencial de unidades."),
+      build("more-free-area","Mais área livre","Reduz a maior projeção e recompõe parte do potencial em altura.",freeArea,"Libera solo e reduz ocupação com impacto moderado em unidades."),
+    ];
+    const preferred=/risco|segur|aprova/.test(intent)?"lower-risk":/livre|perme|verde/.test(intent)?"more-free-area":/unidade|dens|max/.test(intent)?"max-units":"lower-risk";
+    return alternatives.map(item=>({...item,recommended:item.id===preferred}));
+  }
+
   function isRenderableNumber(value,max=Number.MAX_SAFE_INTEGER){
     return typeof value==="number"&&Number.isFinite(value)&&Math.abs(value)<=max;
   }
@@ -203,6 +254,7 @@
     scaleTower,
     resizeTowerFromSnapshot,
     increaseFloors,
+    generateMassingAlternatives,
     isRenderableNumber,
     formatNumber,
     escapeHtml,
