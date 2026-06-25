@@ -1970,7 +1970,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                   <span style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:600,color:status.color}}>{scenarioName(version)} · {scenarioRevision(version)} · {status.label}</span>
                   <div style={{width:1,height:14,background:"rgba(255,255,255,0.07)"}}/>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
-                    {m?.valid?`${safeValue(towers.length)} torres · ${safeValue(m.units)} un. · CA ${safeValue(m.ca,{digits:1})} / 12 · TO ${safeValue(m.occ,{digits:1})}%`:"Calculando indicadores..."}
+                    {m?.valid?`${safeValue(towers.length)} torres · ${safeValue(m.units)} un. · CA ${safeValue(m.ca,{digits:1})} / ${limits.ca} · TO ${safeValue(m.occ,{digits:1})}%`:"Calculando indicadores..."}
                   </span>
                   <div style={{flex:1}}/>
                   {decision&&decision.strategy===version&&(
