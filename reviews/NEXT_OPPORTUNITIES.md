@@ -84,15 +84,85 @@ Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
 ## Próximas oportunidades residuais
 
-### R1 — Snapping magnético em tempo real durante drag
+### Concluído — Segurança do relatório HTML
 
-**Evidência:** O snap atual ocorre apenas no drop (onUp). Durante o drag a torre mostra badge "Recuo" mas não há atração visual para as linhas de recuo.
+**Evidência:** motivo livre da decisão era interpolado sem escape no documento baixado.
 
-**Impacto:** Dificulta o alinhamento preciso. Para posicionamento rápido seria útil sentir o snap enquanto arrasta.
+**Resultado:** todos os dados dinâmicos do relatório passam por `escapeHtml`; teste unitário cobre payload executável. Detalhes no ciclo 7 de `IMPLEMENTATION_REVIEW.md`.
 
-**Direção:** Em `onMove`, se a aresta mais próxima da torre estiver a < 6 SVG units de uma aresta do INSET_TERRAIN, snap automático e flash na aresta de recuo.
+### Concluído — Decisão invalidada por mudança de premissas
 
-### R2 — Migração para Vite + React (Sprint 5)
+**Evidência:** decisão armazenava métricas, mas não os limites regulatórios usados; alterar CA/TO não ativava o estado desatualizado.
+
+**Resultado:** decisão registra snapshot de limites e `decisionStaleness()` diferencia deriva de métricas e premissas. Detalhes no ciclo 8 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Análise contextual atualizada
+
+**Evidência:** efeito do copiloto lia torres e limites, mas só reagia a seleção e modo.
+
+**Resultado:** o debounce agora reinicia após mudanças geométricas, edições e novas premissas, evitando análise obsoleta. Detalhes no ciclo 9 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Destaque do comparador usa limite ativo
+
+**Evidência:** cabeçalho comparava CA com literal 12 mesmo após edição da premissa.
+
+**Resultado:** cor de alerta usa `limits.ca`, consistente com tabela e recomendação. Detalhes no ciclo 10 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Trocas rápidas de estratégia serializadas
+
+**Evidência:** timers concorrentes permitiam que intenção antiga fosse aplicada; retorno à estratégia original não cancelava a transição.
+
+**Resultado:** timers são canceláveis e a última intenção válida vence. Detalhes no ciclo 11 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Undo sem snapshots vazios
+
+**Evidência:** mouse down gravava histórico mesmo sem movimento; drag rejeitado deixava entrada sem alteração.
+
+**Resultado:** snapshot é gravado somente na primeira mutação real e removido quando o drag é revertido. Detalhes no ciclo 12 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Decisão inválida quando métricas estão indisponíveis
+
+**Evidência:** guard clause retornava decisão vigente quando `currentMetrics.valid` era falso.
+
+**Resultado:** métricas inválidas tornam a decisão stale; teste cobre regressão. Detalhes no ciclo 13 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Undo isolado por estratégia
+
+**Evidência:** stack global sem versão sobrevivia à troca e podia restaurar geometria de outro cenário.
+
+**Resultado:** histórico é reiniciado somente quando a troca de estratégia se concretiza. Detalhes no ciclo 14 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Alternativa mantém identidade da estratégia
+
+**Evidência:** `applyAlt()` ignorava `alt.ver` e aplicava geometria sem trocar o cenário ativo.
+
+**Resultado:** massa, identidade e snapshots são atualizados atomicamente. Detalhes no ciclo 15 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — CSP no relatório
+
+**Evidência:** relatório dependia somente do escape de saída para impedir conteúdo executável.
+
+**Resultado:** CSP bloqueia scripts, rede, objetos, formulários e base externa. Detalhes no ciclo 16 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — CDN reprodutível
+
+**Evidência:** aliases e URL sem versão redirecionavam para releases mutáveis.
+
+**Resultado:** React 18.3.1, ReactDOM 18.3.1 e Babel 8.0.2 estão fixos e protegidos por SRI. Detalhes no ciclo 17 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Copilot reposicionável
+
+**Evidência:** painel e ícone minimizado permaneciam presos ao canto inferior direito e podiam bloquear a área investigada.
+
+**Resultado:** os três estados podem ser arrastados por toda a viewport, preservando posição e permanecendo dentro dos limites visíveis. Detalhes no ciclo 18 de `IMPLEMENTATION_REVIEW.md`.
+
+### Concluído — Snapping magnético durante drag
+
+**Evidência atual:** `onMove` aplica `nudgeInsidePoly` quando recuos estão visíveis e a correção está a menos de 10 unidades SVG.
+
+**Resultado:** o backlog antigo estava desatualizado; snap em tempo real e snap final no drop já existem. Falta apenas feedback visual específico da aresta, que é polimento e não bloqueio funcional.
+
+### R1 — Migração para Vite + React (Sprint 5)
 
 **Evidência:** O arquivo index.html tem ~2200 linhas. Todo o código está inline. Sem TypeScript, sem linting, sem hot reload.
 
@@ -100,7 +170,7 @@ Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
 **Direção:** Seguir Sprint 5 do roadmap no CLAUDE.md — manter paleta e estrutura, separar em arquivos, adicionar TypeScript.
 
-### R3 — Vagas editáveis nas premissas
+### R2 — Vagas editáveis nas premissas
 
 **Evidência:** "Vagas por unidade" está hardcoded como 1 com badge "informado". O usuário não pode alterar.
 

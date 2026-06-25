@@ -140,6 +140,52 @@
     return `${value.toLocaleString("pt-BR",{minimumFractionDigits:digits,maximumFractionDigits:digits,useGrouping:true})}${suffix}`;
   }
 
+  function escapeHtml(value){
+    return String(value??"").replace(/[&<>"']/g,char=>({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;",
+    })[char]);
+  }
+
+  function decisionStaleness(decision,currentMetrics,currentLimits){
+    if(!decision)return {stale:false,metricsChanged:false,assumptionsChanged:false};
+    const recordedLimits=decision.limits&&typeof decision.limits==="object"?decision.limits:null;
+    const assumptionsChanged=Boolean(recordedLimits)&&(
+      finite(recordedLimits.ca,NaN)!==finite(currentLimits?.ca,NaN)||
+      finite(recordedLimits.to,NaN)!==finite(currentLimits?.to,NaN)
+    );
+    if(!currentMetrics?.valid)return {stale:true,metricsChanged:true,assumptionsChanged};
+    const unitsBefore=finite(decision.units,NaN);
+    const caBefore=finite(decision.ca,NaN);
+    const unitsNow=finite(currentMetrics.units,NaN);
+    const caNow=finite(currentMetrics.ca,NaN);
+    const unitsChanged=Number.isFinite(unitsBefore)&&Number.isFinite(unitsNow)
+      ?Math.abs((unitsNow-unitsBefore)/Math.max(Math.abs(unitsBefore),1))>0.1
+      :false;
+    const caChanged=Number.isFinite(caBefore)&&Number.isFinite(caNow)
+      ?Math.abs(caNow-caBefore)>0.5
+      :false;
+    const metricsChanged=unitsChanged||caChanged;
+    return {stale:metricsChanged||assumptionsChanged,metricsChanged,assumptionsChanged};
+  }
+
+  function clampFloatingPosition(position,panelSize,viewportSize,margin=8){
+    const gap=Math.max(0,finite(margin,8));
+    const width=Math.max(0,finite(panelSize?.width));
+    const height=Math.max(0,finite(panelSize?.height));
+    const viewportWidth=Math.max(0,finite(viewportSize?.width));
+    const viewportHeight=Math.max(0,finite(viewportSize?.height));
+    const maxX=Math.max(gap,viewportWidth-width-gap);
+    const maxY=Math.max(gap,viewportHeight-height-gap);
+    return {
+      x:clamp(position?.x,gap,maxX,gap),
+      y:clamp(position?.y,gap,maxY,gap),
+    };
+  }
+
   return {
     LIMITS,
     finite,
@@ -154,5 +200,8 @@
     increaseFloors,
     isRenderableNumber,
     formatNumber,
+    escapeHtml,
+    decisionStaleness,
+    clampFloatingPosition,
   };
 });

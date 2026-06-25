@@ -28,8 +28,8 @@ O manifesto tem precedência sobre convenções genéricas de SaaS e preferênci
 ## Stack e arquitetura
 
 - **Aplicação ativa:** `index.html` — tudo inline (React, JSX, estilos)
-- **React 18** via CDN (`unpkg.com/react@18/umd`)
-- **Babel Standalone** para transpilação JSX em runtime, com `runtime: 'classic'` forçado via `new Function()` (evita imports ES module que quebram sem bundler)
+- **React 18.3.1** e **ReactDOM 18.3.1** via CDN, com versão fixa e SRI
+- **Babel Standalone 8.0.2** com versão fixa e SRI para transpilação JSX em runtime, com `runtime: 'classic'` forçado via `new Function()` (evita imports ES module que quebram sem bundler)
 - **Zero dependências externas além de React** — lucide-react UMD estava vazio; ícones foram substituídos por SVG inline
 - **Fontes:** Google Fonts — `Sora` (display/headings) e `Inter` (body/UI)
 - **Estilos:** inline via `style={{}}` — sem Tailwind, sem CSS modules
@@ -181,6 +181,7 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Dimensões ao vivo durante drag e resize
 - [x] Estados de avaliação sem falsa declaração de viabilidade
 - [x] Estratégias nomeadas como identidade principal dos cenários
+- [x] Copilot arrastável em todos os estados, inclusive minimizado
 
 ---
 

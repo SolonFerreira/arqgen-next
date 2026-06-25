@@ -7,9 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@8.0.2/babel.min.js" integrity="sha384-Q5kiNQgNxFWj4chn0u4b9oIbGap7QCo0UxLpeajIrR9ONNqk9udAsXWeeK1jA3Fr" crossorigin="anonymous"></script>
   <script src="./calculations.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,7 +41,7 @@
 
   <script id="app-src" type="text/plain">
     const { useState, useRef, useEffect, useCallback, useMemo } = React;
-    const { LIMITS, sanitizeTower, sanitizeTowers, calcMetrics:calculateMetrics, scaleTower, resizeTowerFromSnapshot, increaseFloors, isRenderableNumber, formatNumber } = ArqgenCalc;
+    const { LIMITS, sanitizeTower, sanitizeTowers, calcMetrics:calculateMetrics, scaleTower, resizeTowerFromSnapshot, increaseFloors, isRenderableNumber, formatNumber, escapeHtml, decisionStaleness, clampFloatingPosition } = ArqgenCalc;
 
     /* ── palette ──────────────────────────────────────────────── */
     const C = {
@@ -1087,7 +1087,7 @@
                       {VERS.map(v=><option key={v} value={v} style={{background:C.card}}>{scenarioName(v)} · {scenarioRevision(v)}</option>)}
                     </select>
                     <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
-                      {safeValue(tw.length)} torres · {m.valid?safeValue(m.units):"--"} un · CA <span style={{color:m.valid&&m.ca>=12?C.yellow:"#fff",fontWeight:600}}>{m.valid?safeValue(m.ca,{digits:1}):"--"}</span>
+                      {safeValue(tw.length)} torres · {m.valid?safeValue(m.units):"--"} un · CA <span style={{color:m.valid&&m.ca>=(limits?.ca??CA_LIMIT)?C.yellow:"#fff",fontWeight:600}}>{m.valid?safeValue(m.ca,{digits:1}):"--"}</span>
                     </span>
                   </div>
                   {scenarioIntent(ver)&&(
@@ -1311,7 +1311,11 @@
     function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt,sel}) {
       const scrollRef=useRef(null);
       const chatFileRef=useRef(null);
+      const panelRef=useRef(null);
+      const dragRef=useRef(null);
+      const suppressClickRef=useRef(false);
       const [hasNew,setHasNew]=useState(false);
+      const [position,setPosition]=useState(null);
       const prevMsgsLen=useRef(msgs.length);
       useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing,size]);
       useEffect(()=>{
@@ -1320,13 +1324,60 @@
         } else {setHasNew(false);}
         prevMsgsLen.current=msgs.length;
       },[msgs.length,size]);
+      useEffect(()=>{
+        function clampPosition(){
+          if(!panelRef.current)return;
+          const rect=panelRef.current.getBoundingClientRect();
+          setPosition(prev=>{
+            if(!prev)return prev;
+            const next=clampFloatingPosition(prev,rect,{width:window.innerWidth,height:window.innerHeight});
+            return next.x===prev.x&&next.y===prev.y?prev:next;
+          });
+        }
+        const frame=requestAnimationFrame(clampPosition);
+        window.addEventListener("resize",clampPosition);
+        return()=>{cancelAnimationFrame(frame);window.removeEventListener("resize",clampPosition);};
+      },[size,msgs.length,typing,Boolean(attachedFile)]);
 
       const W = "min(320px,calc(100vw - 24px))";
+      const floatingPosition=position?{left:position.x,top:position.y}:{right:12,bottom:12};
+
+      function beginDrag(e){
+        if(e.button!==0||!panelRef.current)return;
+        const rect=panelRef.current.getBoundingClientRect();
+        dragRef.current={pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,originX:rect.left,originY:rect.top,moved:false};
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      }
+
+      function moveDrag(e){
+        const drag=dragRef.current;
+        if(!drag||drag.pointerId!==e.pointerId||!panelRef.current)return;
+        const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
+        if(!drag.moved&&Math.hypot(dx,dy)>3)drag.moved=true;
+        const rect=panelRef.current.getBoundingClientRect();
+        setPosition(clampFloatingPosition(
+          {x:drag.originX+dx,y:drag.originY+dy},
+          rect,
+          {width:window.innerWidth,height:window.innerHeight}
+        ));
+      }
+
+      function endDrag(e){
+        const drag=dragRef.current;
+        if(!drag||drag.pointerId!==e.pointerId)return;
+        suppressClickRef.current=drag.moved;
+        dragRef.current=null;
+        e.currentTarget.releasePointerCapture?.(e.pointerId);
+        setTimeout(()=>{suppressClickRef.current=false;},0);
+      }
+
+      const dragEvents={onPointerDown:beginDrag,onPointerMove:moveDrag,onPointerUp:endDrag,onPointerCancel:endDrag};
 
       if (size==="mini") return (
-        <div style={{position:"absolute",bottom:16,right:16,zIndex:25,animation:"springIn 0.3s cubic-bezier(0.34,1.56,0.64,1)"}}>
-          <button onClick={()=>{setSize("medium");setHasNew(false);}}
-            style={{position:"relative",display:"flex",alignItems:"center",gap:8,borderRadius:22,padding:"8px 14px 8px 10px",background:"rgba(32,38,47,0.95)",backdropFilter:"blur(12px)",border:`1px solid ${hasNew?"rgba(51,224,161,0.3)":"rgba(255,255,255,0.12)"}`,cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",transition:"border-color 0.2s ease"}}
+        <div ref={panelRef} style={{position:"fixed",...floatingPosition,zIndex:25,animation:"springIn 0.3s cubic-bezier(0.34,1.56,0.64,1)",touchAction:"none"}}>
+          <button {...dragEvents} onClick={()=>{if(suppressClickRef.current)return;setSize("medium");setHasNew(false);}}
+            title="Arraste para mover · clique para abrir"
+            style={{position:"relative",display:"flex",alignItems:"center",gap:8,borderRadius:22,padding:"8px 14px 8px 10px",background:"rgba(32,38,47,0.95)",backdropFilter:"blur(12px)",border:`1px solid ${hasNew?"rgba(51,224,161,0.3)":"rgba(255,255,255,0.12)"}`,cursor:dragRef.current?"grabbing":"grab",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",transition:"border-color 0.2s ease",touchAction:"none"}}
           >
             <div style={{width:7,height:7,borderRadius:"50%",background:C.green2,boxShadow:`0 0 ${hasNew?"10px":"6px"} ${C.green2}`,animation:hasNew?"pulseT 0.9s ease infinite":"none"}}/>
             <span style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:C.gray2}}>Copilot</span>
@@ -1337,7 +1388,7 @@
       );
 
       const Header = () => (
-        <div style={{display:"flex",alignItems:"center",padding:"8px 10px 8px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
+        <div {...dragEvents} title="Arraste para mover o Copilot" style={{display:"flex",alignItems:"center",padding:"8px 10px 8px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0,cursor:dragRef.current?"grabbing":"grab",userSelect:"none",touchAction:"none"}}>
           <Icon.Msg s={12} c={C.green2}/>
           <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,color:C.gray2,marginLeft:6,flex:1}}>Conversa</span>
           <div style={{display:"flex",gap:2}}>
@@ -1346,7 +1397,7 @@
               {id:"medium", icon:<Icon.Square s={11} c={size==="medium"?C.green2:C.gray}/>, title:"Médio"},
               {id:"full",   icon:<Icon.Expand s={11} c={size==="full"  ?C.green2:C.gray}/>, title:"Expandir"},
             ].map(({id,icon,title})=>(
-              <button key={id} onClick={()=>setSize(id)} title={title}
+              <button key={id} onPointerDown={e=>e.stopPropagation()} onClick={()=>setSize(id)} title={title}
                 style={{width:24,height:24,borderRadius:5,background:size===id?"rgba(1,173,110,0.12)":"transparent",border:`1px solid ${size===id?"rgba(1,173,110,0.3)":"transparent"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all 0.12s ease"}}
               >{icon}</button>
             ))}
@@ -1385,7 +1436,7 @@
       if (size==="medium") {
         const lastMsg = msgs[msgs.length-1];
         return (
-          <div style={{position:"absolute",bottom:12,right:12,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden"}}>
+          <div ref={panelRef} style={{position:"fixed",...floatingPosition,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden"}}>
             <Header/>
             {lastMsg && (
               <div style={{padding:"10px 14px 4px",flexShrink:0}}>
@@ -1400,7 +1451,7 @@
       }
 
       return (
-        <div style={{position:"absolute",bottom:12,right:12,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 105px)"}}>
+        <div ref={panelRef} style={{position:"fixed",...floatingPosition,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 24px)"}}>
           <Header/>
           <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"12px 14px 4px"}}>
             {msgs.map((msg,i)=><Bubble key={msg.id||i} msg={msg} idx={i} onAttachFile={onAttachFile} onAction={onAction} onApplyAlt={onApplyAlt}/>)}
@@ -1447,6 +1498,7 @@
       const resizing = useRef(null);
       const panning   = useRef(null);
       const towersRef = useRef(towers);
+      const versionTransitionRef=useRef({target:null,switchTimer:null,fadeTimer:null});
 
       useEffect(()=>{ const t=setTimeout(()=>setMounted(true),100); return ()=>clearTimeout(t); },[]);
       useEffect(()=>{
@@ -1458,6 +1510,10 @@
         const resize=()=>setViewportWidth(window.innerWidth);
         window.addEventListener("resize",resize);
         return()=>window.removeEventListener("resize",resize);
+      },[]);
+      useEffect(()=>()=> {
+        clearTimeout(versionTransitionRef.current.switchTimer);
+        clearTimeout(versionTransitionRef.current.fadeTimer);
       },[]);
       useEffect(()=>{ if(zoom<=100)setPan({x:0,y:0}); },[zoom]);
       useEffect(()=>{ towersRef.current=towers; },[towers]);
@@ -1519,16 +1575,15 @@
           ]);
         },500);
         return()=>clearTimeout(timer);
-      },[sel,mode]);
+      },[sel,mode,towers,limits.ca,limits.to]);
 
       const m = useMemo(()=>calcMetrics(towers),[towers]);
       const status = useMemo(()=>getStatus(m,limits),[m,limits]);
-      const decisionStale = useMemo(()=>{
-        if(!decision||!m?.valid||decision.strategy!==version)return false;
-        const duPct=decision.units?Math.abs((m.units-decision.units)/Math.max(decision.units,1)):0;
-        const dca=decision.ca!=null?Math.abs(m.ca-decision.ca):0;
-        return duPct>0.1||dca>0.5;
-      },[decision,m,version]);
+      const decisionStaleState = useMemo(()=>{
+        if(!decision||decision.strategy!==version)return {stale:false,metricsChanged:false,assumptionsChanged:false};
+        return decisionStaleness(decision,m,limits);
+      },[decision,m,version,limits]);
+      const decisionStale=decisionStaleState.stale;
 
       // Notify when an existing decision becomes stale due to canvas changes
       const prevStaleRef=useRef(false);
@@ -1537,9 +1592,14 @@
         prevStaleRef.current=decisionStale;
         if(mode!=="active"||!decision)return;
         const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        const cause=decisionStaleState.assumptionsChanged&&decisionStaleState.metricsChanged
+          ?"Canvas e premissas divergiram"
+          :decisionStaleState.assumptionsChanged
+            ?"Premissas regulatórias mudaram"
+            :"Canvas divergiu";
         setMsgs(prev=>[...prev,{id:`stale-${Date.now()}`,role:"copilot-context",time:nowStr,
-          text:`Canvas divergiu da decisão registrada (${scenarioName(decision.strategy)} · ${decision.time}). Revisar ou confirmar nova configuração antes de avançar.`}]);
-      },[decisionStale]);
+          text:`${cause} da decisão registrada (${scenarioName(decision.strategy)} · ${decision.time}). Revisar ou confirmar a nova base antes de avançar.`}]);
+      },[decisionStale,decision,mode,decisionStaleState.assumptionsChanged,decisionStaleState.metricsChanged]);
       useEffect(()=>{ if(!decisionStale)prevStaleRef.current=false; },[decisionStale]);
 
       // Proactive copilot alert when CA crosses warning thresholds during editing
@@ -1567,7 +1627,7 @@
       },[m?.ca,mode,limits.ca]);
 
       // Undo history (push-before-mutate approach)
-      const towerHistoryRef=useRef([sanitizeTowers(INIT_TOWERS)]);
+      const towerHistoryRef=useRef([]);
       function pushHistorySnapshot(currentTowers){
         towerHistoryRef.current=[...towerHistoryRef.current.slice(-19),sanitizeTowers(currentTowers)];
       }
@@ -1616,16 +1676,14 @@
 
       function onTowerDown(e,id) {
         e.stopPropagation(); setSel(id); setLiveId(id);
-        pushHistorySnapshot(towers);
         const t=towers.find(t=>t.id===id); const p=svgPt(e);
-        dragging.current={id,ox:p.x-t.x,oy:p.y-t.y,orig:{x:t.x,y:t.y}};
+        dragging.current={id,ox:p.x-t.x,oy:p.y-t.y,orig:{x:t.x,y:t.y},tower:{...t},historySnapshot:sanitizeTowers(towers),historyPushed:false};
       }
 
       function onHandleDown(e,id,corner) {
         e.stopPropagation(); setLiveId(id);
-        pushHistorySnapshot(towers);
         const t=towers.find(t=>t.id===id); const p=svgPt(e);
-        resizing.current={id,corner,sp:p,snapshot:{...t}};
+        resizing.current={id,corner,sp:p,snapshot:{...t},historySnapshot:sanitizeTowers(towers),historyPushed:false};
       }
 
       function onCanvasDown(e) {
@@ -1661,48 +1719,51 @@
           return;
         }
         if(dragging.current){
-          const{id,ox,oy}=dragging.current; const p=svgPt(e);
-          setTowers(prev=>prev.map(t=>{
-            if(t.id!==id)return t;
-            let nx=p.x-ox,ny=p.y-oy;
-            if(showSetbacksRef.current){
-              const sn=nudgeInsidePoly(nx,ny,t.w,t.h,INSET_TERRAIN);
-              const dist=Math.hypot(sn.x-nx,sn.y-ny);
-              if(dist>0&&dist<10){nx=sn.x;ny=sn.y;}
-            }
-            return sanitizeTower({...t,x:nx,y:ny},t);
-          }));
+          const drag=dragging.current;
+          const{id,ox,oy,tower,orig}=drag; const p=svgPt(e);
+          let nx=p.x-ox,ny=p.y-oy;
+          if(showSetbacksRef.current){
+            const sn=nudgeInsidePoly(nx,ny,tower.w,tower.h,INSET_TERRAIN);
+            const dist=Math.hypot(sn.x-nx,sn.y-ny);
+            if(dist>0&&dist<10){nx=sn.x;ny=sn.y;}
+          }
+          if(!drag.historyPushed&&Math.hypot(nx-orig.x,ny-orig.y)>0.1){
+            pushHistorySnapshot(drag.historySnapshot);
+            drag.historyPushed=true;
+          }
+          drag.latest={x:nx,y:ny};
+          setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:nx,y:ny},t):t));
         }
         if(resizing.current){
-          const{id,corner,sp,snapshot}=resizing.current; const p=svgPt(e);
+          const resize=resizing.current;
+          const{id,corner,sp,snapshot}=resize; const p=svgPt(e);
           const dx=p.x-sp.x,dy=p.y-sp.y;
-          setTowers(prev=>prev.map(t=>{
-            if(t.id!==id)return t;
-            let{x,y,w,h}=snapshot;
-            if(corner.includes("e"))w=snapshot.w+dx;
-            if(corner.includes("s"))h=snapshot.h+dy;
-            if(corner.includes("w")){x=snapshot.x+dx;w=snapshot.w-dx;}
-            if(corner.includes("n")){y=snapshot.y+dy;h=snapshot.h-dy;}
-            return resizeTowerFromSnapshot(snapshot,{x,y,w,h});
-          }));
+          let{x,y,w,h}=snapshot;
+          if(corner.includes("e"))w=snapshot.w+dx;
+          if(corner.includes("s"))h=snapshot.h+dy;
+          if(corner.includes("w")){x=snapshot.x+dx;w=snapshot.w-dx;}
+          if(corner.includes("n")){y=snapshot.y+dy;h=snapshot.h-dy;}
+          const next=resizeTowerFromSnapshot(snapshot,{x,y,w,h});
+          const changed=["x","y","w","h"].some(key=>Math.abs(next[key]-snapshot[key])>0.1);
+          if(!resize.historyPushed&&changed){
+            pushHistorySnapshot(resize.historySnapshot);
+            resize.historyPushed=true;
+          }
+          setTowers(prev=>prev.map(t=>t.id===id?next:t));
         }
       },[zoom]);
 
       const onUp=useCallback(()=>{
         if(dragging.current){
-          const{id,orig}=dragging.current;
-          setTowers(prev=>{
-            const t=prev.find(t=>t.id===id);
-            if(!rectInPoly(t.x,t.y,t.w,t.h,TERRAIN)){
-              setShakeId(id); setTimeout(()=>setShakeId(null),400);
-              return prev.map(tt=>tt.id===id?{...tt,x:orig.x,y:orig.y}:tt);
-            }
-            if(showSetbacksRef.current&&!(pip(t.x,t.y,INSET_TERRAIN)&&pip(t.x+t.w,t.y,INSET_TERRAIN)&&pip(t.x,t.y+t.h,INSET_TERRAIN)&&pip(t.x+t.w,t.y+t.h,INSET_TERRAIN))){
-              const sn=nudgeInsidePoly(t.x,t.y,t.w,t.h,INSET_TERRAIN);
-              return prev.map(tt=>tt.id===id?sanitizeTower({...tt,x:sn.x,y:sn.y},tt):tt);
-            }
-            return prev;
-          });
+          const{id,orig,tower,latest=orig,historyPushed}=dragging.current;
+          if(!rectInPoly(latest.x,latest.y,tower.w,tower.h,TERRAIN)){
+            setShakeId(id); setTimeout(()=>setShakeId(null),400);
+            if(historyPushed)towerHistoryRef.current=towerHistoryRef.current.slice(0,-1);
+            setTowers(prev=>prev.map(t=>t.id===id?{...t,x:orig.x,y:orig.y}:t));
+          } else if(showSetbacksRef.current&&!(pip(latest.x,latest.y,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y,INSET_TERRAIN)&&pip(latest.x,latest.y+tower.h,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y+tower.h,INSET_TERRAIN))){
+            const sn=nudgeInsidePoly(latest.x,latest.y,tower.w,tower.h,INSET_TERRAIN);
+            setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:sn.x,y:sn.y},t):t));
+          }
           dragging.current=null;
         }
         resizing.current=null;
@@ -1818,25 +1879,63 @@
       function applyAlt(message,altIdx) {
         const alt=message.alternatives?.[altIdx];
         if(!alt||alt.applied)return;
-        pushHistorySnapshot(towers);
-        setTowers(sanitizeTowers(alt.towers));
+        const nextTowers=sanitizeTowers(alt.towers);
+        if(alt.ver&&alt.ver!==version){
+          const transition=versionTransitionRef.current;
+          clearTimeout(transition.switchTimer);
+          clearTimeout(transition.fadeTimer);
+          transition.target=null;
+          transition.switchTimer=null;
+          transition.fadeTimer=null;
+          setTransitioning(false);
+          setVersions(prev=>({...prev,[version]:sanitizeTowers(towers),[alt.ver]:nextTowers}));
+          towerHistoryRef.current=[];
+          setVersion(alt.ver);
+          setPan({x:0,y:0});
+        } else {
+          pushHistorySnapshot(towers);
+        }
+        setTowers(nextTowers);
         setSel(null);
         setMsgs(prev=>prev.map(item=>item.id===message.id?{...item,alternatives:item.alternatives.map((candidate,index)=>({...candidate,applied:index===altIdx}))}:item));
       }
 
       function switchVersion(newVer) {
-        if (newVer === version) return;
+        const transition=versionTransitionRef.current;
+        if(newVer===version){
+          if(transition.target){
+            clearTimeout(transition.switchTimer);
+            clearTimeout(transition.fadeTimer);
+            transition.target=null;
+            transition.switchTimer=null;
+            transition.fadeTimer=null;
+            setTransitioning(false);
+          }
+          return;
+        }
+        if(newVer===transition.target)return;
+        clearTimeout(transition.switchTimer);
+        clearTimeout(transition.fadeTimer);
+        transition.target=newVer;
         const oldVer = version;
         const oldTowers = sanitizeTowers(towers);
         const newTowers = sanitizeTowers(versions[newVer]);
         setVersions(v=>({...v,[version]:sanitizeTowers(towers)}));
         setTransitioning(true);
-        setTimeout(()=>{
+        transition.switchTimer=setTimeout(()=>{
+          if(versionTransitionRef.current.target!==newVer)return;
+          versionTransitionRef.current.switchTimer=null;
+          towerHistoryRef.current=[];
           setTowers(sanitizeTowers(newTowers));
           setVersion(newVer);
           setSel(null);
           setPan({x:0,y:0});
-          setTimeout(()=>setTransitioning(false), 180);
+          versionTransitionRef.current.fadeTimer=setTimeout(()=>{
+            if(versionTransitionRef.current.target!==newVer)return;
+            versionTransitionRef.current.target=null;
+            versionTransitionRef.current.fadeTimer=null;
+            setTransitioning(false);
+          },180);
           const oldM=calcMetrics(oldTowers);
           const newM=calcMetrics(newTowers);
           const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
@@ -1900,19 +1999,20 @@
 
       function downloadReport() {
         const reportMetrics=calcMetrics(towers);
-        const rows=sanitizeTowers(towers).map(t=>`<tr><td>Torre ${t.id}</td><td>${safeValue(t.floors)}</td><td>${safeValue(t.units)}</td><td>${safeValue(t.area,{suffix:" m²"})}</td><td>${t.type}</td></tr>`).join("");
+        const h=escapeHtml;
+        const rows=sanitizeTowers(towers).map(t=>`<tr><td>Torre ${h(t.id)}</td><td>${h(safeValue(t.floors))}</td><td>${h(safeValue(t.units))}</td><td>${h(safeValue(t.area,{suffix:" m²"}))}</td><td>${h(t.type)}</td></tr>`).join("");
         const st=getStatus(reportMetrics,limits);
         const intent=scenarioIntent(version);
         const tradeoff=scenarioTradeoff(version);
         const dec=decision&&decision.strategy===version?decision:null;
-        const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório Arqgen · ${scenarioName(version)}</title><style>body{font-family:Arial,sans-serif;color:#1A202C;margin:40px;max-width:860px}h1{margin-bottom:4px;font-size:24px}.sub{color:#718096;margin-bottom:8px}.badge{display:inline-block;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600;margin-top:8px}.kpis{display:flex;gap:12px;margin:24px 0;flex-wrap:wrap}.kpi{border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px}.kpi b{display:block;font-size:22px;color:#01AD6E}.strategy{background:#F7FAFC;border-left:3px solid #01AD6E;padding:12px 16px;margin:20px 0;border-radius:0 8px 8px 0}.strategy .label{font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}.strategy .text{font-size:13px;color:#2D3748}.premises{background:#FFFBEB;border:1px solid #F6E05E;border-radius:8px;padding:12px 16px;margin:20px 0}.premises table{width:auto;margin:0}.premises td{padding:4px 8px;font-size:12px;border:none}.premises .tag{display:inline-block;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #E2E8F0}th{font-size:12px;color:#718096}.note{margin-top:28px;padding:14px;background:#F0FFF8;color:#276749;border-radius:8px;font-size:13px}</style><body>
+        const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"><title>Relatório Arqgen · ${h(scenarioName(version))}</title><style>body{font-family:Arial,sans-serif;color:#1A202C;margin:40px;max-width:860px}h1{margin-bottom:4px;font-size:24px}.sub{color:#718096;margin-bottom:8px}.badge{display:inline-block;border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600;margin-top:8px}.kpis{display:flex;gap:12px;margin:24px 0;flex-wrap:wrap}.kpi{border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px}.kpi b{display:block;font-size:22px;color:#01AD6E}.strategy{background:#F7FAFC;border-left:3px solid #01AD6E;padding:12px 16px;margin:20px 0;border-radius:0 8px 8px 0}.strategy .label{font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}.strategy .text{font-size:13px;color:#2D3748}.premises{background:#FFFBEB;border:1px solid #F6E05E;border-radius:8px;padding:12px 16px;margin:20px 0}.premises table{width:auto;margin:0}.premises td{padding:4px 8px;font-size:12px;border:none}.premises .tag{display:inline-block;border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #E2E8F0}th{font-size:12px;color:#718096}.note{margin-top:28px;padding:14px;background:#F0FFF8;color:#276749;border-radius:8px;font-size:13px}</style><body>
 <h1>Estudo de viabilidade</h1>
-<div class="sub">Lote Brooklin · 847 m² · ${scenarioName(version)} · ${scenarioRevision(version)}</div>
-<span class="badge" style="background:#EBF8FF;color:#2B6CB0">${st.label}</span>
-${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="text">${intent}</div>${tradeoff?`<div class="text" style="color:#718096;margin-top:4px">${tradeoff}</div>`:""}</div>`:""}${dec?`<div class="strategy" style="background:#F0FFF8;border-left-color:#01AD6E"><div class="label" style="color:#276749">Registro de decisão · ${dec.time}</div>${dec.reason?`<div class="text"><strong>Motivo:</strong> ${dec.reason}</div>`:""}${dec.pending&&dec.pending.length>0?`<div class="text" style="color:#744210;margin-top:6px"><strong>Pendências registradas:</strong><ul style="margin:4px 0 0 18px;padding:0">${dec.pending.map(p=>`<li style="font-size:12px">${p}</li>`).join("")}</ul></div>`:""}</div>`:""}
-<div class="kpis"><div class="kpi"><b>${safeValue(towers.length)}</b>Torres</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.units):"--"}</b>Unidades</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--"}</b>CA utilizado</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--"}</b>Taxa de ocupação</div></div>
+<div class="sub">Lote Brooklin · 847 m² · ${h(scenarioName(version))} · ${h(scenarioRevision(version))}</div>
+<span class="badge" style="background:#EBF8FF;color:#2B6CB0">${h(st.label)}</span>
+${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="text">${h(intent)}</div>${tradeoff?`<div class="text" style="color:#718096;margin-top:4px">${h(tradeoff)}</div>`:""}</div>`:""}${dec?`<div class="strategy" style="background:#F0FFF8;border-left-color:#01AD6E"><div class="label" style="color:#276749">Registro de decisão · ${h(dec.time)}</div>${dec.reason?`<div class="text"><strong>Motivo:</strong> ${h(dec.reason)}</div>`:""}${dec.pending&&dec.pending.length>0?`<div class="text" style="color:#744210;margin-top:6px"><strong>Pendências registradas:</strong><ul style="margin:4px 0 0 18px;padding:0">${dec.pending.map(p=>`<li style="font-size:12px">${h(p)}</li>`).join("")}</ul></div>`:""}</div>`:""}
+<div class="kpis"><div class="kpi"><b>${h(safeValue(towers.length))}</b>Torres</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.units):"--")}</b>Unidades</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--")}</b>CA utilizado</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--")}</b>Taxa de ocupação</div></div>
 <table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table>
-<div class="premises"><div class="label" style="font-size:11px;color:#744210;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Premissas utilizadas</div><table><tr><td>CA máximo</td><td>${limits.ca}</td><td><span class="tag" style="${limits.ca!==CA_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.ca!==CA_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.ca!==CA_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Taxa de ocupação máxima</td><td>${limits.to}%</td><td><span class="tag" style="${limits.to!==TO_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.to!==TO_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.to!==TO_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Vagas por unidade</td><td>1</td><td><span class="tag" style="background:#DCFCE7;color:#166534">informado</span></td><td></td></tr></table></div>
+<div class="premises"><div class="label" style="font-size:11px;color:#744210;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Premissas utilizadas</div><table><tr><td>CA máximo</td><td>${h(limits.ca)}</td><td><span class="tag" style="${limits.ca!==CA_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.ca!==CA_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.ca!==CA_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Taxa de ocupação máxima</td><td>${h(limits.to)}%</td><td><span class="tag" style="${limits.to!==TO_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.to!==TO_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.to!==TO_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Vagas por unidade</td><td>1</td><td><span class="tag" style="background:#DCFCE7;color:#166534">informado</span></td><td></td></tr></table></div>
 <div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados. Premissas marcadas como "simulado" não foram validadas com legislação municipal. Conferir antes de avançar em projeto.</div>
 </body></html>`;
         const blob=new Blob([html],{type:"text/html;charset=utf-8"});
@@ -2131,7 +2231,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                   const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
                   switchVersion(v);
                   setComparing(false);
-                  setDecision({strategy:v,time:now,units:newM.valid?newM.units:null,ca:newM.valid?newM.ca:null,reason:meta.reason||null,pending:meta.pending||[]});
+                  setDecision({strategy:v,time:now,units:newM.valid?newM.units:null,ca:newM.valid?newM.ca:null,limits:{...limits},reason:meta.reason||null,pending:meta.pending||[]});
                   const reasonPart=meta.reason?` · "${meta.reason}"`:"";
                   const pendingPart=meta.pending&&meta.pending.length>0?` · Pendências: ${meta.pending.join(", ")}.`:" Sem pendências registradas.";
                   setMsgs(prev=>[...prev,{id:`decide-${Date.now()}`,role:"copilot-context",time:now,

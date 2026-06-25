@@ -8,6 +8,9 @@ const {
   resizeTowerFromSnapshot,
   increaseFloors,
   formatNumber,
+  escapeHtml,
+  decisionStaleness,
+  clampFloatingPosition,
 }=require("../calculations.js");
 
 const terrain=[[160,60],[480,40],[560,120],[540,360],[420,400],[180,380],[80,280],[100,140]];
@@ -79,6 +82,49 @@ test("formatação nunca produz notação científica ou valores não finitos",(
   assert.equal(formatNumber(Infinity),"--");
   assert.equal(formatNumber(1e30,{max:1e9}),"--");
   assert.equal(formatNumber(123456,{suffix:" m²"}),"123.456 m²");
+});
+
+test("escape de HTML neutraliza conteúdo executável em relatórios",()=>{
+  assert.equal(
+    escapeHtml(`<img src=x onerror="alert('x')">&`),
+    "&lt;img src=x onerror=&quot;alert(&#39;x&#39;)&quot;&gt;&amp;"
+  );
+  assert.equal(escapeHtml(null),"");
+});
+
+test("decisão fica desatualizada quando métricas ou premissas mudam",()=>{
+  const decision={units:100,ca:8,limits:{ca:12,to:50}};
+  assert.deepEqual(
+    decisionStaleness(decision,{valid:true,units:100,ca:8},{ca:12,to:50}),
+    {stale:false,metricsChanged:false,assumptionsChanged:false}
+  );
+  assert.deepEqual(
+    decisionStaleness(decision,{valid:true,units:112,ca:8},{ca:12,to:50}),
+    {stale:true,metricsChanged:true,assumptionsChanged:false}
+  );
+  assert.deepEqual(
+    decisionStaleness(decision,{valid:true,units:100,ca:8},{ca:10,to:50}),
+    {stale:true,metricsChanged:false,assumptionsChanged:true}
+  );
+  assert.deepEqual(
+    decisionStaleness(decision,{valid:false,units:null,ca:null},{ca:12,to:50}),
+    {stale:true,metricsChanged:true,assumptionsChanged:false}
+  );
+});
+
+test("posição flutuante permanece acessível dentro da viewport",()=>{
+  assert.deepEqual(
+    clampFloatingPosition({x:900,y:-20},{width:320,height:240},{width:1000,height:700}),
+    {x:672,y:8}
+  );
+  assert.deepEqual(
+    clampFloatingPosition({x:100,y:100},{width:1200,height:900},{width:800,height:600}),
+    {x:8,y:8}
+  );
+  assert.deepEqual(
+    clampFloatingPosition({x:NaN,y:Infinity},{width:200,height:100},{width:800,height:600}),
+    {x:8,y:8}
+  );
 });
 
 test("funções de transformação não mutam o estado recebido",()=>{
