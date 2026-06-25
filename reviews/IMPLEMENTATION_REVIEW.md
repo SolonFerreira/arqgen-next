@@ -902,3 +902,49 @@ Ao arrastar o Copilot e depois mudar para o estado completo, o painel podia cres
 ### Recomendação para o próximo ciclo
 
 Validar no navegador a sequência arrastar → expandir → minimizar em posições próximas às quatro bordas.
+
+## Ciclo 22 — Teodora e presença contextual
+
+### Problema e prioridade
+
+A inteligência ainda era apresentada pelo nome funcional genérico “Copilot”. Além disso, selecionar uma torre atualizava o contexto da conversa, mas não havia um sinal visual conectando o elemento escolhido à presença inteligente disponível.
+
+### Princípios constitucionais afetados
+
+- inteligência é a interface, não uma funcionalidade isolada;
+- o produto deve parecer vivo sem competir com o canvas;
+- conversa é colaboração, não atendimento;
+- contexto deve surgir sem exigir outro clique.
+
+### Solução implementada
+
+- o nome visível “Copilot” foi substituído por “Teodora” no estado minimizado, cabeçalho e títulos de interação;
+- a seleção de torres em 2D e 3D incrementa um sinal de atenção;
+- o painel aberto ou o botão minimizado recebem um halo verde de 1,1 segundo;
+- o efeito não abre o chat, não muda sua posição e não captura foco;
+- clicar novamente no mesmo elemento reinicia o sinal;
+- o halo preserva as animações de entrada já existentes.
+
+### Arquivos alterados
+
+- `index.html`;
+- `CLAUDE.md`;
+- `reviews/IMPLEMENTATION_REVIEW.md`;
+- `reviews/NEXT_OPPORTUNITIES.md`.
+
+### Verificações
+
+- `npm test`: 12 testes aprovados;
+- `git diff --check`: aprovado;
+- JSX compilado e JavaScript parseado com Babel Standalone 8.0.2: 196.676 bytes sem erro;
+- busca confirmou “Teodora” nas superfícies visíveis e o sinal conectado às seleções 2D e 3D.
+
+### Limitações e riscos
+
+- papéis internos de mensagem continuam como `copilot-context` e `copilot-analysis` para evitar migração sem benefício visível;
+- o halo ainda precisa de validação visual em monitores com diferentes níveis de contraste;
+- seleção provocada por ações automáticas não dispara o efeito, pois a intenção atual é responder ao clique humano.
+
+### Recomendação para o próximo ciclo
+
+Validar se o halo é perceptível sem distrair nos estados minimizado, médio e completo.

@@ -31,6 +31,10 @@
     @keyframes springIn { from{opacity:0;transform:scale(0.82) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
     @keyframes insightIn { from{opacity:0;transform:translateX(-14px)} to{opacity:1;transform:translateX(0)} }
     @keyframes slideInPanel { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes teodoraGlow {
+      0%,100% { box-shadow:0 8px 40px rgba(0,0,0,0.45),0 0 0 0 rgba(51,224,161,0); }
+      45% { box-shadow:0 8px 40px rgba(0,0,0,0.45),0 0 0 1px rgba(51,224,161,0.38),0 0 24px rgba(51,224,161,0.22); }
+    }
 
     .shake   { animation: shake  300ms ease forwards; }
     .pulse-t { animation: pulseT 200ms ease 1; }
@@ -1326,14 +1330,17 @@
     }
 
     /* ── ChatPanel — 3 estados: mini | medium | full ─────────── */
-    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt,sel}) {
+    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt,sel,attentionSignal}) {
       const scrollRef=useRef(null);
       const chatFileRef=useRef(null);
       const panelRef=useRef(null);
       const dragRef=useRef(null);
       const suppressClickRef=useRef(false);
       const suppressClickTimerRef=useRef(null);
+      const attentionTimerRef=useRef(null);
+      const attentionMountedRef=useRef(false);
       const [hasNew,setHasNew]=useState(false);
+      const [attentionActive,setAttentionActive]=useState(false);
       const [position,setPosition]=useState(null);
       const prevMsgsLen=useRef(msgs.length);
       const chatMargins={top:56,right:8,bottom:8,left:8};
@@ -1344,6 +1351,17 @@
         } else {setHasNew(false);}
         prevMsgsLen.current=msgs.length;
       },[msgs.length,size]);
+      useEffect(()=>{
+        if(!attentionMountedRef.current){
+          attentionMountedRef.current=true;
+          return;
+        }
+        setAttentionActive(false);
+        clearTimeout(attentionTimerRef.current);
+        requestAnimationFrame(()=>setAttentionActive(true));
+        attentionTimerRef.current=setTimeout(()=>setAttentionActive(false),1200);
+        return()=>clearTimeout(attentionTimerRef.current);
+      },[attentionSignal]);
       useEffect(()=>{
         function clampPosition(){
           if(!panelRef.current)return;
@@ -1408,13 +1426,13 @@
       const dragHandleEvents={onPointerDown:beginDrag};
 
       if (size==="mini") return (
-        <div ref={panelRef} style={{position:"fixed",...floatingPosition,zIndex:80,animation:"springIn 0.3s cubic-bezier(0.34,1.56,0.64,1)",touchAction:"none"}}>
+        <div ref={panelRef} style={{position:"fixed",...floatingPosition,zIndex:80,animation:attentionActive?"springIn 0.3s cubic-bezier(0.34,1.56,0.64,1),teodoraGlow 1.1s ease":"springIn 0.3s cubic-bezier(0.34,1.56,0.64,1)",borderRadius:22,touchAction:"none"}}>
           <button {...dragHandleEvents} onClick={()=>{if(suppressClickRef.current)return;setSize("medium");setHasNew(false);}}
-            title="Arraste para mover · clique para abrir"
+            title="Teodora · arraste para mover · clique para abrir"
             style={{position:"relative",display:"flex",alignItems:"center",gap:8,borderRadius:22,padding:"8px 14px 8px 10px",background:"rgba(32,38,47,0.95)",backdropFilter:"blur(12px)",border:`1px solid ${hasNew?"rgba(51,224,161,0.3)":"rgba(255,255,255,0.12)"}`,cursor:dragRef.current?"grabbing":"grab",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",transition:"border-color 0.2s ease",touchAction:"none"}}
           >
             <div style={{width:7,height:7,borderRadius:"50%",background:C.green2,boxShadow:`0 0 ${hasNew?"10px":"6px"} ${C.green2}`,animation:hasNew?"pulseT 0.9s ease infinite":"none"}}/>
-            <span style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:C.gray2}}>Copilot</span>
+            <span style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:C.gray2}}>Teodora</span>
             <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>· {msgs.length} msgs</span>
             {hasNew&&<div style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:C.green,border:"2px solid rgba(17,21,29,0.95)"}}/>}
           </button>
@@ -1423,9 +1441,9 @@
 
       function renderHeader() {
         return (
-        <div {...dragHandleEvents} title="Arraste para mover o Copilot" style={{display:"flex",alignItems:"center",padding:"8px 10px 8px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0,cursor:dragRef.current?"grabbing":"grab",userSelect:"none",touchAction:"none"}}>
+        <div {...dragHandleEvents} title="Arraste para mover a Teodora" style={{display:"flex",alignItems:"center",padding:"8px 10px 8px 14px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0,cursor:dragRef.current?"grabbing":"grab",userSelect:"none",touchAction:"none"}}>
           <Icon.Msg s={12} c={C.green2}/>
-          <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,color:C.gray2,marginLeft:6,flex:1}}>Conversa</span>
+          <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,color:C.gray2,marginLeft:6,flex:1}}>Teodora</span>
           <div style={{display:"flex",gap:2}}>
             {[
               {id:"mini",   icon:<Icon.Minus  s={11} c={size==="mini"  ?C.green2:C.gray}/>, title:"Minimizar"},
@@ -1474,7 +1492,7 @@
       if (size==="medium") {
         const lastMsg = msgs[msgs.length-1];
         return (
-          <div ref={panelRef} style={{position:"fixed",...floatingPosition,width:W,zIndex:80,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 64px)"}}>
+          <div ref={panelRef} style={{position:"fixed",...floatingPosition,width:W,zIndex:80,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:attentionActive?"slideUp 0.2s ease,teodoraGlow 1.1s ease":"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 64px)"}}>
             {renderHeader()}
             {lastMsg && (
               <div style={{padding:"10px 14px 4px",flexShrink:0}}>
@@ -1489,7 +1507,7 @@
       }
 
       return (
-        <div ref={panelRef} style={{position:"fixed",...floatingPosition,width:W,zIndex:80,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 64px)"}}>
+        <div ref={panelRef} style={{position:"fixed",...floatingPosition,width:W,zIndex:80,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:attentionActive?"slideUp 0.2s ease,teodoraGlow 1.1s ease":"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 64px)"}}>
           {renderHeader()}
           <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"12px 14px 4px"}}>
             {msgs.map((msg,i)=><Bubble key={msg.id||i} msg={msg} idx={i} onAttachFile={onAttachFile} onAction={onAction} onApplyAlt={onApplyAlt}/>)}
@@ -1520,6 +1538,7 @@
       const [mode,        setMode]        = useState("idle");
       const [leaving,     setLeaving]     = useState(false);
       const [chatSize,    setChatSize]    = useState("medium"); // "mini"|"medium"|"full"
+      const [teodoraAttention,setTeodoraAttention]=useState(0);
       const [showSetbacks, setShowSetbacks] = useState(false);
       const [versions,     setVersions]     = useState(()=>Object.fromEntries(Object.entries(VERSIONS_INIT).map(([key,value])=>[key,sanitizeTowers(value)])));
       const [transitioning,setTransitioning]= useState(false);
@@ -1713,7 +1732,7 @@
       }
 
       function onTowerDown(e,id) {
-        e.stopPropagation(); setSel(id); setLiveId(id);
+        e.stopPropagation(); setSel(id); setLiveId(id); setTeodoraAttention(value=>value+1);
         const t=towers.find(t=>t.id===id); const p=svgPt(e);
         dragging.current={id,ox:p.x-t.x,oy:p.y-t.y,orig:{x:t.x,y:t.y},tower:{...t},historySnapshot:sanitizeTowers(towers),historyPushed:false};
       }
@@ -2192,7 +2211,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                       onMouseDown={e=>onTowerDown(e,t.id)}
                       onMouseEnter={()=>setHoverId(t.id)}
                       onMouseLeave={()=>setHoverId(null)}
-                      onClick={e=>{e.stopPropagation();setSel(t.id);}}
+                      onClick={e=>e.stopPropagation()}
                     >
                       {/* shadow */}
                       <rect x={t.x+3} y={t.y+5} width={t.w} height={t.h} rx={5} fill="rgba(0,0,0,0.35)" style={{filter:"blur(6px)"}}/>
@@ -2236,7 +2255,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 })}
 
                 {view==="3D" && towers.map(t=>(
-                  <Tower3D key={t.id} tower={t} selected={sel===t.id} onSelect={setSel}/>
+                  <Tower3D key={t.id} tower={t} selected={sel===t.id} onSelect={id=>{setSel(id);setTeodoraAttention(value=>value+1);}}/>
                 ))}
 
                 {liveId&&(()=>{const t=towers.find(item=>item.id===liveId);if(!t)return null;const wM=safeValue(t.w/M_TO_SVG,{digits:1,suffix:"m"});const hM=safeValue(t.h/M_TO_SVG,{digits:1,suffix:"m"});const label=`${wM} × ${hM}`;const tw=label.length*5.5+12;return <g style={{pointerEvents:"none"}}><rect x={t.x+t.w/2-tw/2} y={t.y-22} width={tw} height={14} rx={3} fill="rgba(10,13,20,0.92)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.7"/><text x={t.x+t.w/2} y={t.y-12} textAnchor="middle" fill="rgba(255,255,255,0.9)" fontSize={8.5} fontFamily="'Inter',sans-serif">{label}</text></g>;})()}
@@ -2252,6 +2271,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 onAction={applyChatAction}
                 onApplyAlt={applyAlt}
                 sel={sel}
+                attentionSignal={teodoraAttention}
               />}
 
               {/* compare panel — 2.2 */}

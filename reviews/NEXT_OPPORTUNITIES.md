@@ -174,6 +174,12 @@ Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
 **Resultado:** no ciclo 21, o painel passou a respeitar uma área segura abaixo da topbar, recalcular sua posição a cada mudança de tamanho, limitar a altura ao espaço disponível e permanecer acima da navegação principal.
 
+### Concluído — Teodora como presença contextual
+
+**Evidência:** “Copilot” descrevia uma função genérica e a seleção de elementos não criava nenhuma ponte perceptível entre canvas e inteligência.
+
+**Resultado:** no ciclo 22, a presença visível foi nomeada Teodora. Ao selecionar uma torre em 2D ou 3D, seu painel ou botão minimizado recebe um halo curto e discreto, sem abrir, mover ou roubar foco.
+
 ### Concluído — Snapping magnético durante drag
 
 **Evidência atual:** `onMove` aplica `nudgeInsidePoly` quando recuos estão visíveis e a correção está a menos de 10 unidades SVG.

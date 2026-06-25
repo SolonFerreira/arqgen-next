@@ -94,7 +94,7 @@ Tipografia: `'Sora', sans-serif` para headings e labels de destaque. `'Inter', s
 | `ContextPanel` | ~400 | Alterna visão executiva do lote e edição da torre selecionada |
 | `InsightsRail` | ~385 | Insights progressivos e dispensáveis sobre o canvas |
 | `IdleScreen` | ~600 | Tela inicial, sugestões e upload mockado |
-| `ChatPanel` | ~725 | Chat em estados `mini` / `medium` / `full` |
+| `ChatPanel` | ~725 | Teodora em estados `mini` / `medium` / `full` |
 | `ArqgenNext` | ~820 | Componente raiz e estado da aplicação |
 
 ### Estados principais em `ArqgenNext`
@@ -176,13 +176,14 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Painel executivo lateral com status e potencial utilizado
 - [x] Faixa-resumo da versão ativa
 - [x] Tooltips 2D e detalhamento visual das torres 3D
-- [x] Contexto automático do Copilot ao selecionar torre
+- [x] Contexto automático da Teodora ao selecionar torre
 - [x] Alternativas de implantação aplicáveis pelo chat
 - [x] Dimensões ao vivo durante drag e resize
 - [x] Estados de avaliação sem falsa declaração de viabilidade
 - [x] Estratégias nomeadas como identidade principal dos cenários
-- [x] Copilot arrastável em todos os estados, inclusive minimizado
-- [x] Copilot preserva cabeçalho acessível ao mudar de tamanho
+- [x] Teodora arrastável em todos os estados, inclusive minimizada
+- [x] Teodora preserva cabeçalho acessível ao mudar de tamanho
+- [x] Teodora sinaliza presença discretamente ao selecionar elementos
 - [x] Rosa dos ventos fixa na viewport, independente de zoom e pan
 
 ---
