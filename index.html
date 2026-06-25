@@ -256,8 +256,8 @@
           text:`Implantação com ${units} unidades posicionada. Torre B concentra ${bShare}% das unidades.\nTaxa de ocupação em ${occ}% — dentro do limite informado de ${TO_LIMIT}%.\nCA em ${ca} de ${CA_LIMIT}. Quer explorar reduzir Torre A para abrir área de permeabilidade?`, time:"14:23",
           preview:[
             {label:"Unidades",before:"—",after:String(units),good:true},
-            {label:"Taxa de ocupação",before:"—",after:`${occ}%`,good:true},
-            {label:"CA utilizado",before:"—",after:ca,good:true},
+            {label:"Ocupação do solo (TO)",before:"—",after:`${occ}%`,good:true},
+            {label:"Aproveitamento do terreno (CA)",before:"—",after:ca,good:true},
           ],
         },
       ];
@@ -404,13 +404,58 @@
     }
 
     /* ── ChatBubble ───────────────────────────────────────────── */
-    function Bubble({msg,idx,onAttachFile,onAction,onApplyAlt}) {
+    function Bubble({msg,idx,onAttachFile,onAction,onApplyAlt,onPromptSubmit}) {
       const enter={animation:`fadeUp 0.25s ease ${idx*0.04}s both`};
       if (msg.role==="file") return <FileBubble msg={msg} enter={enter}/>;
       if (msg.role==="copilot-context") return (
         <div style={{display:"flex",alignItems:"center",gap:7,padding:"4px 0 6px",...enter}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:C.green2,boxShadow:`0 0 6px ${C.green2}`,flexShrink:0}}/>
           <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,lineHeight:1.4}}>{msg.text}</span>
+        </div>
+      );
+      if (msg.role==="proactive-greet") return (
+        <div style={{marginBottom:8,...enter}}>
+          <div style={{background:"rgba(1,173,110,0.06)",border:"1px solid rgba(51,224,161,0.14)",borderRadius:"2px 12px 12px 12px",padding:"10px 13px",maxWidth:"92%"}}>
+            <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:C.green2,marginBottom:4}}>Teodora</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray2,lineHeight:1.55,marginBottom:10}}>
+              Analisei seu estudo. Encontrei três oportunidades interessantes.
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+              {(msg.options||[]).map((opt, oIdx) => (
+                <button
+                  key={oIdx}
+                  onClick={() => onPromptSubmit && onPromptSubmit(opt.query)}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    transition: "all 0.15s ease"
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = "rgba(51,224,161,0.08)";
+                    e.currentTarget.style.borderColor = "rgba(51,224,161,0.3)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                  }}
+                >
+                  <span style={{color: C.green2, fontSize: 14}}>•</span>
+                  <span style={{fontFamily: "'Inter',sans-serif", fontSize: 12, color: "#fff", fontWeight: 500}}>{opt.text}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,lineHeight:1.4}}>
+              Qual delas você gostaria de explorar?
+            </div>
+          </div>
+          <div style={{marginTop:3,fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{msg.time}</div>
         </div>
       );
       if (msg.role==="copilot-analysis") return (
@@ -442,37 +487,86 @@
       if (msg.role==="alternatives") return (
         <div style={{marginBottom:8,...enter}}>
           <div style={{background:"rgba(1,173,110,0.06)",border:"1px solid rgba(51,224,161,0.14)",borderRadius:8,padding:"8px 9px",marginBottom:7}}>
-            <div style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:700,color:C.green2,marginBottom:6}}>Teodora · estudo em 7 etapas</div>
-            <div style={{display:"flex",alignItems:"center",gap:3}}>
-              {["Intenção","Diagnóstico","Gerar","Comparar","Recomendar","Aplicar","Registrar"].map((step,index)=>(
-                <React.Fragment key={step}>
-                  <span title={step} style={{width:18,height:18,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:index<5?"rgba(1,173,110,0.2)":"rgba(255,255,255,0.05)",border:`1px solid ${index<5?"rgba(51,224,161,0.35)":"rgba(255,255,255,0.08)"}`,fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:700,color:index<5?C.green2:C.gray}}>{index+1}</span>
-                  {index<6&&<span style={{flex:1,height:1,background:index<4?"rgba(51,224,161,0.28)":"rgba(255,255,255,0.07)"}}/>}
-                </React.Fragment>
-              ))}
-            </div>
-            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray2,marginTop:7,lineHeight:1.45}}>{msg.text}</div>
+            <div style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:700,color:C.green2,marginBottom:6}}>Teodora · alternativas de implantação</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray2,lineHeight:1.45}}>{msg.text}</div>
             {msg.diagnosis&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginTop:4,lineHeight:1.4}}>{msg.diagnosis}</div>}
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {(msg.alternatives||[]).map((alt,altIndex)=>(
-              <div key={alt.label} style={{background:"rgba(15,19,26,0.92)",border:`1px solid ${alt.applied||alt.recommended?"rgba(51,224,161,0.4)":"rgba(255,255,255,0.08)"}`,borderRadius:8,padding:"9px 10px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:alt.intent?3:6}}>
-                  <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff"}}>{alt.label}</div>
-                  {alt.recommended&&<span style={{background:"rgba(1,173,110,0.14)",border:"1px solid rgba(51,224,161,0.3)",borderRadius:8,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:8,fontWeight:700,padding:"1px 5px"}}>recomendada</span>}
+              <div key={alt.label} style={{
+                background:"rgba(15,19,26,0.92)",
+                border:`1px solid ${alt.applied||alt.recommended?"rgba(51,224,161,0.3)":"rgba(255,255,255,0.08)"}`,
+                borderRadius:10,
+                padding:"14px 16px",
+                display:"flex",
+                flexDirection:"column",
+                gap:10,
+                transition:"border-color 0.2s ease"
+              }}>
+                <div>
+                  <div style={{fontFamily:"'Sora',sans-serif",fontSize:13,fontWeight:700,color:"#fff",marginBottom:4}}>
+                    {alt.label} {alt.recommended && <span style={{color:C.green2,fontWeight:500}}> (Recomendado)</span>}
+                  </div>
+                  {alt.intent && (
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray2,lineHeight:1.55}}>
+                      {alt.intent}
+                    </div>
+                  )}
                 </div>
-                {alt.intent&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,marginBottom:6,lineHeight:1.35}}>{alt.intent}</div>}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,auto) 1fr",alignItems:"center",gap:8}}>
-                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,color:alt.deltaUnits>=0?C.green2:C.red}}>{alt.deltaUnits>=0?"+":""}{safeValue(alt.deltaUnits)} un.</span>
-                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>CA {alt.ca}</span>
-                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>TO {alt.occ}</span>
-                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:alt.risk==="baixo"?C.green2:alt.risk==="médio"?C.yellow:C.red}}>risco {alt.risk}</span>
-                  <button disabled={alt.applied} onClick={()=>onApplyAlt&&onApplyAlt(msg,altIndex)}
-                    style={{background:alt.applied?"rgba(1,173,110,0.12)":"rgba(86,79,255,0.18)",border:`1px solid ${alt.applied?"rgba(51,224,161,0.3)":"rgba(86,79,255,0.35)"}`,borderRadius:5,color:alt.applied?C.green2:"rgba(203,200,255,0.95)",fontFamily:"'Inter',sans-serif",fontSize:10,fontWeight:600,padding:"4px 9px",cursor:alt.applied?"default":"pointer"}}>
-                    {alt.applied?"✓ Aplicada":"Aplicar no canvas"}
-                  </button>
+
+                <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                  <div style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:700,color:C.gray,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>Impacto esperado</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray2,display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{color:alt.deltaUnits>=0?C.green2:C.red,fontSize:14}}>•</span>
+                      <span>{alt.deltaUnits>0?"+":""}{safeValue(alt.deltaUnits)} unidades</span>
+                    </div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray2,display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{color:C.gray2,fontSize:14}}>•</span>
+                      <span>CA {alt.ca}</span>
+                    </div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray2,display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{color:C.gray2,fontSize:14}}>•</span>
+                      <span>TO {alt.occ}</span>
+                    </div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:12,color:C.gray2,display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{color:alt.risk==="baixo"?C.green2:alt.risk==="médio"?C.yellow:C.red,fontSize:14}}>•</span>
+                      <span>risco {alt.risk}</span>
+                    </div>
+                  </div>
                 </div>
-                {alt.impact&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"rgba(113,128,150,0.75)",marginTop:6,lineHeight:1.35}}>{alt.impact}</div>}
+
+                <button disabled={alt.applied} onClick={()=>onApplyAlt&&onApplyAlt(msg,altIndex)}
+                  style={{
+                    width:"100%",
+                    background:alt.applied?"rgba(1,173,110,0.12)":"rgba(86,79,255,0.2)",
+                    border:`1px solid ${alt.applied?"rgba(51,224,161,0.3)":"rgba(86,79,255,0.4)"}`,
+                    borderRadius:8,
+                    color:alt.applied?C.green2:"rgba(203,200,255,0.95)",
+                    fontFamily:"'Inter',sans-serif",
+                    fontSize:12,
+                    fontWeight:600,
+                    padding:"10px 14px",
+                    cursor:alt.applied?"default":"pointer",
+                    textAlign:"center",
+                    transition:"all 0.2s ease",
+                    marginTop:4
+                  }}
+                  onMouseEnter={e=>{
+                    if(!alt.applied){
+                      e.currentTarget.style.background="rgba(86,79,255,0.3)";
+                      e.currentTarget.style.borderColor="rgba(86,79,255,0.6)";
+                    }
+                  }}
+                  onMouseLeave={e=>{
+                    if(!alt.applied){
+                      e.currentTarget.style.background="rgba(86,79,255,0.2)";
+                      e.currentTarget.style.borderColor="rgba(86,79,255,0.4)";
+                    }
+                  }}
+                >
+                  {alt.applied?"✓ Estratégia ativa":"Aplicar estratégia"}
+                </button>
               </div>
             ))}
           </div>
@@ -588,16 +682,70 @@
     function LotOverview({m,towers,version,onSelectTower,onAddTower,limits,onSetLimits,decision,decisionStale,onGenerate,decisionLog=[]}) {
       const [localInput,setLocalInput]=useState("");
       const valid=m?.valid===true;
-      const effCA=limits?.ca??CA_LIMIT, effTO=limits?.to??TO_LIMIT;
+      const effCA=limits?.ca??CA_LIMIT;
+      const effTO=limits?.to??TO_LIMIT;
       const status=getStatus(m,limits);
       const cleanTowers=sanitizeTowers(towers);
-      const metrics=[
-        {label:"Torres",val:cleanTowers.length,suffix:""},
-        {label:"Unidades",val:valid?m.units:null,suffix:""},
-        {label:"Área construída",val:valid?m.area:null,suffix:" m²"},
-        {label:"CA utilizado",val:valid?m.ca:null,suffix:"",max:effCA,warn:effCA*0.83,danger:effCA,digits:1},
-        {label:"Taxa de ocup.",val:valid?m.occ:null,suffix:"%",max:effTO,warn:effTO*0.83,danger:effTO,digits:1},
+      const pctCA = valid ? Math.round((m.ca / effCA) * 100) : 0;
+      const pctTO = valid ? Math.round((m.occ / effTO) * 100) : 0;
+
+      const items = [
+        {
+          key: "ca",
+          label: "Aproveitamento do Lote (CA)",
+          val: valid ? m.ca : null,
+          max: effCA,
+          warn: effCA * 0.83,
+          danger: effCA,
+          digits: 1,
+          suffix: "",
+          desc: valid 
+            ? `Você está utilizando aproximadamente ${pctCA}% do potencial construtivo permitido (limite de CA ${effCA}).`
+            : "Aproveitamento do potencial construtivo total em relação ao limite."
+        },
+        {
+          key: "to",
+          label: "Ocupação do Solo (TO)",
+          val: valid ? m.occ : null,
+          max: effTO,
+          warn: effTO * 0.83,
+          danger: effTO,
+          digits: 1,
+          suffix: "%",
+          desc: valid 
+            ? `A projeção das edificações cobre aproximadamente ${pctTO}% da ocupação máxima de solo permitida.`
+            : "Área de projeção ocupada pelas torres no terreno."
+        },
+        {
+          key: "area",
+          label: "Área Construída Total",
+          val: valid ? m.area : null,
+          digits: 0,
+          suffix: " m²",
+          desc: valid 
+            ? `A área total construída acumulada no lote é de ${formatNumber(m.area)} m².`
+            : "Área construída total estimada para o estudo."
+        },
+        {
+          key: "units",
+          label: "Capacidade de Unidades",
+          val: valid ? m.units : null,
+          digits: 0,
+          suffix: " un",
+          desc: valid 
+            ? `O estudo comporta aproximadamente ${m.units} unidades habitacionais no total.`
+            : "Número estimado de apartamentos suportados pelo estudo."
+        },
+        {
+          key: "towers",
+          label: "Distribuição de Edificações",
+          val: cleanTowers.length,
+          digits: 0,
+          suffix: "",
+          desc: `O estudo está organizado em ${cleanTowers.length} ${cleanTowers.length === 1 ? "edificação independente" : "edificações independentes"} no lote.`
+        }
       ];
+
       return (
         <>
           <div style={{padding:"16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
@@ -629,11 +777,12 @@
           )}
           <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:12}}>Indicadores</div>
-            <div style={{display:"flex",flexDirection:"column",gap:11}}>
-              {metrics.map(({label,val,suffix,max,warn,danger,digits})=>(
-                <div key={label}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>{label}</span>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {items.map(({key,label,val,suffix,max,warn,danger,digits,desc})=>(
+                <div key={key} style={{background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, padding: "10px 12px", display:"flex", flexDirection:"column", gap:5}}>
+                  <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,lineHeight:1.4}}>{desc}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:2}}>
+                    <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,color:C.gray2}}>{label}</span>
                     <span style={{fontFamily:"'Sora',sans-serif",fontSize:14,fontWeight:700,color:"#fff"}}>{safeValue(val,{suffix,digits})}</span>
                   </div>
                   {max&&<MetricBar val={val} max={max} warn={warn} danger={danger}/>}
@@ -648,9 +797,9 @@
             </div>
             <>
               {[
-                {label:"CA máximo",val:String(effCA),state:effCA!==CA_LIMIT?"informado":"simulado"},
-                {label:"Taxa de ocup. máx.",val:effTO+"%",state:effTO!==TO_LIMIT?"informado":"simulado"},
-                {label:"Vagas por unidade",val:"1",state:"informado"},
+                {label:"Potencial construtivo máximo (CA)",val:String(effCA),state:effCA!==CA_LIMIT?"informado":"simulado"},
+                {label:"Ocupação máxima de solo permitida",val:effTO+"%",state:effTO!==TO_LIMIT?"informado":"simulado"},
+                {label:"Vagas de garagem exigidas",val:"1 por unidade",state:"informado"},
               ].map(({label,val,state})=>(
                 <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray}}>{label}</span>
@@ -757,13 +906,13 @@
         if(!metrics?.valid) return "Indicadores não calculados. Verificar posição da torre no lote.";
         const caHeadroom=caLim-metrics.ca;
         const tM2=st.w*st.h/SVG_PER_M2;
-        if(st.floors>=15&&metrics.ca>=caWarn) return `CA total em ${safeValue(metrics.ca,{digits:1})} / ${caLim} — margem de ${safeValue(caHeadroom,{digits:1})}. Esta torre contribui com ~${tCaContrib} CA. Redução de altura libera margem sem comprometer as demais.`;
+        if(st.floors>=15&&metrics.ca>=caWarn) return `CA total em ${safeValue(metrics.ca,{digits:1})} / ${caLim} — margem de ${safeValue(caHeadroom,{digits:1})}. Esta torre contribui com ~${tCaContrib} CA. Redução de altura libera margem sem comprometer as demais. Quer testar reduzir esta torre para ver o impacto no CA?`;
         if(st.floors<=8&&caHeadroom>1.5){
           const extra=Math.max(2,Math.min(6,Math.floor(caHeadroom*LOT/Math.max(tM2,1))));
-          return `CA total em ${safeValue(metrics.ca,{digits:1})} de ${caLim}, com ${safeValue(caHeadroom,{digits:1})} de margem. Esta torre pode absorver até ${extra} pavimentos adicionais sem exceder os limites informados.`;
+          return `CA total em ${safeValue(metrics.ca,{digits:1})} de ${caLim}, com ${safeValue(caHeadroom,{digits:1})} de margem. Esta torre pode absorver até ${extra} pavimentos adicionais. Gostaria de adicionar 2 pavimentos para testar?`;
         }
-        if(metrics.ca>=caWarn) return `O estudo usa ${safeValue(metrics.ca/caLim*100,{digits:1,suffix:"%"})} do CA informado. A Torre ${st.id} contribui com ~${tCaContrib}; alterar sua altura sem redistribuição reduz a margem para ajustes futuros. Recomendo comparar uma transferência de 1 a 2 pavimentos para a torre mais baixa.`;
-        return `A Torre ${st.id} contribui com ~${tCaContrib} de CA. O estudo mantém ${safeValue(caHeadroom,{digits:1})} de margem; o trade-off principal é usar essa folga para unidades ou preservá-la para reduzir risco regulatório.`;
+        if(metrics.ca>=caWarn) return `O estudo usa ${safeValue(metrics.ca/caLim*100,{digits:1,suffix:"%"})} do CA informado. A Torre ${st.id} contribui com ~${tCaContrib}; alterar sua altura sem redistribuição reduz a margem para ajustes futuros. Recomendo uma transferência de 1 a 2 pavimentos para a torre mais baixa. Quer simular essa redistribuição?`;
+        return `A Torre ${st.id} contribui com ~${tCaContrib} de CA. O estudo mantém ${safeValue(caHeadroom,{digits:1})} de margem. O trade-off principal é usar essa folga para unidades ou preservá-la para reduzir risco regulatório. Gostaria que eu simulasse alternativas para aumentar unidades?`;
       }
       const aiText=towerAiText(tower,m);
       const SUGGESTIONS = [
@@ -1046,7 +1195,7 @@
                   <div style={{border:"1px solid #E2E8F0",borderRadius:6,overflow:"hidden",minHeight:0}}><ReportCanvas towers={towers}/></div>
                   <div style={{display:"flex",flexDirection:"column"}}>
                     <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,marginBottom:10}}>Resumo do estudo</div>
-                    {[["Torres",safeValue(towers.length)],["Unidades",valid?safeValue(m.units):"--"],["Área construída",valid?safeValue(m.area,{suffix:" m²"}):"--"],["Taxa de ocupação",valid?safeValue(m.occ,{digits:1,suffix:"%"}):"--"],["CA utilizado",valid?safeValue(m.ca,{digits:1}):"--"]].map(([label,value])=>(
+                    {[["Torres",safeValue(towers.length)],["Unidades",valid?safeValue(m.units):"--"],["Área construída",valid?safeValue(m.area,{suffix:" m²"}):"--"],["Ocupação do solo (TO)",valid?safeValue(m.occ,{digits:1,suffix:"%"}):"--"],["Aproveitamento (CA)",valid?safeValue(m.ca,{digits:1}):"--"]].map(([label,value])=>(
                       <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #EDF2F7"}}>
                         <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:"#718096"}}>{label}</span>
                         <span style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700}}>{value}</span>
@@ -1303,57 +1452,83 @@
       const ref=useRef(null);
       const [phIdx,setPhIdx]=useState(0);
       const [phFade,setPhFade]=useState(true);
+      const [dragOver, setDragOver] = useState(false);
 
       useEffect(()=>{ const t=setTimeout(()=>ref.current?.focus(),600); return ()=>clearTimeout(t); },[]);
 
       const FILE_EXT_COLOR = {dwg:"#7B68EE",ifc:C.green,dxf:C.yellow,kmz:"#E05252",rvt:"#00B4D8",nwc:"#FF8C42"};
 
       const PLACEHOLDERS_GENERIC = [
-        "Quero explorar o potencial máximo deste terreno...",
+        "Quero maximizar o potencial deste terreno...",
         "Gere três alternativas de implantação...",
-        "Explique por que não consigo atingir o CA máximo...",
-        "Quero reduzir a altura mantendo o mesmo número de unidades...",
-        "Maximize o VGV respeitando a legislação...",
+        "Como reduzir altura sem perder unidades?",
         "Onde estou desperdiçando potencial construtivo?",
-        "Faça uma proposta voltada para HIS.",
-        "Compare esta implantação com outra.",
-        "O que você faria neste terreno?",
-        "Quero preservar mais área permeável.",
+        "Faça uma versão voltada para HIS.",
+        "Preserve mais área livre.",
+        "Compare duas estratégias.",
+        "Como melhorar este estudo?",
+        "Explique por que não consigo aumentar o CA.",
+        "O que você faria neste terreno?"
       ];
 
       const PLACEHOLDERS_ATTACHED = [
-        "Quero maximizar o CA.",
-        "Gere três alternativas.",
-        "Explique os gargalos deste projeto.",
-        "Como reduzir custo mantendo a área construída?",
-        "Quero diminuir a altura.",
-        "Preserve mais área verde.",
+        "Quero maximizar o potencial deste terreno...",
+        "Gere três alternativas de implantação...",
+        "Como reduzir altura sem perder unidades?",
+        "Onde estou desperdiçando potencial construtivo?",
+        "Faça uma versão voltada para HIS.",
+        "Preserve mais área livre.",
+        "Compare duas estratégias.",
         "Como melhorar este estudo?",
+        "Explique por que não consigo aumentar o CA.",
+        "O que você faria neste terreno?"
       ];
 
       const pool = attachedFile ? PLACEHOLDERS_ATTACHED : PLACEHOLDERS_GENERIC;
+      const [shuffledPool, setShuffledPool] = useState([]);
+
+      useEffect(() => {
+        setShuffledPool([...pool].sort(() => Math.random() - 0.5));
+      }, [attachedFile]);
 
       useEffect(() => {
         setPhIdx(0);
         setPhFade(true);
-      }, [Boolean(attachedFile)]);
+      }, [shuffledPool]);
 
       useEffect(() => {
         const interval = setInterval(() => {
           setPhFade(false);
           setTimeout(() => {
-            setPhIdx(prev => (prev + 1) % pool.length);
+            setPhIdx(prev => (prev + 1) % (shuffledPool.length || 1));
             setPhFade(true);
           }, 400);
         }, 4500);
         return () => clearInterval(interval);
-      }, [pool]);
+      }, [shuffledPool]);
 
       function send(text) {
         const msg = text || val;
         if (!msg.trim() && !attachedFile) return;
         onSend(msg || "");
       }
+
+      const handleDragOver = (e) => {
+        e.preventDefault();
+        setDragOver(true);
+      };
+      const handleDragLeave = (e) => {
+        e.preventDefault();
+        setDragOver(false);
+      };
+      const handleDrop = (e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+          onAttachFile(file);
+        }
+      };
 
       const canSend = val.trim() || attachedFile;
 
@@ -1385,7 +1560,7 @@
               Do terreno à decisão,<br/>em segundos.
             </h1>
             <p style={{fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray,maxWidth:380,lineHeight:1.55,margin:"0 auto"}}>
-              Anexe um arquivo de projeto e conte o que você quer explorar.
+              Anexe um projeto e conte o que você quer explorar.
             </p>
           </div>
 
@@ -1404,13 +1579,110 @@
                 <button onClick={onRemoveFile} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",fontSize:16,lineHeight:1,padding:"0 4px",flexShrink:0}}>×</button>
               </div>
             ) : (
-              <label style={{display:"flex",flexDirection:"column",alignItems:"center",gap:7,border:"1.5px dashed rgba(255,255,255,0.1)",borderRadius:12,padding:"18px 20px",cursor:"pointer",transition:"all 0.2s ease"}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(1,173,110,0.4)";e.currentTarget.style.background="rgba(1,173,110,0.04)";}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.1)";e.currentTarget.style.background="transparent";}}
+              <label 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                style={{
+                  display:"flex",
+                  flexDirection:"column",
+                  alignItems:"center",
+                  justifyContent:"center",
+                  gap:14,
+                  border: dragOver ? `2.5px dashed ${C.green}` : "1.5px dashed rgba(255,255,255,0.18)",
+                  borderRadius:20,
+                  padding:"40px 24px",
+                  background: dragOver ? "rgba(1,173,110,0.06)" : "rgba(255,255,255,0.02)",
+                  cursor:"pointer",
+                  transition:"all 0.3s cubic-bezier(0.16,1,0.3,1)",
+                  boxShadow: dragOver 
+                    ? "0 12px 32px rgba(1,173,110,0.15), inset 0 0 20px rgba(1,173,110,0.1)"
+                    : "0 4px 16px rgba(0,0,0,0.2), inset 0 0 12px rgba(255,255,255,0.01)",
+                  transform: dragOver ? "scale(1.02)" : "scale(1)",
+                  width: "100%",
+                  boxSizing: "border-box"
+                }}
+                onMouseEnter={e=>{
+                  if (!dragOver) {
+                    e.currentTarget.style.borderColor="rgba(1,173,110,0.6)";
+                    e.currentTarget.style.background="rgba(1,173,110,0.04)";
+                    e.currentTarget.style.boxShadow="0 8px 24px rgba(1,173,110,0.08), inset 0 0 16px rgba(1,173,110,0.02)";
+                  }
+                }}
+                onMouseLeave={e=>{
+                  if (!dragOver) {
+                    e.currentTarget.style.borderColor="rgba(255,255,255,0.18)";
+                    e.currentTarget.style.background="rgba(255,255,255,0.02)";
+                    e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.2), inset 0 0 12px rgba(255,255,255,0.01)";
+                  }
+                }}
               >
-                <Icon.Paperclip s={20} c={C.gray}/>
-                <span style={{fontFamily:"'Inter',sans-serif",fontSize:13,color:C.gray2}}>Arraste ou selecione o arquivo do projeto</span>
-                <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray,opacity:0.65}}>DWG · IFC · DXF · KMZ · RVT · NWC</span>
+                {/* Upload Icon */}
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  background: dragOver ? "rgba(1,173,110,0.18)" : "rgba(255,255,255,0.05)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: dragOver ? C.green2 : C.gray2,
+                  transition: "all 0.3s ease",
+                  transform: dragOver ? "translateY(-4px)" : "translateY(0)"
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+
+                <div style={{ textAlign: "center" }}>
+                  <p style={{
+                    fontFamily: "'Sora',sans-serif",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: "#fff",
+                    margin: "0 0 4px 0"
+                  }}>
+                    Arraste o arquivo do seu projeto aqui
+                  </p>
+                  <p style={{
+                    fontFamily: "'Inter',sans-serif",
+                    fontSize: 13,
+                    color: C.gray,
+                    margin: 0
+                  }}>
+                    ou clique para procurar em seu computador
+                  </p>
+                </div>
+
+                {/* Tags de Extensões Suportadas */}
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                  gap: 6,
+                  marginTop: 4
+                }}>
+                  {Object.entries(FILE_EXT_COLOR).map(([ext, color]) => (
+                    <span key={ext} style={{
+                      fontFamily: "monospace",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: color,
+                      background: `${color}15`,
+                      border: `1px solid ${color}35`,
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em"
+                    }}>
+                      {ext}
+                    </span>
+                  ))}
+                </div>
+
                 <input type="file" accept=".dwg,.ifc,.dxf,.kmz,.rvt,.nwc" style={{display:"none"}}
                   onChange={e=>e.target.files[0]&&onAttachFile(e.target.files[0])}/>
               </label>
@@ -1465,7 +1737,7 @@
     }
 
     /* ── ChatPanel — 3 estados: mini | medium | full ─────────── */
-    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt,sel,attentionSignal}) {
+    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt,sel,attentionSignal,onPromptSubmit}) {
       const scrollRef=useRef(null);
       const chatFileRef=useRef(null);
       const panelRef=useRef(null);
@@ -1479,6 +1751,59 @@
       const [position,setPosition]=useState(null);
       const prevMsgsLen=useRef(msgs.length);
       const chatMargins={top:56,right:8,bottom:8,left:8};
+
+      const PLACEHOLDERS_GENERIC = [
+        "Quero maximizar o potencial deste terreno...",
+        "Gere três alternativas de implantação...",
+        "Como reduzir altura sem perder unidades?",
+        "Onde estou desperdiçando potencial construtivo?",
+        "Faça uma versão voltada para HIS.",
+        "Preserve mais área livre.",
+        "Compare duas estratégias.",
+        "Como melhorar este estudo?",
+        "Explique por que não consigo aumentar o CA.",
+        "O que você faria neste terreno?"
+      ];
+
+      const PLACEHOLDERS_ATTACHED = [
+        "Quero maximizar o potencial deste terreno...",
+        "Gere três alternativas de implantação...",
+        "Como reduzir altura sem perder unidades?",
+        "Onde estou desperdiçando potencial construtivo?",
+        "Faça uma versão voltada para HIS.",
+        "Preserve mais área livre.",
+        "Compare duas estratégias.",
+        "Como melhorar este estudo?",
+        "Explique por que não consigo aumentar o CA.",
+        "O que você faria neste terreno?"
+      ];
+
+      const pool = attachedFile ? PLACEHOLDERS_ATTACHED : PLACEHOLDERS_GENERIC;
+      const [shuffledPool, setShuffledPool] = useState([]);
+
+      useEffect(() => {
+        setShuffledPool([...pool].sort(() => Math.random() - 0.5));
+      }, [attachedFile]);
+
+      const [phIdx,setPhIdx]=useState(0);
+      const [phFade,setPhFade]=useState(true);
+
+      useEffect(() => {
+        setPhIdx(0);
+        setPhFade(true);
+      }, [shuffledPool]);
+
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setPhFade(false);
+          setTimeout(() => {
+            setPhIdx(prev => (prev + 1) % (shuffledPool.length || 1));
+            setPhFade(true);
+          }, 400);
+        }, 4500);
+        return () => clearInterval(interval);
+      }, [shuffledPool]);
+
       useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing,size]);
       useEffect(()=>{
         if(size==="mini"){
@@ -1595,6 +1920,8 @@
       }
 
       function renderInputBar() {
+        const currentPh = shuffledPool[phIdx % (shuffledPool.length || 1)] || "";
+        const placeholderText = sel ? `Pergunte sobre Torre ${sel}...` : currentPh;
         return (
         <div style={{flexShrink:0}}>
           {attachedFile && (
@@ -1611,11 +1938,33 @@
             </button>
             <input ref={chatFileRef} type="file" accept=".dwg,.ifc,.dxf,.kmz,.rvt,.nwc" style={{display:"none"}}
               onChange={e=>e.target.files[0]&&onAttachFile(e.target.files[0])}/>
-            <textarea rows={1} value={input} onChange={e=>setInput(e.target.value)}
-              onKeyDown={e=>{e.stopPropagation();if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
-              placeholder={sel?`Pergunte sobre Torre ${sel}…`:"Descreva o que quer ajustar…"}
-              style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,resize:"none",lineHeight:1.5,padding:"4px 0",maxHeight:72}}
-            />
+            <div style={{position:"relative",flex:1,display:"flex",alignItems:"center"}}>
+              <textarea rows={1} value={input} onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>{e.stopPropagation();if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
+                style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,resize:"none",lineHeight:1.5,padding:"4px 0",maxHeight:72,zIndex:2}}
+              />
+              {!input && (
+                <div style={{
+                  position:"absolute",
+                  left:0,
+                  top:4,
+                  right:0,
+                  fontFamily:"'Inter',sans-serif",
+                  fontSize:12,
+                  color:C.gray,
+                  opacity: phFade ? 0.55 : 0,
+                  transition:"opacity 0.4s ease-in-out",
+                  pointerEvents:"none",
+                  whiteSpace:"nowrap",
+                  overflow:"hidden",
+                  textOverflow:"ellipsis",
+                  lineHeight:1.5,
+                  zIndex:1
+                }}>
+                  {placeholderText}
+                </div>
+              )}
+            </div>
             <button onClick={onSend} style={{width:30,height:30,borderRadius:"50%",background:(input.trim()||attachedFile)?C.green:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"background 0.15s ease"}}>
               <Icon.Send s={13} c="#fff"/>
             </button>
@@ -1631,7 +1980,7 @@
             {renderHeader()}
             {lastMsg && (
               <div style={{padding:"10px 14px 4px",flexShrink:0}}>
-                <Bubble msg={lastMsg} idx={0} onAttachFile={onAttachFile} onAction={onAction} onApplyAlt={onApplyAlt}/>
+                <Bubble msg={lastMsg} idx={0} onAttachFile={onAttachFile} onAction={onAction} onApplyAlt={onApplyAlt} onPromptSubmit={onPromptSubmit}/>
                 {typing && <div style={{marginBottom:6}}><div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}><TypingDots/></div></div>}
               </div>
             )}
@@ -1645,7 +1994,7 @@
         <div ref={panelRef} style={{position:"fixed",...floatingPosition,width:W,zIndex:80,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:attentionActive?"slideUp 0.2s ease,teodoraGlow 1.1s ease":"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 64px)"}}>
           {renderHeader()}
           <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"12px 14px 4px"}}>
-            {msgs.map((msg,i)=><Bubble key={msg.id||i} msg={msg} idx={i} onAttachFile={onAttachFile} onAction={onAction} onApplyAlt={onApplyAlt}/>)}
+            {msgs.map((msg,i)=><Bubble key={msg.id||i} msg={msg} idx={i} onAttachFile={onAttachFile} onAction={onAction} onApplyAlt={onApplyAlt} onPromptSubmit={onPromptSubmit}/>)}
             {typing && <div style={{marginBottom:8}}><div style={{background:"rgba(1,173,110,0.1)",border:"1px solid rgba(51,224,161,0.15)",borderRadius:"2px 12px 12px 12px",display:"inline-block"}}><TypingDots/></div></div>}
           </div>
           <div style={{borderTop:"1px solid rgba(255,255,255,0.06)"}}/>
@@ -1929,59 +2278,7 @@
             if(dist>0&&dist<10){nx=sn.x;ny=sn.y;}
           }
           if(!drag.historyPushed&&Math.hypot(nx-orig.x,ny-orig.y)>0.1){
-            pushHistorySnapshot(drag.historySnapshot);
-            drag.historyPushed=true;
-          }
-          drag.latest={x:nx,y:ny};
-          setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:nx,y:ny},t):t));
-        }
-        if(resizing.current){
-          const resize=resizing.current;
-          const{id,corner,sp,snapshot}=resize; const p=svgPt(e);
-          const dx=p.x-sp.x,dy=p.y-sp.y;
-          let{x,y,w,h}=snapshot;
-          if(corner.includes("e"))w=snapshot.w+dx;
-          if(corner.includes("s"))h=snapshot.h+dy;
-          if(corner.includes("w")){x=snapshot.x+dx;w=snapshot.w-dx;}
-          if(corner.includes("n")){y=snapshot.y+dy;h=snapshot.h-dy;}
-          const next=resizeTowerFromSnapshot(snapshot,{x,y,w,h});
-          const changed=["x","y","w","h"].some(key=>Math.abs(next[key]-snapshot[key])>0.1);
-          if(!resize.historyPushed&&changed){
-            pushHistorySnapshot(resize.historySnapshot);
-            resize.historyPushed=true;
-          }
-          setTowers(prev=>prev.map(t=>t.id===id?next:t));
-        }
-      },[zoom]);
-
-      const onUp=useCallback(()=>{
-        if(dragging.current){
-          const{id,orig,tower,latest=orig,historyPushed}=dragging.current;
-          if(!rectInPoly(latest.x,latest.y,tower.w,tower.h,TERRAIN)){
-            setShakeId(id); setTimeout(()=>setShakeId(null),400);
-            if(historyPushed)towerHistoryRef.current=towerHistoryRef.current.slice(0,-1);
-            setTowers(prev=>prev.map(t=>t.id===id?{...t,x:orig.x,y:orig.y}:t));
-          } else if(showSetbacksRef.current&&!(pip(latest.x,latest.y,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y,INSET_TERRAIN)&&pip(latest.x,latest.y+tower.h,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y+tower.h,INSET_TERRAIN))){
-            const sn=nudgeInsidePoly(latest.x,latest.y,tower.w,tower.h,INSET_TERRAIN);
-            setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:sn.x,y:sn.y},t):t));
-          }
-          dragging.current=null;
-        }
-        resizing.current=null;
-        panning.current=null;
-        setLiveId(null);
-      },[]);
-
-      function attachFile(file) {
-        const ext=(file.name.split(".").pop()||"file").toLowerCase();
-        const bytes=isRenderableNumber(file.size,1024*1024*1024)?file.size:0;
-        const size=bytes<1024*1024
-          ? `${Math.max(1,Math.round(bytes/1024))} KB`
-          : safeValue(bytes/(1024*1024),{digits:1,suffix:" MB",max:1024});
-        setAttachedFile({name:file.name,ext,size,meta:"Arquivo do projeto"});
-      }
-
-      function contextualReply(text,tower,currentTowers) {
+            pushHistorySnapshot      function contextualReply(text,tower,currentTowers) {
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
         const lower=text.toLowerCase();
         const asksApplyRecommended=/apli(que|car).*(recomendada|melhor)|alternativa recomendada/.test(lower);
@@ -1992,7 +2289,7 @@
             id:`apply-rec-${Date.now()}`,role:"skill",time:now,
             fn:"aplicar_alternativa_recomendada()",
             sub:`${recommended.name} · prévia rastreável`,
-            text:`Segundo o objetivo informado, ${recommended.name} é a alternativa recomendada. O principal trade-off é: ${recommended.impact}`,
+            text:`Segundo o objetivo informado, ${recommended.name} é a alternativa recomendada. O principal trade-off é: ${recommended.impact}\n\nComo próximo passo, podemos analisar os recuos do lote para ver se há margem de otimização na projeção de alguma das torres. Quer que eu faça essa análise?`,
             preview:[
               {label:"Unidades",before:currentMetrics.valid?safeValue(currentMetrics.units):"--",after:recommended.metrics.valid?safeValue(recommended.metrics.units):"--",good:recommended.metrics.units>=currentMetrics.units},
               {label:"CA",before:currentMetrics.valid?safeValue(currentMetrics.ca,{digits:1}):"--",after:recommended.metrics.valid?safeValue(recommended.metrics.ca,{digits:1}):"--",good:recommended.metrics.ca<=limits.ca},
@@ -2011,7 +2308,7 @@
           const recommended=generated.find(item=>item.recommended);
           return {
             id:`alt-${Date.now()}`,role:"alternatives",time:now,
-            text:`Objetivo interpretado: ${/livre|permeab/.test(lower)?"ampliar área livre":/unidade|dens|max/.test(lower)?"maximizar unidades dentro do CA":"reduzir risco preservando potencial"}. ${recommended?`${recommended.name} lidera segundo esse critério.`:""}`,
+            text:`Objetivo interpretado: ${/livre|permeab/.test(lower)?"ampliar área livre":/unidade|dens|max/.test(lower)?"maximizar unidades dentro do CA":"reduzir risco preservando potencial"}. ${recommended?`${recommended.name} lidera segundo esse critério.`:""}\n\nPodemos comparar essas estratégias detalhadamente ou aplicar uma delas para testar a distribuição no canvas. Qual caminho você prefere seguir?`,
             diagnosis:`Diagnóstico: CA ${currentMetrics.valid?safeValue(currentMetrics.ca,{digits:1}):"--"} / ${limits.ca}. ${tallest?`Torre ${tallest.id} concentra a maior altura, com ${tallest.floors} pavimentos.`:""} Premissas regulatórias ainda requerem validação local.`,
             alternatives:generated.map(candidate=>({
               id:candidate.id,label:candidate.name,intent:candidate.description,impact:candidate.impact,
@@ -2029,7 +2326,7 @@
           const share=metrics.valid&&metrics.units?Math.round(tower.units/metrics.units*100):null;
           return {
             id:`explain-${Date.now()}`,role:"agent",time:now,
-            text:`Torre ${tower.id} contribui com aproximadamente ${safeValue(contribution,{digits:2})} de CA e ${share!==null?safeValue(share,{suffix:"%"}):"--"} das unidades do estudo. ${tower.floors>=15?"Ela concentra altura e é o primeiro ponto para redistribuição.":"Sua contribuição é moderada; ajustes locais têm impacto controlado."}\n\nRecomendação: comparar uma redistribuição antes de alterar a projeção. Confiança média — CA e unidades são calculados; legislação permanece não validada.`,
+            text:`Torre ${tower.id} contribui com aproximadamente ${safeValue(contribution,{digits:2})} de CA e ${share!==null?safeValue(share,{suffix:"%"}):"--"} das unidades do estudo. ${tower.floors>=15?"Ela concentra altura e é o primeiro ponto para redistribuição.":"Sua contribuição é moderada; ajustes locais têm impacto controlado."}\n\nRecomendação: comparar uma redistribuição antes de alterar a projeção. Confiança média — CA e unidades são calculados; legislação permanece não validada.\n\nPodemos tentar redistribuir 2 pavimentos desta torre para a Torre mais baixa para equilibrar o CA. Quer que eu simule essa alternativa?`,
           };
         }
 
@@ -2049,18 +2346,28 @@
         const caLimCtx=limits.ca;
         const caHeadroom=beforeM.valid?caLimCtx-beforeM.ca:0;
         const reduceReason=caHeadroom<=1.5?`CA total em ${safeValue(beforeM.ca,{digits:1})} / ${caLimCtx} — redução libera margem regulatória.`:`Torre ${tower.id} com ${safeValue(tower.floors)} pav — redução de 20% para ajustar ocupação no lote.`;
+        
+        let nextStepPrompt = "";
+        if (type === "remove") {
+          nextStepPrompt = `\n\nAgora que removemos a Torre ${tower.id}, liberamos bastante área livre no lote. Quer que eu tente redistribuir as unidades perdidas aumentando os pavimentos das torres restantes?`;
+        } else if (type === "increase") {
+          nextStepPrompt = `\n\nCom mais 2 pavimentos na Torre ${tower.id}, nos aproximamos do limite de CA. Quer que eu gere alternativas para reduzir a projeção de outra torre e manter a ocupação equilibrada?`;
+        } else {
+          nextStepPrompt = `\n\nReduzindo a projeção da Torre ${tower.id}, diminuímos a ocupação do solo. Como próximo passo, gostaria de testar se conseguimos recuperar unidades adicionando pavimentos em outra torre?`;
+        }
+
         return {
           id:`skill-${Date.now()}`,role:"skill",time:now,
           fn:type==="remove"?"remover_torre()":type==="increase"?"aumentar_pavimentos()":"reduzir_projecao()",
           sub:`Torre ${tower.id} · prévia calculada`,
-          text:type==="remove"
+          text:(type==="remove"
             ? `A remoção da Torre ${tower.id} ${afterM.valid?`reduz o CA para ${safeValue(afterM.ca,{digits:1})}`:"recalcula os indicadores"} e libera sua área de projeção.`
             : type==="increase"
               ? `Torre ${tower.id} com ${safeValue(tower.floors)} pavimentos. Adicionando 2 pavimentos — CA passaria de ${previewValid?safeValue(beforeM.ca,{digits:1}):"--"} para ${previewValid?safeValue(afterM.ca,{digits:1}):"--"}.`
-              : reduceReason,
+              : reduceReason) + nextStepPrompt,
           preview:[
             {label:"Unidades",before:previewValid?safeValue(beforeM.units):"--",after:previewValid?safeValue(afterM.units):"--",good:type==="increase"},
-            {label:"Área total",before:previewValid?safeValue(beforeM.area,{suffix:" m²"}):"--",after:previewValid?safeValue(afterM.area,{suffix:" m²"}):"--",good:type!=="increase"},
+            {label:"Área total",before:previewValid?safeValue(beforeM.area,{suffix:" m²"}):"--",after:previewValid?safeValue(beforeM.area,{suffix:" m²"}):"--",good:type!=="increase"},
             {label:"CA",before:previewValid?safeValue(beforeM.ca,{digits:1}):"--",after:previewValid?safeValue(afterM.ca,{digits:1}):"--",good:previewValid&&afterM.ca<=beforeM.ca},
           ],
           action:{id:`action-${Date.now()}`,type,targetId:tower.id,label,after},
@@ -2073,11 +2380,21 @@
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
         const selected=towers.find(t=>t.id===sel);
         const currentTowers=sanitizeTowers(towers);
-        setMsgs(m=>[
-          ...m,
-          ...(attachedFile?[{role:"file",...attachedFile,time:now}]:[]),
-          ...(msg?[{role:"user",text:msg,time:now}]:[]),
-        ]);
+        
+        const isTransitioningFromIdle = mode === "idle";
+
+        if (isTransitioningFromIdle) {
+          setMsgs([
+            ...(attachedFile?[{id:`file-${Date.now()}`,role:"file",...attachedFile,time:now}]:[]),
+            ...(msg?[{id:`user-${Date.now()}`,role:"user",text:msg,time:now}]:[]),
+          ]);
+        } else {
+          setMsgs(m=>[
+            ...m,
+            ...(attachedFile?[{id:`file-${Date.now()}`,role:"file",...attachedFile,time:now}]:[]),
+            ...(msg?[{id:`user-${Date.now()}`,role:"user",text:msg,time:now}]:[]),
+          ]);
+        }
         setInput("");
         setAttachedFile(null);
         // transition: fade idle out, then show canvas
@@ -2086,7 +2403,23 @@
         setTyping(true);
         setTimeout(()=>{
           setTyping(false);
-          const response=contextualReply(msg,selected,currentTowers);
+          let response;
+          if (isTransitioningFromIdle) {
+            response = {
+              id: `proactive-greet-${Date.now()}`,
+              role: "proactive-greet",
+              time: now,
+              text: `Analisei seu estudo. Encontrei três oportunidades interessantes.
+Qual delas você gostaria de explorar?`,
+              options: [
+                { text: "Aumentar aproximadamente 16 unidades", query: "Quero maximizar unidades" },
+                { text: "Reduzir risco regulatório", query: "Quero reduzir o risco" },
+                { text: "Liberar mais área livre", query: "Quero liberar mais área livre" }
+              ]
+            };
+          } else {
+            response=contextualReply(msg,selected,currentTowers);
+          }
           setMsgs(m=>[...m,response]);
           if(response.role==="alternatives")recordDecisionEvent("Teodora gerou 3 alternativas e recomendou uma estratégia segundo o objetivo informado.");
         },1700);
@@ -2248,7 +2581,7 @@
 <div class="sub">Lote Brooklin · 847 m² · ${h(scenarioName(version))} · ${h(scenarioRevision(version))}</div>
 <span class="badge" style="background:#EBF8FF;color:#2B6CB0">${h(st.label)}</span>
 ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="text">${h(intent)}</div>${tradeoff?`<div class="text" style="color:#718096;margin-top:4px">${h(tradeoff)}</div>`:""}</div>`:""}${dec?`<div class="strategy" style="background:#F0FFF8;border-left-color:#01AD6E"><div class="label" style="color:#276749">Registro de decisão · ${h(dec.time)}</div>${dec.reason?`<div class="text"><strong>Motivo:</strong> ${h(dec.reason)}</div>`:""}${dec.pending&&dec.pending.length>0?`<div class="text" style="color:#744210;margin-top:6px"><strong>Pendências registradas:</strong><ul style="margin:4px 0 0 18px;padding:0">${dec.pending.map(p=>`<li style="font-size:12px">${h(p)}</li>`).join("")}</ul></div>`:""}</div>`:""}
-<div class="kpis"><div class="kpi"><b>${h(safeValue(towers.length))}</b>Torres</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.units):"--")}</b>Unidades</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--")}</b>CA utilizado</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--")}</b>Taxa de ocupação</div></div>
+<div class="kpis"><div class="kpi"><b>${h(safeValue(towers.length))}</b>Torres</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.units):"--")}</b>Unidades</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--")}</b>Aproveitamento (CA)</div><div class="kpi"><b>${h(reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--")}</b>Ocupação do solo (TO)</div></div>
 <table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table>
 <div class="premises"><div class="label" style="font-size:11px;color:#744210;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Premissas utilizadas</div><table><tr><td>CA máximo</td><td>${h(limits.ca)}</td><td><span class="tag" style="${limits.ca!==CA_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.ca!==CA_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.ca!==CA_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Taxa de ocupação máxima</td><td>${h(limits.to)}%</td><td><span class="tag" style="${limits.to!==TO_LIMIT?"background:#DCFCE7;color:#166534":"background:#FEF3C7;color:#92400E"}">${limits.to!==TO_LIMIT?"informado":"simulado"}</span></td><td style="color:#718096;font-size:11px">${limits.to!==TO_LIMIT?"Parâmetro informado pelo usuário":"Confirmar com legislação local"}</td></tr><tr><td>Vagas por unidade</td><td>1</td><td><span class="tag" style="background:#DCFCE7;color:#166534">informado</span></td><td></td></tr></table></div>
 <div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados. Premissas marcadas como "simulado" não foram validadas com legislação municipal. Conferir antes de avançar em projeto.</div>
@@ -2453,6 +2786,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 onApplyAlt={applyAlt}
                 sel={sel}
                 attentionSignal={teodoraAttention}
+                onPromptSubmit={prompt=>{setChatSize("full");sendMessage(prompt);}}
               />}
 
               {/* compare panel — 2.2 */}
