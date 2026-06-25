@@ -179,6 +179,8 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Contexto automático do Copilot ao selecionar torre
 - [x] Alternativas de implantação aplicáveis pelo chat
 - [x] Dimensões ao vivo durante drag e resize
+- [x] Estados de avaliação sem falsa declaração de viabilidade
+- [x] Estratégias nomeadas como identidade principal dos cenários
 
 ---
 

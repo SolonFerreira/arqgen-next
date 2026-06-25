@@ -52,10 +52,10 @@
     };
 
     function getStatus(m) {
-      if (!m?.valid||![m.ca,m.occ,m.units,m.area].every(value=>isRenderableNumber(value))) return {key:"invalid",label:"Dados insuficientes",dot:C.red,color:C.red,bg:"rgba(253,72,72,0.08)",border:"rgba(253,72,72,0.2)"};
-      if (m.ca>=12||m.occ>=50) return {key:"warning",label:"Atenção",dot:C.yellow,color:C.yellow,bg:"rgba(255,188,0,0.08)",border:"rgba(255,188,0,0.25)"};
-      if (m.ca>=10||m.occ>=42) return {key:"caution",label:"Verificar limites",dot:C.yellow,color:"#e5ab00",bg:"rgba(255,188,0,0.06)",border:"rgba(255,188,0,0.18)"};
-      return {key:"viable",label:"Solução Viável",dot:C.green2,color:C.green2,bg:"rgba(1,173,110,0.08)",border:"rgba(1,173,110,0.22)"};
+      if (!m?.valid||![m.ca,m.occ,m.units,m.area].every(value=>isRenderableNumber(value))) return {key:"invalid",label:"Dados insuficientes",detail:"Indicadores não calculados",dot:C.red,color:C.red,bg:"rgba(253,72,72,0.08)",border:"rgba(253,72,72,0.2)"};
+      if (m.ca>=12||m.occ>=50) return {key:"warning",label:"Limites informados excedidos",detail:"Revisar CA e taxa de ocupação",dot:C.yellow,color:C.yellow,bg:"rgba(255,188,0,0.08)",border:"rgba(255,188,0,0.25)"};
+      if (m.ca>=10||m.occ>=42) return {key:"caution",label:"Próximo aos limites informados",detail:"CA e ocupação exigem conferência",dot:C.yellow,color:"#e5ab00",bg:"rgba(255,188,0,0.06)",border:"rgba(255,188,0,0.18)"};
+      return {key:"preliminary",label:"Avaliação preliminar",detail:"CA e ocupação calculados · legislação não validada",dot:C.purple,color:"rgba(203,200,255,0.95)",bg:"rgba(86,79,255,0.08)",border:"rgba(86,79,255,0.25)"};
     }
 
     /* ── icons ────────────────────────────────────────────────── */
@@ -131,11 +131,13 @@
       ],
     };
 
-    const VERSION_HYPOTHESES = {
-      "Versão 01": "Maior VGV",
-      "Versão 02": "Maior densidade",
-      "Versão 03": "Área verde",
+    const SCENARIO_META = {
+      "Versão 01": {name:"Equilíbrio de implantação",revision:"v01"},
+      "Versão 02": {name:"Máxima densidade",revision:"v02"},
+      "Versão 03": {name:"Mais área livre",revision:"v03"},
     };
+    const scenarioName=key=>SCENARIO_META[key]?.name||key;
+    const scenarioRevision=key=>SCENARIO_META[key]?.revision||key;
 
     const INSIGHTS_DATA = [
       { id:"i1", type:"opportunity", text:"Espaço para +14 unidades na área NE do lote." },
@@ -149,7 +151,7 @@
       { role:"user",  text:"Quero avaliar este terreno no Brooklin.\nGera três alternativas priorizando unidades, mantendo CA abaixo de 12.", time:"14:22" },
       { role:"agent", text:"Arquivo recebido. Identifiquei o contorno do lote: 847m² em forma irregular, testada de ~22m.\nDuas premissas antes de gerar:\n· Confirma 1 vaga por unidade?\n· Tipologias preferidas: studio 44m², 1 dorm 52m² ou ambas?", time:"14:22" },
       { role:"user",  text:"Confirmo 1 vaga. Usa ambas as tipologias.", time:"14:23" },
-      { role:"skill", fn:"gerar_solucoes_implantacao()", sub:"3 alternativas geradas · Versão 01 ativa",
+      { role:"skill", fn:"gerar_solucoes_implantacao()", sub:"3 estratégias geradas · Equilíbrio de implantação ativo",
         text:"Solução com 163 unidades posicionada. Torre B concentra maior densidade.\nTaxa de ocupação em 38% — dentro do limite.\nQuer explorar reduzir Torre A para abrir área de permeabilidade?", time:"14:23" },
     ];
 
@@ -410,10 +412,14 @@
       return (
         <>
           <div style={{padding:"16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-            <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:C.gray2,marginBottom:10}}>{version} · {VERSION_HYPOTHESES[version]}</div>
+            <div style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:C.gray2,marginBottom:3}}>{scenarioName(version)}</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginBottom:10}}>{scenarioRevision(version)} · estratégia ativa</div>
             <div style={{background:status.bg,border:`1px solid ${status.border}`,borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",gap:7}}>
               <div style={{width:7,height:7,borderRadius:"50%",background:status.dot,boxShadow:`0 0 6px ${status.dot}`}}/>
-              <span style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:status.color}}>{status.label}</span>
+              <div>
+                <div style={{fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:status.color}}>{status.label}</div>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,marginTop:3,lineHeight:1.35}}>{status.detail}</div>
+              </div>
             </div>
           </div>
           <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
@@ -687,7 +693,7 @@
                 <div style={{display:"flex",alignItems:"flex-start",borderBottom:"2px solid #01AD6E",paddingBottom:14}}>
                   <div>
                     <div style={{fontFamily:"'Sora',sans-serif",fontSize:21,fontWeight:700}}>Estudo de viabilidade</div>
-                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:"#718096",marginTop:4}}>Lote Brooklin · 847 m² · {version}</div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:"#718096",marginTop:4}}>Lote Brooklin · 847 m² · {scenarioName(version)} · {scenarioRevision(version)}</div>
                   </div>
                   <div style={{flex:1}}/>
                   <div style={{fontFamily:"'Sora',sans-serif",fontSize:18,fontWeight:700,color:"#01AD6E"}}>arqgen</div>
@@ -726,7 +732,7 @@
         <>
           <div style={{position:"absolute",top:22,left:24,zIndex:70,display:"flex",alignItems:"center",gap:10}}>
             <ArqgenLogo height={22}/>
-            <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>Lote Brooklin · {version}</span>
+            <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>Lote Brooklin · {scenarioName(version)} · {scenarioRevision(version)}</span>
           </div>
           <div style={{position:"absolute",top:20,right:24,zIndex:70,display:"flex",alignItems:"center",gap:8}}>
             {[["Torres",safeValue(towerCount)],["Unidades",valid?safeValue(m.units):"--"],["CA",valid?safeValue(m.ca,{digits:1}):"--"],["TO",valid?safeValue(m.occ,{digits:1,suffix:"%"}):"--"]].map(([label,value])=>(
@@ -780,7 +786,7 @@
         <div style={{position:"absolute",inset:0,zIndex:100,background:C.ink2,display:"flex",flexDirection:"column",animation:"fadeIn 0.18s ease"}}>
           {/* header */}
           <div style={{display:"flex",alignItems:"center",padding:"12px 20px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
-            <span style={{fontFamily:"'Sora',sans-serif",fontSize:14,fontWeight:700,color:"#fff"}}>Comparar Versões</span>
+            <span style={{fontFamily:"'Sora',sans-serif",fontSize:14,fontWeight:700,color:"#fff"}}>Comparar estratégias</span>
             <div style={{flex:1}}/>
             <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,width:28,height:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <Icon.X s={12}/>
@@ -794,7 +800,7 @@
                 <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
                   <select value={ver} onChange={e=>setVer(e.target.value)}
                     style={{background:"rgba(32,38,47,0.95)",border:`1px solid ${accent}`,color:"#fff",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:600,borderRadius:6,padding:"4px 10px",cursor:"pointer",outline:"none"}}>
-                    {VERS.map(v=><option key={v} value={v} style={{background:C.card}}>{v} · {VERSION_HYPOTHESES[v]}</option>)}
+                    {VERS.map(v=><option key={v} value={v} style={{background:C.card}}>{scenarioName(v)} · {scenarioRevision(v)}</option>)}
                   </select>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
                     {safeValue(tw.length)} torres · {m.valid?safeValue(m.units):"--"} un · CA <span style={{color:m.valid&&m.ca>=12?C.yellow:"#fff",fontWeight:600}}>{m.valid?safeValue(m.ca,{digits:1}):"--"}</span>
@@ -832,7 +838,7 @@
               })}
             </div>
             <div style={{marginTop:8,textAlign:"center",fontFamily:"'Inter',sans-serif",fontSize:10,color:"rgba(113,128,150,0.5)"}}>
-              {left} → {right}
+              {scenarioName(left)} → {scenarioName(right)}
             </div>
           </div>
         </div>
@@ -1370,7 +1376,7 @@
       function downloadReport() {
         const reportMetrics=calcMetrics(towers);
         const rows=sanitizeTowers(towers).map(t=>`<tr><td>Torre ${t.id}</td><td>${safeValue(t.floors)}</td><td>${safeValue(t.units)}</td><td>${safeValue(t.area,{suffix:" m²"})}</td><td>${t.type}</td></tr>`).join("");
-        const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório Arqgen · ${version}</title><style>body{font-family:Arial,sans-serif;color:#1A202C;margin:40px}h1{margin-bottom:4px}.sub{color:#718096}.kpis{display:flex;gap:12px;margin:28px 0}.kpi{border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px}.kpi b{display:block;font-size:22px;color:#01AD6E}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #E2E8F0}th{font-size:12px;color:#718096}.note{margin-top:28px;padding:14px;background:#F0FFF8;color:#276749;border-radius:8px}</style><body><h1>Estudo de viabilidade</h1><div class="sub">Lote Brooklin · 847 m² · ${version}</div><div class="kpis"><div class="kpi"><b>${safeValue(towers.length)}</b>Torres</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.units):"--"}</b>Unidades</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--"}</b>CA</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--"}</b>Taxa de ocupação</div></div><table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table><div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados.</div></body></html>`;
+        const html=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório Arqgen · ${scenarioName(version)}</title><style>body{font-family:Arial,sans-serif;color:#1A202C;margin:40px}h1{margin-bottom:4px}.sub{color:#718096}.kpis{display:flex;gap:12px;margin:28px 0}.kpi{border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px}.kpi b{display:block;font-size:22px;color:#01AD6E}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #E2E8F0}th{font-size:12px;color:#718096}.note{margin-top:28px;padding:14px;background:#F0FFF8;color:#276749;border-radius:8px}</style><body><h1>Estudo de viabilidade</h1><div class="sub">Lote Brooklin · 847 m² · ${scenarioName(version)} · ${scenarioRevision(version)}</div><div class="kpis"><div class="kpi"><b>${safeValue(towers.length)}</b>Torres</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.units):"--"}</b>Unidades</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.ca,{digits:1}):"--"}</b>CA</div><div class="kpi"><b>${reportMetrics.valid?safeValue(reportMetrics.occ,{digits:1,suffix:"%"}):"--"}</b>Taxa de ocupação</div></div><table><thead><tr><th>Torre</th><th>Pavimentos</th><th>Unidades</th><th>Área</th><th>Tipologia</th></tr></thead><tbody>${rows}</tbody></table><div class="note">Relatório demonstrativo gerado pelo Arqgen Next V0. Dados urbanísticos simulados.</div></body></html>`;
         const blob=new Blob([html],{type:"text/html;charset=utf-8"});
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");
@@ -1416,7 +1422,7 @@
                 <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <div style={{width:6,height:6,borderRadius:"50%",background:status.dot,flexShrink:0,transition:"background 0.4s ease",boxShadow:`0 0 5px ${status.dot}99`}}/>
                   <select value={version} onChange={e=>switchVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none"}}>
-                    {["Versão 01","Versão 02","Versão 03"].map(v=><option key={v} value={v} style={{background:C.card}}>{v} · {VERSION_HYPOTHESES[v]}</option>)}
+                    {["Versão 01","Versão 02","Versão 03"].map(v=><option key={v} value={v} style={{background:C.card}}>{scenarioName(v)} · {scenarioRevision(v)}</option>)}
                   </select>
                 </div>
                 <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6,minWidth:118}}>
@@ -1434,7 +1440,7 @@
                   <div style={{display:"flex",background:"rgba(255,255,255,0.05)",borderRadius:6,overflow:"hidden"}}>
                     {["2D","3D"].map(v=><button key={v} onClick={()=>setView(v)} style={{background:view===v?C.green:"transparent",border:"none",color:view===v?"#fff":C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"4px 11px",cursor:"pointer",transition:"all 0.15s ease"}}>{v}</button>)}
                   </div>
-                  <button onClick={()=>setComparing(true)} style={{background:comparing?"rgba(86,79,255,0.15)":"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap",transition:"background 0.15s ease"}}>{compact?"Comparar":"Comparar versões"}</button>
+                  <button onClick={()=>setComparing(true)} style={{background:comparing?"rgba(86,79,255,0.15)":"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap",transition:"background 0.15s ease"}}>Comparar estratégias</button>
                 </div>
               </div>}
 
@@ -1442,13 +1448,13 @@
               {!presenting&&(
                 <div style={{position:"absolute",top:42,left:0,right:0,height:28,zIndex:9,background:"rgba(10,13,20,0.9)",backdropFilter:"blur(6px)",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",alignItems:"center",padding:"0 14px",gap:10}}>
                   <div style={{width:6,height:6,borderRadius:"50%",background:status.dot,flexShrink:0,boxShadow:`0 0 5px ${status.dot}80`}}/>
-                  <span style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:600,color:status.color}}>{version} · {VERSION_HYPOTHESES[version]} · {status.label}</span>
+                  <span style={{fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:600,color:status.color}}>{scenarioName(version)} · {scenarioRevision(version)} · {status.label}</span>
                   <div style={{width:1,height:14,background:"rgba(255,255,255,0.07)"}}/>
                   <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>
                     {m?.valid?`${safeValue(towers.length)} torres · ${safeValue(m.units)} un. · CA ${safeValue(m.ca,{digits:1})} / 12 · TO ${safeValue(m.occ,{digits:1})}%`:"Calculando indicadores..."}
                   </span>
                   <div style={{flex:1}}/>
-                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:"rgba(113,128,150,0.4)"}}>Lote Brooklin · 847 m²</span>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:"rgba(113,128,150,0.55)"}}>{status.detail}</span>
                 </div>
               )}
               {presenting && <PresentationHUD m={m} towerCount={towers.length} version={version} onExit={exitPresentation}/>}
