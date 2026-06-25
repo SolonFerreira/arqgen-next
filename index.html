@@ -2048,8 +2048,9 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                         style={{filter:isSel?"drop-shadow(0 0 10px rgba(51,224,161,0.45))":isHov?"drop-shadow(0 0 5px rgba(100,140,180,0.2))":"none",transition:"fill 0.15s ease,stroke 0.15s ease,filter 0.15s ease"}}
                       />
                       {/* tower label */}
-                      <text x={t.x+t.w/2} y={t.y+t.h/2+(isSel?-5:4)} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="700" fontFamily="'Sora',sans-serif" style={{pointerEvents:"none"}}>{t.id}</text>
+                      <text x={t.x+t.w/2} y={t.y+t.h/2+(isSel?-7:!isHov&&t.h>32?-1:4)} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="700" fontFamily="'Sora',sans-serif" style={{pointerEvents:"none"}}>{t.id}</text>
                       {isSel&&<text x={t.x+t.w/2} y={t.y+t.h/2+9} textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize={9} fontFamily="'Inter',sans-serif" style={{pointerEvents:"none"}}>{safeValue(t.floors)}pav · {safeValue(t.units)}un</text>}
+                      {!isSel&&!isHov&&t.h>32&&<text x={t.x+t.w/2} y={t.y+t.h/2+12} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={8} fontFamily="'Inter',sans-serif" style={{pointerEvents:"none"}}>{safeValue(t.floors)}p</text>}
                       {/* hover tooltip */}
                       {isHov&&(
                         <g style={{pointerEvents:"none"}}>
