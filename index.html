@@ -1580,6 +1580,7 @@
           if(e.key==="1") switchVRef.current("Versão 01");
           else if(e.key==="2") switchVRef.current("Versão 02");
           else if(e.key==="3") switchVRef.current("Versão 03");
+          else if(e.key==="r"||e.key==="R") setShowSetbacks(v=>!v);
         }
         document.addEventListener("keydown",handler);
         return()=>document.removeEventListener("keydown",handler);
@@ -1951,7 +1952,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                   {/* Recuos toggle — 1.1 */}
-                  <button onClick={()=>setShowSetbacks(v=>!v)}
+                  <button onClick={()=>setShowSetbacks(v=>!v)} title="Mostrar/ocultar recuos (R)"
                     style={{display:"flex",alignItems:"center",gap:5,background:showSetbacks?"rgba(255,188,0,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${showSetbacks?"rgba(255,188,0,0.45)":"rgba(255,255,255,0.1)"}`,borderRadius:6,color:showSetbacks?C.yellow:C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"3px 10px",cursor:"pointer",flexShrink:0,transition:"all 0.15s ease"}}
                   >
                     <Icon.Ruler s={11} c={showSetbacks?C.yellow:C.gray}/> Recuos
