@@ -1043,8 +1043,8 @@
         {label:"Torres",   lv:tL.length, rv:tR.length, fmt:v=>safeValue(v),higher:true},
         {label:"Unidades", lv:mL.units,  rv:mR.units,  fmt:v=>safeValue(v),higher:true},
         {label:"Área m²",  lv:mL.area,   rv:mR.area,   fmt:v=>safeValue(v),higher:true},
-        {label:"CA",       lv:mL.ca,     rv:mR.ca,     fmt:v=>safeValue(v,{digits:1}),higher:false,limit:12},
-        {label:"TO %",     lv:mL.occ,    rv:mR.occ,    fmt:v=>safeValue(v,{digits:1,suffix:"%"}),higher:false,limit:50},
+        {label:"CA",       lv:mL.ca,     rv:mR.ca,     fmt:v=>safeValue(v,{digits:1}),higher:false,limit:limits?.ca??CA_LIMIT},
+        {label:"TO %",     lv:mL.occ,    rv:mR.occ,    fmt:v=>safeValue(v,{digits:1,suffix:"%"}),higher:false,limit:limits?.to??TO_LIMIT},
       ];
 
       return (
