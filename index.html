@@ -1293,7 +1293,7 @@
     }
 
     /* ── ChatPanel — 3 estados: mini | medium | full ─────────── */
-    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt}) {
+    function ChatPanel({msgs,typing,input,setInput,onSend,size,setSize,attachedFile,onAttachFile,onRemoveFile,onAction,onApplyAlt,sel}) {
       const scrollRef=useRef(null);
       const chatFileRef=useRef(null);
       const [hasNew,setHasNew]=useState(false);
@@ -1357,7 +1357,7 @@
               onChange={e=>e.target.files[0]&&onAttachFile(e.target.files[0])}/>
             <textarea rows={1} value={input} onChange={e=>setInput(e.target.value)}
               onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
-              placeholder="Descreva o que quer ajustar…"
+              placeholder={sel?`Pergunte sobre Torre ${sel}…`:"Descreva o que quer ajustar…"}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,resize:"none",lineHeight:1.5,padding:"4px 0",maxHeight:72}}
             />
             <button onClick={onSend} style={{width:30,height:30,borderRadius:"50%",background:(input.trim()||attachedFile)?C.green:"rgba(255,255,255,0.08)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"background 0.15s ease"}}>
@@ -2099,6 +2099,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 onRemoveFile={()=>setAttachedFile(null)}
                 onAction={applyChatAction}
                 onApplyAlt={applyAlt}
+                sel={sel}
               />}
 
               {/* compare panel — 2.2 */}
