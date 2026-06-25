@@ -556,7 +556,7 @@
     }
 
     /* ── ContextPanel ─────────────────────────────────────────── */
-    function LotOverview({m,towers,version,onSelectTower,onAddTower,limits,onSetLimits}) {
+    function LotOverview({m,towers,version,onSelectTower,onAddTower,limits,onSetLimits,decision,decisionStale}) {
       const valid=m?.valid===true;
       const effCA=limits?.ca??CA_LIMIT, effTO=limits?.to??TO_LIMIT;
       const status=getStatus(m,limits);
@@ -586,6 +586,20 @@
               </div>
             </div>
           </div>
+          {decision&&decision.strategy===version&&(
+            <div style={{padding:"10px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)",animation:"fadeIn 0.2s ease"}}>
+              <div style={{background:decisionStale?"rgba(255,188,0,0.07)":"rgba(1,173,110,0.07)",border:`1px solid ${decisionStale?"rgba(255,188,0,0.25)":"rgba(1,173,110,0.2)"}`,borderRadius:8,padding:"9px 12px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:decision.reason?5:0}}>
+                  <span style={{width:5,height:5,borderRadius:"50%",background:decisionStale?C.yellow:C.green2,display:"inline-block",flexShrink:0}}/>
+                  <span style={{fontFamily:"'Sora',sans-serif",fontSize:10,fontWeight:700,color:decisionStale?C.yellow:C.green2}}>{decisionStale?"Decisão desatualizada":"Decisão registrada · "+decision.time}</span>
+                </div>
+                {decision.reason&&<div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:C.gray,lineHeight:1.4,fontStyle:"italic"}}>"{decision.reason}"</div>}
+                {decision.pending&&decision.pending.length>0&&<div style={{marginTop:5,fontFamily:"'Inter',sans-serif",fontSize:8,color:C.yellow}}>
+                  {decision.pending.length} pendência{decision.pending.length!==1?"s":""}: {decision.pending.join(" · ")}
+                </div>}
+              </div>
+            </div>
+          )}
           <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
             <div style={{fontFamily:"'Inter',sans-serif",fontSize:10,color:C.gray,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:12}}>Indicadores</div>
             <div style={{display:"flex",flexDirection:"column",gap:11}}>
@@ -741,11 +755,11 @@
       );
     }
 
-    function ContextPanel({m,towers,version,sel,onSelect,onSave,onAdjust,onRemove,onAddTower,limits,onSetLimits}) {
+    function ContextPanel({m,towers,version,sel,onSelect,onSave,onAdjust,onRemove,onAddTower,limits,onSetLimits,decision,decisionStale}) {
       const tower=towers.find(item=>item.id===sel);
       return (
         <div style={{width:240,flexShrink:0,background:"rgba(12,16,23,0.98)",borderLeft:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",overflowY:"auto",animation:"slideInPanel 0.25s ease"}}>
-          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)} limits={limits}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower} limits={limits} onSetLimits={onSetLimits}/>}
+          {tower?<TowerDetail tower={tower} m={m} onClose={()=>onSelect(null)} onSave={onSave} onAdjust={()=>onAdjust(tower.id)} onRemove={()=>onRemove(tower.id)} limits={limits}/>:<LotOverview m={m} towers={towers} version={version} onSelectTower={onSelect} onAddTower={onAddTower} limits={limits} onSetLimits={onSetLimits} decision={decision} decisionStale={decisionStale}/>}
         </div>
       );
     }
@@ -2126,7 +2140,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
 
             {/* CONTEXT SIDE PANEL */}
             {mode==="active"&&!presenting&&!comparing&&(
-              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} onSetLimits={newLim=>{
+              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} decision={decision} decisionStale={decisionStale} onSetLimits={newLim=>{
                   setLimits(newLim);
                   const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
                   setMsgs(prev=>[...prev,{id:`limits-${Date.now()}`,role:"copilot-context",time:nowStr,
