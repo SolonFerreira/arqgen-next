@@ -1646,7 +1646,16 @@
         }
         if(dragging.current){
           const{id,ox,oy}=dragging.current; const p=svgPt(e);
-          setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:p.x-ox,y:p.y-oy},t):t));
+          setTowers(prev=>prev.map(t=>{
+            if(t.id!==id)return t;
+            let nx=p.x-ox,ny=p.y-oy;
+            if(showSetbacksRef.current){
+              const sn=nudgeInsidePoly(nx,ny,t.w,t.h,INSET_TERRAIN);
+              const dist=Math.hypot(sn.x-nx,sn.y-ny);
+              if(dist>0&&dist<10){nx=sn.x;ny=sn.y;}
+            }
+            return sanitizeTower({...t,x:nx,y:ny},t);
+          }));
         }
         if(resizing.current){
           const{id,corner,sp,snapshot}=resizing.current; const p=svgPt(e);
