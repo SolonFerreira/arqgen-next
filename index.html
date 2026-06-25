@@ -1511,6 +1511,18 @@
         return duPct>0.1||dca>0.5;
       },[decision,m,version]);
 
+      // Notify when an existing decision becomes stale due to canvas changes
+      const prevStaleRef=useRef(false);
+      useEffect(()=>{
+        if(!decisionStale||prevStaleRef.current===decisionStale)return;
+        prevStaleRef.current=decisionStale;
+        if(mode!=="active"||!decision)return;
+        const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        setMsgs(prev=>[...prev,{id:`stale-${Date.now()}`,role:"copilot-context",time:nowStr,
+          text:`Canvas divergiu da decisão registrada (${scenarioName(decision.strategy)} · ${decision.time}). Revisar ou confirmar nova configuração antes de avançar.`}]);
+      },[decisionStale]);
+      useEffect(()=>{ if(!decisionStale)prevStaleRef.current=false; },[decisionStale]);
+
       // Proactive copilot alert when CA crosses warning thresholds during editing
       const prevCaRef=useRef(null);
       const lastCaAlertRef=useRef(0);
