@@ -1584,7 +1584,347 @@
       return steps;
     }
 
-    function ReasoningOverlay({ isThinking, query, hasAttachedFile, onComplete }) {
+    /* ── ArchitecturalStudyPreview ────────────────────────────── */
+    function project(x, y, z, theta, zoom = 0.55) {
+      const dx = x - 315;
+      const dy = y - 210;
+      const rx = dx * Math.cos(theta) - dy * Math.sin(theta);
+      const ry = dx * Math.sin(theta) + dy * Math.cos(theta);
+      const cx = 210;
+      const cy = 150;
+      const screenX = (rx - ry) * zoom + cx;
+      const screenY = (rx + ry) * 0.55 * zoom + cy - z * zoom;
+      return { x: screenX, y: screenY };
+    }
+
+    function ExtrudedPolygon({ points, zBottom, zTop, fillBottom, fillTop, fillSide, stroke, strokeWidth=1, theta, zoom }) {
+      const bottomPts = points.map(p => project(p.x, p.y, zBottom, theta, zoom));
+      const topPts = points.map(p => project(p.x, p.y, zTop, theta, zoom));
+      const bottomStr = bottomPts.map(p => `${p.x},${p.y}`).join(" ");
+      const topStr = topPts.map(p => `${p.x},${p.y}`).join(" ");
+      
+      const sideFaces = [];
+      const n = points.length;
+      for (let i = 0; i < n; i++) {
+        const next = (i + 1) % n;
+        const facePts = [
+          bottomPts[i],
+          topPts[i],
+          topPts[next],
+          bottomPts[next]
+        ];
+        const faceStr = facePts.map(p => `${p.x},${p.y}`).join(" ");
+        sideFaces.push(
+          <polygon key={i} points={faceStr} fill={fillSide} stroke={stroke} strokeWidth={strokeWidth} />
+        );
+      }
+      
+      return (
+        <g>
+          {fillBottom && <polygon points={bottomStr} fill={fillBottom} stroke={stroke} strokeWidth={strokeWidth} />}
+          {sideFaces}
+          {fillTop && <polygon points={topStr} fill={fillTop} stroke={stroke} strokeWidth={strokeWidth} />}
+        </g>
+      );
+    }
+
+    function ExtrudedBox({ x, y, w, h, zBottom, zTop, fillTop, fillSide, stroke, strokeWidth=0.8, theta, zoom }) {
+      const points = [
+        { x: x, y: y },
+        { x: x + w, y: y },
+        { x: x + w, y: y + h },
+        { x: x, y: y + h }
+      ];
+      return (
+        <ExtrudedPolygon
+          points={points}
+          zBottom={zBottom}
+          zTop={zTop}
+          fillTop={fillTop}
+          fillSide={fillSide}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          theta={theta}
+          zoom={zoom}
+        />
+      );
+    }
+
+    function getVariantTowers(idx) {
+      const seed = idx % 12;
+      const variants = [
+        [
+          { x: 200, y: 120, w: 40, h: 40, floors: 12, type: "active" },
+          { x: 300, y: 180, w: 50, h: 40, floors: 8, type: "active" },
+          { x: 410, y: 220, w: 40, h: 50, floors: 10, type: "active" }
+        ],
+        [
+          { x: 220, y: 150, w: 50, h: 50, floors: 18, type: "active" },
+          { x: 380, y: 200, w: 50, h: 60, floors: 15, type: "active" }
+        ],
+        [
+          { x: 180, y: 100, w: 35, h: 35, floors: 6, type: "active" },
+          { x: 260, y: 160, w: 40, h: 40, floors: 8, type: "active" },
+          { x: 340, y: 220, w: 40, h: 45, floors: 7, type: "active" },
+          { x: 430, y: 280, w: 35, h: 40, floors: 6, type: "active" }
+        ],
+        [
+          { x: 200, y: 120, w: 40, h: 40, floors: 16, type: "ghost" },
+          { x: 300, y: 180, w: 50, h: 40, floors: 12, type: "active" },
+          { x: 410, y: 220, w: 40, h: 50, floors: 10, type: "ghost" }
+        ],
+        [
+          { x: 240, y: 110, w: 45, h: 45, floors: 14, type: "active" },
+          { x: 360, y: 190, w: 45, h: 45, floors: 12, type: "active" }
+        ],
+        [
+          { x: 170, y: 90,  w: 30, h: 30, floors: 10, type: "ghost" },
+          { x: 240, y: 150, w: 30, h: 30, floors: 12, type: "active" },
+          { x: 310, y: 210, w: 30, h: 30, floors: 10, type: "active" },
+          { x: 380, y: 270, w: 30, h: 30, floors: 12, type: "ghost" },
+          { x: 450, y: 310, w: 30, h: 30, floors: 8, type: "active" }
+        ],
+        [
+          { x: 250, y: 140, w: 80, h: 80, floors: 8, type: "active" },
+          { x: 380, y: 240, w: 40, h: 40, floors: 14, type: "active" }
+        ],
+        [
+          { x: 190, y: 160, w: 90, h: 30, floors: 9, type: "active" },
+          { x: 350, y: 210, w: 90, h: 30, floors: 11, type: "active" }
+        ],
+        [
+          { x: 210, y: 130, w: 40, h: 45, floors: 15, type: "active" },
+          { x: 330, y: 180, w: 40, h: 45, floors: 15, type: "ghost" }
+        ],
+        [
+          { x: 220, y: 120, w: 40, h: 40, floors: 20, type: "active" },
+          { x: 400, y: 240, w: 45, h: 45, floors: 6, type: "active" }
+        ],
+        [
+          { x: 180, y: 110, w: 40, h: 40, floors: 8, type: "ghost" },
+          { x: 270, y: 160, w: 40, h: 40, floors: 10, type: "active" },
+          { x: 360, y: 220, w: 40, h: 40, floors: 12, type: "active" }
+        ],
+        [
+          { x: 140, y: 70,  w: 50, h: 50, floors: 14, type: "conflict" },
+          { x: 320, y: 180, w: 45, h: 45, floors: 10, type: "active" },
+          { x: 440, y: 260, w: 40, h: 40, floors: 12, type: "active" }
+        ]
+      ];
+      return variants[seed];
+    }
+
+    function ArchitecturalStudyPreview({ isThinking, query, height, zoom }) {
+      const [time, setTime] = useState(0);
+      const [variantIdx, setVariantIdx] = useState(0);
+
+      useEffect(() => {
+        if (!isThinking) return;
+        let animId;
+        const start = Date.now();
+        const update = () => {
+          setTime((Date.now() - start) / 1000);
+          animId = requestAnimationFrame(update);
+        };
+        animId = requestAnimationFrame(update);
+        return () => cancelAnimationFrame(animId);
+      }, [isThinking]);
+
+      useEffect(() => {
+        if (!isThinking) return;
+        const interval = setInterval(() => {
+          setVariantIdx(prev => prev + 1);
+        }, 220);
+        return () => clearInterval(interval);
+      }, [isThinking]);
+
+      if (!isThinking) return null;
+
+      const theta = -0.06 + Math.sin(time * 0.18) * 0.1;
+      const liveZoom = zoom * (1 + Math.sin(time * 0.25) * 0.02);
+
+      const TERRAIN_POINTS = [
+        {x: 160, y: 60},
+        {x: 480, y: 40},
+        {x: 560, y: 120},
+        {x: 540, y: 360},
+        {x: 420, y: 400},
+        {x: 180, y: 380},
+        {x: 80, y: 280},
+        {x: 100, y: 140}
+      ];
+
+      const CONTEXT_BUILDINGS = [
+        { x: 80,  y: -10, w: 60, h: 45, floors: 5 },
+        { x: 500, y: 140, w: 45, h: 65, floors: 3 },
+        { x: 260, y: 430, w: 85, h: 40, floors: 4 },
+        { x: 30,  y: 310, w: 40, h: 50, floors: 6 }
+      ];
+
+      const activeTowers = getVariantTowers(variantIdx);
+
+      const gridLines = [];
+      for (let x = -100; x <= 700; x += 100) {
+        const p1 = project(x, -100, 0, theta, liveZoom);
+        const p2 = project(x, 500, 0, theta, liveZoom);
+        gridLines.push(<line key={`gx-${x}`} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="rgba(255,255,255,0.03)" strokeWidth="0.8" strokeDasharray="2,4" />);
+      }
+      for (let y = -100; y <= 500; y += 100) {
+        const p1 = project(-100, y, 0, theta, liveZoom);
+        const p2 = project(700, y, 0, theta, liveZoom);
+        gridLines.push(<line key={`gy-${y}`} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="rgba(255,255,255,0.03)" strokeWidth="0.8" strokeDasharray="2,4" />);
+      }
+
+      const streetLines = [];
+      const s1_p1 = project(-150, 420, 0, theta, liveZoom);
+      const s1_p2 = project(750, 420, 0, theta, liveZoom);
+      streetLines.push(<line key="st1" x1={s1_p1.x} y1={s1_p1.y} x2={s1_p2.x} y2={s1_p2.y} stroke="rgba(255,255,255,0.05)" strokeWidth="16" strokeLinecap="round" />);
+      streetLines.push(<line key="st1-c" x1={s1_p1.x} y1={s1_p1.y} x2={s1_p2.x} y2={s1_p2.y} stroke="rgba(255,255,255,0.15)" strokeWidth="0.8" strokeDasharray="3,6" />);
+
+      const s2_p1 = project(20, -150, 0, theta, liveZoom);
+      const s2_p2 = project(20, 550, 0, theta, liveZoom);
+      streetLines.push(<line key="st2" x1={s2_p1.x} y1={s2_p1.y} x2={s2_p2.x} y2={s2_p2.y} stroke="rgba(255,255,255,0.05)" strokeWidth="16" strokeLinecap="round" />);
+      streetLines.push(<line key="st2-c" x1={s2_p1.x} y1={s2_p1.y} x2={s2_p2.x} y2={s2_p2.y} stroke="rgba(255,255,255,0.15)" strokeWidth="0.8" strokeDasharray="3,6" />);
+
+      return (
+        <div style={{
+          width: "100%",
+          height: height,
+          background: "rgba(10, 13, 20, 0.4)",
+          border: "1px solid rgba(255, 255, 255, 0.05)",
+          borderRadius: 14,
+          position: "relative",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "inset 0 0 20px rgba(0, 0, 0, 0.3)",
+          transition: "height 0.3s ease"
+        }}>
+          <div style={{ position: "absolute", top: 12, left: 14, fontFamily: "monospace", fontSize: 8.5, color: "rgba(255, 255, 255, 0.35)", lineHeight: 1.5, pointerEvents: "none" }}>
+            <div>ESTUDO DE IMPLANTAÇÃO: 3D_AXO</div>
+            <div>ITERAÇÃO: #0{(variantIdx + 112).toString(16).toUpperCase()}</div>
+            <div>ALGORITMO: MULTI-MASSING_GEN</div>
+          </div>
+
+          <div style={{ position: "absolute", top: 12, right: 14, fontFamily: "monospace", fontSize: 8.5, color: C.green2, fontWeight: 700, pointerEvents: "none", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.green2, display: "inline-block" }} className="reasoning-dot" />
+            SIMULANDO
+          </div>
+
+          <div style={{ position: "absolute", bottom: 12, left: 14, fontFamily: "monospace", fontSize: 8.5, color: "rgba(255, 255, 255, 0.3)", pointerEvents: "none" }}>
+            <div>LOTE: {LOT} m² | REC: 5m/3m</div>
+            <div>COEF: {CA_LIMIT} | OCUP: {TO_LIMIT}%</div>
+          </div>
+
+          <div style={{ position: "absolute", bottom: 12, right: 14, fontFamily: "monospace", fontSize: 8.5, color: "rgba(255, 255, 255, 0.35)", pointerEvents: "none", textAlign: "right" }}>
+            <div>CAM_ROT: {(theta * 180 / Math.PI).toFixed(1)}°</div>
+            <div>ZOOM_F: {liveZoom.toFixed(3)}</div>
+          </div>
+
+          <svg width="100%" height="100%" viewBox="0 0 420 300" style={{ pointerEvents: "none", display: "block" }}>
+            {gridLines}
+            {streetLines}
+            {CONTEXT_BUILDINGS.map((b, idx) => (
+              <ExtrudedBox
+                key={`ctx-${idx}`}
+                x={b.x} y={b.y} w={b.w} h={b.h}
+                zBottom={0}
+                zTop={b.floors * 10}
+                fillTop="rgba(255, 255, 255, 0.05)"
+                fillSide="rgba(255, 255, 255, 0.02)"
+                stroke="rgba(255, 255, 255, 0.1)"
+                strokeWidth={0.6}
+                theta={theta}
+                zoom={liveZoom}
+              />
+            ))}
+
+            <polygon
+              points={TERRAIN_POINTS.map(p => {
+                const sp = project(p.x, p.y, -3, theta, liveZoom);
+                return `${sp.x},${sp.y}`;
+              }).join(" ")}
+              fill="rgba(0,0,0,0.25)"
+              stroke="none"
+            />
+            <ExtrudedPolygon
+              points={TERRAIN_POINTS}
+              zBottom={0}
+              zTop={5}
+              fillTop="rgba(1, 173, 110, 0.08)"
+              fillSide="rgba(255, 255, 255, 0.03)"
+              stroke="rgba(1, 173, 110, 0.3)"
+              strokeWidth={0.8}
+              theta={theta}
+              zoom={liveZoom}
+            />
+
+            <polygon
+              points={TERRAIN_POINTS.map(p => {
+                const dx = p.x - 315;
+                const dy = p.y - 210;
+                const sx = 315 + dx * 0.82;
+                const sy = 210 + dy * 0.82;
+                const sp = project(sx, sy, 5.2, theta, liveZoom);
+                return `${sp.x},${sp.y}`;
+              }).join(" ")}
+              fill="none"
+              stroke="rgba(255, 188, 0, 0.28)"
+              strokeWidth="0.8"
+              strokeDasharray="2,3"
+            />
+
+            {activeTowers.map((t, idx) => {
+              const height = t.floors * 9;
+              let fillTop = "rgba(1, 173, 110, 0.42)";
+              let fillSide = "rgba(1, 173, 110, 0.24)";
+              let stroke = C.green2;
+              
+              if (t.type === "ghost") {
+                fillTop = "rgba(255, 255, 255, 0.12)";
+                fillSide = "rgba(255, 255, 255, 0.06)";
+                stroke = "rgba(255, 255, 255, 0.35)";
+              } else if (t.type === "conflict") {
+                fillTop = "rgba(255, 188, 0, 0.26)";
+                fillSide = "rgba(255, 188, 0, 0.15)";
+                stroke = C.yellow;
+              }
+
+              const b0 = project(t.x, t.y, 5, theta, liveZoom);
+              const t0 = project(t.x, t.y, 5 + height, theta, liveZoom);
+              const b2 = project(t.x + t.w, t.y + t.h, 5, theta, liveZoom);
+              const t2 = project(t.x + t.w, t.y + t.h, 5 + height, theta, liveZoom);
+
+              return (
+                <g key={`t-${idx}`}>
+                  <line x1={b0.x} y1={b0.y} x2={t0.x} y2={t0.y} stroke="rgba(255,255,255,0.18)" strokeWidth="0.6" strokeDasharray="1,2" />
+                  <line x1={b2.x} y1={b2.y} x2={t2.x} y2={t2.y} stroke="rgba(255,255,255,0.18)" strokeWidth="0.6" strokeDasharray="1,2" />
+
+                  <ExtrudedBox
+                    x={t.x} y={t.y} w={t.w} h={t.h}
+                    zBottom={5}
+                    zTop={5 + height}
+                    fillTop={fillTop}
+                    fillSide={fillSide}
+                    stroke={stroke}
+                    strokeWidth={0.8}
+                    theta={theta}
+                    zoom={liveZoom}
+                  />
+
+                  <text x={t0.x + 8} y={t0.y - 6} fill="rgba(255,255,255,0.6)" fontSize={7.5} fontFamily="monospace" fontWeight="500">
+                    T{idx+1}: {t.floors}p ({Math.round(t.w * t.h / 1.5)}m²)
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      );
+    }
+
+    function ReasoningOverlay({ isThinking, query, hasAttachedFile, onComplete, viewportWidth }) {
       const [steps, setSteps] = useState([]);
       const [visibleCount, setVisibleCount] = useState(0);
       const onCompleteRef = useRef(onComplete);
@@ -1621,6 +1961,8 @@
         return () => timers.forEach(clearTimeout);
       }, [isThinking, query, hasAttachedFile]);
 
+      const isCompact = viewportWidth < 820;
+
       return (
         <div style={{
           position: "absolute",
@@ -1642,87 +1984,116 @@
         }}>
           <div style={{
             display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 20,
+            flexDirection: isCompact ? "column" : "row",
+            alignItems: "stretch",
+            gap: 28,
             width: "90%",
-            maxWidth: 360,
+            maxWidth: isCompact ? 380 : 760,
+            background: "rgba(30, 36, 45, 0.45)",
+            backdropFilter: "blur(24px)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: 24,
+            padding: isCompact ? "24px 20px" : "32px",
+            boxShadow: "0 24px 64px rgba(0, 0, 0, 0.6)",
+            transition: "all 0.3s ease"
           }}>
-            {/* Pulsing Arqgen Logo */}
-            <div className={isThinking ? "logo-pulse" : ""} style={{ transition: "all 0.3s ease" }}>
-              <ArqgenLogo height={32} />
+            {/* Left/Top: 3D Axonometric Study Preview */}
+            <div style={{ flex: isCompact ? "none" : 1.25, width: "100%", display: "flex", alignItems: "center" }}>
+              <ArchitecturalStudyPreview
+                isThinking={isThinking}
+                query={query}
+                height={isCompact ? 210 : 300}
+                zoom={isCompact ? 0.45 : 0.55}
+              />
             </div>
 
-            {/* Subtitle */}
+            {/* Right/Bottom: HUD Progress and Steps */}
             <div style={{
-              fontFamily: "'Sora',sans-serif",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#fff",
-              marginTop: 4,
-              textAlign: "center",
-              letterSpacing: "-0.01em",
-              opacity: 0.95
-            }}>
-              Teodora está trabalhando...
-            </div>
-
-            {/* Steps List */}
-            <div style={{
+              flex: isCompact ? "none" : 1,
               display: "flex",
               flexDirection: "column",
-              gap: 12,
+              justifyContent: "center",
               width: "100%",
-              marginTop: 18,
-              padding: "16px 20px",
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.05)",
-              borderRadius: 12,
+              minWidth: isCompact ? "auto" : 300,
+              gap: 16
             }}>
-              {steps.map((step, idx) => {
-                const isCurrent = idx === visibleCount - 1;
-                const isPast = idx < visibleCount - 1;
-                const isFuture = idx > visibleCount - 1;
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: isCompact ? "center" : "flex-start" }}>
+                {/* Pulsing Arqgen Logo */}
+                <div className={isThinking ? "logo-pulse" : ""} style={{ transition: "all 0.3s ease" }}>
+                  <ArqgenLogo height={28} />
+                </div>
 
-                return (
-                  <div key={idx} style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    fontSize: 12.5,
-                    fontFamily: "'Inter',sans-serif",
-                    color: isPast ? "rgba(255,255,255,0.38)" : isCurrent ? "#fff" : "transparent",
-                    transition: "all 0.3s ease",
-                    opacity: isFuture ? 0 : 1,
-                    height: 22,
-                    lineHeight: 1
-                  }}>
-                    <div style={{
-                      width: 14,
-                      height: 14,
+                {/* Subtitle */}
+                <div style={{
+                  fontFamily: "'Sora',sans-serif",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#fff",
+                  marginTop: 4,
+                  textAlign: isCompact ? "center" : "left",
+                  letterSpacing: "-0.01em",
+                  opacity: 0.95
+                }}>
+                  Teodora está trabalhando...
+                </div>
+              </div>
+
+              {/* Steps List */}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                width: "100%",
+                padding: "16px 20px",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.05)",
+                borderRadius: 12,
+              }}>
+                {steps.map((step, idx) => {
+                  const isCurrent = idx === visibleCount - 1;
+                  const isPast = idx < visibleCount - 1;
+                  const isFuture = idx > visibleCount - 1;
+
+                  return (
+                    <div key={idx} style={{
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0
+                      gap: 10,
+                      fontSize: 12,
+                      fontFamily: "'Inter',sans-serif",
+                      color: isPast ? "rgba(255,255,255,0.38)" : isCurrent ? "#fff" : "transparent",
+                      transition: "all 0.3s ease",
+                      opacity: isFuture ? 0 : 1,
+                      height: 20,
+                      lineHeight: 1
                     }}>
-                      {isPast && (
-                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                          <path d="M1 4L3.5 6.5L9 1" stroke={C.green2} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                      {isCurrent && (
-                        <div className="reasoning-dot" style={{width:6,height:6,borderRadius:"50%",background:C.green2}} />
-                      )}
+                      <div style={{
+                        width: 14,
+                        height: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0
+                      }}>
+                        {isPast && (
+                          <svg width="9" height="7" viewBox="0 0 10 8" fill="none">
+                            <path d="M1 4L3.5 6.5L9 1" stroke={C.green2} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                        {isCurrent && (
+                          <div className="reasoning-dot" style={{width:5,height:5,borderRadius:"50%",background:C.green2}} />
+                        )}
+                      </div>
+                      <span style={{
+                        fontWeight: isCurrent ? 500 : 400,
+                        letterSpacing: "-0.01em"
+                      }}>
+                        {step}
+                      </span>
                     </div>
-                    <span style={{
-                      fontWeight: isCurrent ? 500 : 400,
-                      letterSpacing: "-0.01em"
-                    }}>
-                      {step}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -3193,6 +3564,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
               query={thinkingQuery}
               hasAttachedFile={thinkingAttached}
               onComplete={handleReasoningComplete}
+              viewportWidth={viewportWidth}
             />
           </div>
           {exportOpen && <ExportModal towers={towers} version={version} onClose={()=>setExportOpen(false)} onDownload={downloadReport}/>}
