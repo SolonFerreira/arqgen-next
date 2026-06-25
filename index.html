@@ -2278,7 +2278,32 @@
             if(dist>0&&dist<10){nx=sn.x;ny=sn.y;}
           }
           if(!drag.historyPushed&&Math.hypot(nx-orig.x,ny-orig.y)>0.1){
-            pushHistorySnapshot      function contextualReply(text,tower,currentTowers) {
+            pushHistorySnapshot(drag.historySnapshot);
+            drag.historyPushed=true;
+          }
+          drag.latest={x:nx,y:ny};
+          setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:nx,y:ny},t):t));
+        }
+        if(resizing.current){
+          const resize=resizing.current;
+          const{id,corner,sp,snapshot}=resize; const p=svgPt(e);
+          const dx=p.x-sp.x,dy=p.y-sp.y;
+          let{x,y,w,h}=snapshot;
+          if(corner.includes("e"))w=snapshot.w+dx;
+          if(corner.includes("s"))h=snapshot.h+dy;
+          if(corner.includes("w")){x=snapshot.x+dx;w=snapshot.w-dx;}
+          if(corner.includes("n")){y=snapshot.y+dy;h=snapshot.h-dy;}
+          const next=resizeTowerFromSnapshot(snapshot,{x,y,w,h});
+          const changed=["x","y","w","h"].some(key=>Math.abs(next[key]-snapshot[key])>0.1);
+          if(!resize.historyPushed&&changed){
+            pushHistorySnapshot(resize.historySnapshot);
+            resize.historyPushed=true;
+          }
+          setTowers(prev=>prev.map(t=>t.id===id?next:t));
+        }
+      },[zoom,pan,towers,showSetbacks]);
+
+      function contextualReply(text,tower,currentTowers) {
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
         const lower=text.toLowerCase();
         const asksApplyRecommended=/apli(que|car).*(recomendada|melhor)|alternativa recomendada/.test(lower);
