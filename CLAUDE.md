@@ -83,7 +83,8 @@ Tipografia: `'Sora', sans-serif` para headings e labels de destaque. `'Inter', s
 | `ExportModal` | ~525 | Preview A4 e download demonstrativo do relatório |
 | `PresentationHUD` | ~575 | HUD compacto do modo apresentação |
 | `ComparePanel` | ~515 | Comparação de versões com dois canvas e deltas |
-| `ExecutiveSidePanel` | ~330 | Status executivo, indicadores e resumo por torre |
+| `ContextPanel` | ~400 | Alterna visão executiva do lote e edição da torre selecionada |
+| `InsightsRail` | ~385 | Insights progressivos e dispensáveis sobre o canvas |
 | `IdleScreen` | ~600 | Tela inicial, sugestões e upload mockado |
 | `ChatPanel` | ~725 | Chat em estados `mini` / `medium` / `full` |
 | `ArqgenNext` | ~820 | Componente raiz e estado da aplicação |
@@ -167,6 +168,9 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Painel executivo lateral com status e potencial utilizado
 - [x] Faixa-resumo da versão ativa
 - [x] Tooltips 2D e detalhamento visual das torres 3D
+- [x] Contexto automático do Copilot ao selecionar torre
+- [x] Alternativas de implantação aplicáveis pelo chat
+- [x] Dimensões ao vivo durante drag e resize
 
 ---
 
