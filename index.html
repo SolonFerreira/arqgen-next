@@ -1371,7 +1371,7 @@
             <input ref={chatFileRef} type="file" accept=".dwg,.ifc,.dxf,.kmz,.rvt,.nwc" style={{display:"none"}}
               onChange={e=>e.target.files[0]&&onAttachFile(e.target.files[0])}/>
             <textarea rows={1} value={input} onChange={e=>setInput(e.target.value)}
-              onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
+              onKeyDown={e=>{e.stopPropagation();if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();onSend();}}}
               placeholder={sel?`Pergunte sobre Torre ${sel}…`:"Descreva o que quer ajustar…"}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,resize:"none",lineHeight:1.5,padding:"4px 0",maxHeight:72}}
             />
