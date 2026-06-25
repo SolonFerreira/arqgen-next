@@ -12,13 +12,14 @@ Contexto para continuar o desenvolvimento deste protótipo em uma nova conversa.
 
 **Repo:** `https://github.com/SolonFerreira/arqgen-next` (privado)
 **Como rodar:** `python3 -m http.server 8080` na pasta do projeto → abrir `http://localhost:8080`
+**Deploy:** GitHub Pages via `.github/workflows/pages.yml`, publicado automaticamente após push na `main`
+**URL esperada:** `https://solonferreira.github.io/arqgen-next/`
 
 ---
 
 ## Stack e arquitetura
 
 - **Aplicação ativa:** `index.html` — tudo inline (React, JSX, estilos)
-- `ArqgenNext.jsx` é um rascunho legado e não participa da execução atual
 - **React 18** via CDN (`unpkg.com/react@18/umd`)
 - **Babel Standalone** para transpilação JSX em runtime, com `runtime: 'classic'` forçado via `new Function()` (evita imports ES module que quebram sem bundler)
 - **Zero dependências externas além de React** — lucide-react UMD estava vazio; ícones foram substituídos por SVG inline
@@ -95,6 +96,8 @@ leaving     // bool — true durante animação de saída do idle
 chatSize    // "mini" | "medium" | "full"
 metricsOpen // bool — HUD expandido ou colapsado
 zoom        // número (50–200%)
+pan         // deslocamento x/y do viewBox quando zoom > 100%
+viewportWidth // largura atual para ajustes responsivos
 version     // "Versão 01" | "Versão 02" | "Versão 03"
 view        // "2D" | "3D"
 msgs        // array de mensagens do chat
@@ -148,6 +151,12 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Download demonstrativo do relatório em HTML
 - [x] Modo apresentação fullscreen
 - [x] HUD compacto para apresentação
+- [x] Editor detalhado de pavimentos, unidades, área e tipologia
+- [x] Pan com Shift + arrastar ou botão do meio
+- [x] Zoom por Ctrl/Cmd + scroll
+- [x] Cotas calculadas contra as arestas reais do terreno
+- [x] Recuos variáveis por grupo de arestas
+- [x] Ajustes responsivos na topbar, controles e chat
 
 ---
 
@@ -202,6 +211,17 @@ Botão na topbar que entra em fullscreen, esconde todos os controles e mostra s�
 
 ---
 
+### Sprint 4.5 — Polimento de interação — concluído
+
+- Editor detalhado no `TowerPanel`
+- Pan e zoom navegável pelo `viewBox`
+- Cotas ligadas aos pontos mais próximos do polígono real
+- Recuos diferenciados entre frontal, laterais e fundos
+- Adaptação dos controles para larguras menores
+- Remoção do componente legado fora de uso
+
+---
+
 ### Sprint 5 — Migração de arquitetura (quando a V0 for aprovada)
 
 - Migrar de `index.html` monolítico para projeto **Vite + React** com componentes em arquivos separados
@@ -211,11 +231,10 @@ Botão na topbar que entra em fullscreen, esconde todos os controles e mostra s�
 
 ### Melhorias técnicas posteriores
 
-- Usar arestas reais do polígono nas cotas, em vez do bounding box aproximado
-- Aplicar recuos diferentes por aresta na geometria, não apenas nos labels
-- Permitir edição detalhada de pavimentos, tipologia e unidades no `TowerPanel`
-- Adicionar pan ao canvas quando o zoom estiver acima de 100%
-- Remover ou atualizar o arquivo legado `ArqgenNext.jsx`
+- Adicionar histórico de desfazer/refazer para alterações no canvas
+- Permitir edição precisa de largura, profundidade e posição da torre
+- Melhorar responsividade para celulares abaixo de 480px
+- Adicionar snapping entre torres e linhas de recuo
 
 ---
 

@@ -165,10 +165,25 @@
       };
     }
 
+    function closestPointOnSegment(p,a,b) {
+      const dx=b[0]-a[0],dy=b[1]-a[1];
+      const len2=dx*dx+dy*dy;
+      const t=len2?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/len2)):0;
+      const point=[a[0]+t*dx,a[1]+t*dy];
+      return {point,distance:Math.hypot(p[0]-point[0],p[1]-point[1])};
+    }
+
+    function closestPointOnPolygon(p,pts) {
+      return pts.reduce((best,a,i)=>{
+        const candidate=closestPointOnSegment(p,a,pts[(i+1)%pts.length]);
+        return !best||candidate.distance<best.distance?{...candidate,edge:i}:best;
+      },null);
+    }
+
     /* ── geometry extra ───────────────────────────────────────── */
     const M_TO_SVG = 13.06; // 1m ≈ 13.06 SVG units (847m² = 144400 SVG²)
 
-    function insetPoly(pts, d) {
+    function insetPoly(pts, distances) {
       const n = pts.length;
       function inNorm(a, b) {
         const dx=b[0]-a[0], dy=b[1]-a[1], len=Math.sqrt(dx*dx+dy*dy);
@@ -177,6 +192,7 @@
       const norms = pts.map((p,i)=>inNorm(p,pts[(i+1)%n]));
       function offPt(i, end) {
         const pi=pts[end?((i+1)%n):i];
+        const d=Array.isArray(distances)?distances[i]:distances;
         return [pi[0]+norms[i][0]*d, pi[1]+norms[i][1]*d];
       }
       function xsect(a,b,c,e) {
@@ -356,7 +372,8 @@
     /* ── SetbackOverlay ───────────────────────────────────────── */
     function SetbackOverlay() {
       const terrain = parsePoly(TERRAIN);
-      const inner = insetPoly(terrain, 20);
+      const setbackMeters=[5,1.5,1.5,3,3,1.5,1.5,5];
+      const inner = insetPoly(terrain,setbackMeters.map(v=>v*M_TO_SVG));
       const outerPath = terrain.map(p=>p.join(" ")).join(" L ");
       const innerPath = inner.map(p=>p.map(v=>v.toFixed(1)).join(" ")).join(" L ");
       const innerPts  = inner.map(p=>p.map(v=>v.toFixed(1)).join(",")).join(" ");
@@ -364,17 +381,20 @@
         <g style={{pointerEvents:"none"}}>
           <path d={`M ${outerPath} Z M ${innerPath} Z`} fillRule="evenodd" fill="rgba(255,188,0,0.09)"/>
           <polygon points={innerPts} fill="none" stroke="rgba(255,188,0,0.6)" strokeWidth="1" strokeDasharray="5,4"/>
-          <text x={322} y={36} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif">Recuo frontal · 5m</text>
-          <text x={574} y={242} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif" transform="rotate(76,574,242)">Lateral · 1.5m</text>
-          <text x={305} y={414} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif">Fundos · 3m</text>
-          <text x={64} y={218} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={9} fontFamily="'Inter',sans-serif" transform="rotate(-68,64,218)">Lateral · 1.5m</text>
+          {terrain.map((a,i)=>{
+            const b=terrain[(i+1)%terrain.length];
+            const x=(a[0]+b[0])/2,y=(a[1]+b[1])/2;
+            const angle=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;
+            const label=setbackMeters[i]===5?"Frontal":setbackMeters[i]===3?"Fundos":"Lateral";
+            return <text key={i} x={x} y={y-5} textAnchor="middle" fill="rgba(255,188,0,0.9)" fontSize={8} fontFamily="'Inter',sans-serif" transform={`rotate(${angle},${x},${y})`}>{label} · {setbackMeters[i]}m</text>;
+          })}
         </g>
       );
     }
 
     /* ── DistanceRuler ────────────────────────────────────────── */
     function DistanceRuler({tower, towers}) {
-      const BBOX = {l:80,r:560,t:40,b:400};
+      const terrain=parsePoly(TERRAIN);
       const dl = {stroke:"rgba(51,224,161,0.5)",strokeWidth:"0.8",strokeDasharray:"4,3"};
       const tl = {stroke:"rgba(51,224,161,0.65)",strokeWidth:"1"};
       const cx = tower.x+tower.w/2, cy = tower.y+tower.h/2;
@@ -395,24 +415,22 @@
         </g>;
       }
 
+      const anchors=[
+        [tower.x,cy],
+        [tower.x+tower.w,cy],
+        [cx,tower.y],
+        [cx,tower.y+tower.h],
+      ].map(point=>({from:point,...closestPointOnPolygon(point,terrain)}));
+
       return (
         <g style={{pointerEvents:"none"}}>
-          {/* terrain edge lines */}
-          <line x1={BBOX.l} y1={cy} x2={tower.x} y2={cy} {...dl}/>
-          <line x1={BBOX.l} y1={cy-5} x2={BBOX.l} y2={cy+5} {...tl}/>
-          <DLab x={(BBOX.l+tower.x)/2} y={cy-2} text={fm(tower.x-BBOX.l)}/>
-
-          <line x1={tower.x+tower.w} y1={cy} x2={BBOX.r} y2={cy} {...dl}/>
-          <line x1={BBOX.r} y1={cy-5} x2={BBOX.r} y2={cy+5} {...tl}/>
-          <DLab x={(tower.x+tower.w+BBOX.r)/2} y={cy-2} text={fm(BBOX.r-tower.x-tower.w)}/>
-
-          <line x1={cx} y1={BBOX.t} x2={cx} y2={tower.y} {...dl}/>
-          <line x1={cx-5} y1={BBOX.t} x2={cx+5} y2={BBOX.t} {...tl}/>
-          <SLab x={cx} y={(BBOX.t+tower.y)/2} text={fm(tower.y-BBOX.t)}/>
-
-          <line x1={cx} y1={tower.y+tower.h} x2={cx} y2={BBOX.b} {...dl}/>
-          <line x1={cx-5} y1={BBOX.b} x2={cx+5} y2={BBOX.b} {...tl}/>
-          <SLab x={cx} y={(tower.y+tower.h+BBOX.b)/2} text={fm(BBOX.b-tower.y-tower.h)}/>
+          {anchors.map(({from,point,distance},i)=>(
+            <g key={i}>
+              <line x1={from[0]} y1={from[1]} x2={point[0]} y2={point[1]} {...dl}/>
+              <circle cx={point[0]} cy={point[1]} r={2.2} fill={C.green2}/>
+              <DLab x={(from[0]+point[0])/2} y={(from[1]+point[1])/2-2} text={fm(distance)}/>
+            </g>
+          ))}
 
           {/* inter-tower gaps */}
           {towers.filter(o=>o.id!==tower.id).map(o=>{
@@ -451,9 +469,26 @@
     }
 
     /* ── TowerPanel ───────────────────────────────────────────── */
-    function TowerPanel({tower,px,py,onClose,onAdjust,onRemove}) {
+    function TowerPanel({tower,px,py,onClose,onSave,onAdjust,onRemove}) {
+      const [editing,setEditing]=useState(false);
+      const [draft,setDraft]=useState({...tower});
+      useEffect(()=>setDraft({...tower}),[tower.id,tower.floors,tower.units,tower.area,tower.type]);
+      const fieldStyle={width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 7px",outline:"none"};
+      function numberField(key,min,max) {
+        return <input type="number" min={min} max={max} value={draft[key]} onChange={e=>setDraft(d=>({...d,[key]:Math.max(min,Math.min(max,Number(e.target.value)||min))}))} style={fieldStyle}/>;
+      }
+      function save() {
+        onSave({
+          ...tower,
+          floors:Math.round(draft.floors),
+          units:Math.round(draft.units),
+          area:Math.round(draft.area),
+          type:draft.type,
+        });
+        setEditing(false);
+      }
       return (
-        <div style={{position:"absolute",left:px,top:py,zIndex:30,background:"rgba(26,32,44,0.96)",backdropFilter:"blur(12px)",border:"1px solid rgba(51,224,161,0.25)",borderRadius:10,padding:14,width:185,animation:"expandIn 0.15s ease",boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
+        <div style={{position:"absolute",left:px,top:py,zIndex:30,background:"rgba(26,32,44,0.96)",backdropFilter:"blur(12px)",border:"1px solid rgba(51,224,161,0.25)",borderRadius:10,padding:14,width:editing?230:195,animation:"expandIn 0.15s ease",boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <div style={{width:24,height:24,borderRadius:6,background:"rgba(1,173,110,0.2)",border:"1px solid rgba(51,224,161,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:12,fontWeight:700,color:C.green2}}>{tower.id}</div>
@@ -462,16 +497,34 @@
             <button onClick={onClose} style={{background:"none",border:"none",color:C.gray,cursor:"pointer",display:"flex",padding:2}}><Icon.X s={12}/></button>
           </div>
           <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:9}}>
-            {[["Pavimentos",tower.floors],["Unidades",tower.units],["Área total",`${tower.area.toLocaleString("pt-BR")} m²`],["Tipologia",tower.type]].map(([l,v])=>(
-              <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
-                <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>{l}</span>
-                <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,fontWeight:500}}>{v}</span>
+            {editing ? (
+              <div style={{display:"grid",gridTemplateColumns:"88px 1fr",gap:"7px 8px",alignItems:"center"}}>
+                <span style={{fontSize:10,color:C.gray}}>Pavimentos</span>{numberField("floors",1,60)}
+                <span style={{fontSize:10,color:C.gray}}>Unidades</span>{numberField("units",1,999)}
+                <span style={{fontSize:10,color:C.gray}}>Área total</span>{numberField("area",1,99999)}
+                <span style={{fontSize:10,color:C.gray}}>Tipologia</span>
+                <select value={draft.type} onChange={e=>setDraft(d=>({...d,type:e.target.value}))} style={fieldStyle}>
+                  {["Studio 44m²","1 dorm 52m²","2 dorm 68m²","Uso misto"].map(type=><option key={type} value={type} style={{background:C.card}}>{type}</option>)}
+                </select>
               </div>
-            ))}
+            ) : (
+              [["Pavimentos",tower.floors],["Unidades",tower.units],["Área total",`${tower.area.toLocaleString("pt-BR")} m²`],["Tipologia",tower.type]].map(([l,v])=>(
+                <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray}}>{l}</span>
+                  <span style={{fontFamily:"'Inter',sans-serif",fontSize:11,color:C.gray2,fontWeight:500}}>{v}</span>
+                </div>
+              ))
+            )}
           </div>
           <div style={{display:"flex",gap:6,marginTop:10}}>
-            <button onClick={onAdjust} style={{flex:1,background:"rgba(1,173,110,0.15)",border:"1px solid rgba(1,173,110,0.35)",borderRadius:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Reduzir 20%</button>
-            <button onClick={onRemove} style={{flex:1,background:"rgba(253,72,72,0.1)",border:"1px solid rgba(253,72,72,0.28)",borderRadius:6,color:C.red,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Remover</button>
+            {editing ? <>
+              <button onClick={()=>{setDraft({...tower});setEditing(false);}} style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:C.gray2,fontSize:11,padding:"6px 0",cursor:"pointer"}}>Cancelar</button>
+              <button onClick={save} style={{flex:1,background:C.green,border:"none",borderRadius:6,color:"#fff",fontSize:11,fontWeight:600,padding:"6px 0",cursor:"pointer"}}>Salvar</button>
+            </> : <>
+              <button onClick={()=>setEditing(true)} style={{flex:1,background:"rgba(1,173,110,0.15)",border:"1px solid rgba(1,173,110,0.35)",borderRadius:6,color:C.green2,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>Editar</button>
+              <button onClick={onAdjust} style={{flex:1,background:"rgba(255,188,0,0.1)",border:"1px solid rgba(255,188,0,0.28)",borderRadius:6,color:C.yellow,fontFamily:"'Inter',sans-serif",fontSize:11,padding:"5px 0",cursor:"pointer"}}>−20%</button>
+              <button onClick={onRemove} title="Remover torre" style={{width:30,background:"rgba(253,72,72,0.1)",border:"1px solid rgba(253,72,72,0.28)",borderRadius:6,color:C.red,fontFamily:"'Inter',sans-serif",fontSize:15,padding:"3px 0",cursor:"pointer"}}>×</button>
+            </>}
           </div>
         </div>
       );
@@ -822,7 +875,7 @@
       const chatFileRef=useRef(null);
       useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop=scrollRef.current.scrollHeight; },[msgs,typing,size]);
 
-      const W = 320;
+      const W = "min(320px,calc(100vw - 24px))";
 
       if (size==="mini") return (
         <div style={{position:"absolute",bottom:16,right:16,zIndex:25,animation:"fadeIn 0.2s ease"}}>
@@ -884,7 +937,7 @@
       if (size==="medium") {
         const lastMsg = msgs[msgs.length-1];
         return (
-          <div style={{position:"absolute",bottom:16,right:16,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden"}}>
+          <div style={{position:"absolute",bottom:12,right:12,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden"}}>
             <Header/>
             {lastMsg && (
               <div style={{padding:"10px 14px 4px",flexShrink:0}}>
@@ -899,7 +952,7 @@
       }
 
       return (
-        <div style={{position:"absolute",bottom:16,right:16,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 120px)"}}>
+        <div style={{position:"absolute",bottom:12,right:12,width:W,zIndex:25,background:"rgba(22,28,38,0.96)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.45)",display:"flex",flexDirection:"column",animation:"slideUp 0.2s ease",overflow:"hidden",maxHeight:"calc(100vh - 105px)"}}>
           <Header/>
           <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"12px 14px 4px"}}>
             {msgs.map((msg,i)=><Bubble key={msg.id||i} msg={msg} idx={i} onAttachFile={onAttachFile} onAction={onAction}/>)}
@@ -916,6 +969,8 @@
       const [towers,      setTowers]      = useState(INIT_TOWERS);
       const [sel,         setSel]         = useState(null);
       const [zoom,        setZoom]        = useState(100);
+      const [pan,         setPan]         = useState({x:0,y:0});
+      const [viewportWidth,setViewportWidth]=useState(window.innerWidth);
       const [version,     setVersion]     = useState("Versão 01");
       const [view,        setView]        = useState("2D");
       const [msgs,        setMsgs]        = useState(HISTORY);
@@ -940,6 +995,7 @@
       const svgRef   = useRef(null);
       const dragging = useRef(null);
       const resizing = useRef(null);
+      const panning   = useRef(null);
 
       useEffect(()=>{ const t=setTimeout(()=>setMounted(true),100); return ()=>clearTimeout(t); },[]);
       useEffect(()=>{
@@ -947,6 +1003,12 @@
         document.addEventListener("fullscreenchange",sync);
         return()=>document.removeEventListener("fullscreenchange",sync);
       },[]);
+      useEffect(()=>{
+        const resize=()=>setViewportWidth(window.innerWidth);
+        window.addEventListener("resize",resize);
+        return()=>window.removeEventListener("resize",resize);
+      },[]);
+      useEffect(()=>{ if(zoom<=100)setPan({x:0,y:0}); },[zoom]);
 
       const m = useMemo(()=>calcMetrics(towers),[towers]);
 
@@ -974,7 +1036,38 @@
         resizing.current={id,corner,sp:p,ow:t.w,oh:t.h,ox:t.x,oy:t.y};
       }
 
+      function onCanvasDown(e) {
+        const background=e.target.dataset.panBg==="true";
+        const canPan=(background&&e.button===0)||(e.shiftKey&&e.button===0)||e.button===1;
+        if(zoom<=100||!canPan)return;
+        e.preventDefault();
+        panning.current={clientX:e.clientX,clientY:e.clientY,start:{...pan}};
+        setSel(null);
+      }
+
+      function changeZoom(next) {
+        setZoom(Math.max(50,Math.min(200,next)));
+      }
+
+      function onWheel(e) {
+        if(!e.ctrlKey&&!e.metaKey)return;
+        e.preventDefault();
+        changeZoom(zoom+(e.deltaY<0?10:-10));
+      }
+
       const onMove=useCallback(e=>{
+        if(panning.current&&svgRef.current){
+          const r=svgRef.current.getBoundingClientRect();
+          const viewW=640/(zoom/100),viewH=440/(zoom/100);
+          const dx=(e.clientX-panning.current.clientX)*viewW/r.width;
+          const dy=(e.clientY-panning.current.clientY)*viewH/r.height;
+          const limitX=(640-viewW)/2,limitY=(440-viewH)/2;
+          setPan({
+            x:Math.max(-limitX,Math.min(limitX,panning.current.start.x-dx)),
+            y:Math.max(-limitY,Math.min(limitY,panning.current.start.y-dy)),
+          });
+          return;
+        }
         if(dragging.current){
           const{id,ox,oy}=dragging.current; const p=svgPt(e);
           setTowers(prev=>prev.map(t=>t.id===id?{...t,x:p.x-ox,y:p.y-oy}:t));
@@ -993,7 +1086,7 @@
             return{...t,x,y,w,h,units:Math.round(t.units*r),area:Math.round(t.area*r)};
           }));
         }
-      },[]);
+      },[zoom]);
 
       const onUp=useCallback(()=>{
         if(dragging.current){
@@ -1009,6 +1102,7 @@
           dragging.current=null;
         }
         resizing.current=null;
+        panning.current=null;
       },[]);
 
       function attachFile(file) {
@@ -1101,6 +1195,7 @@
           setTowers(newTowers);
           setVersion(newVer);
           setSel(null);
+          setPan({x:0,y:0});
           setTimeout(()=>setTransitioning(false), 180);
         }, 200);
       }
@@ -1116,6 +1211,10 @@
 
       function adjustTower(id) {
         setTowers(prev=>prev.map(t=>t.id===id?scaleTower(t,0.8):t));
+      }
+
+      function saveTower(updated) {
+        setTowers(prev=>prev.map(t=>t.id===updated.id?updated:t));
       }
 
       function removeTower(id) {
@@ -1159,19 +1258,20 @@
         const screen=p.matrixTransform(svg.getScreenCTM());
         let px=screen.x-cr.left+12;
         let py=screen.y-cr.top;
-        if(px+190>cr.width){
+        if(px+240>cr.width){
           p.x=t.x;
           const left=p.matrixTransform(svg.getScreenCTM());
-          px=left.x-cr.left-200;
+          px=left.x-cr.left-245;
         }
-        if(py+220>cr.height)py=cr.height-224;
+        if(py+270>cr.height)py=cr.height-274;
         return{px:Math.max(4,px),py:Math.max(52,py)};
       }
 
       const selTower=towers.find(t=>t.id===sel);
       const zoomFactor=zoom/100;
       const viewW=640/zoomFactor,viewH=440/zoomFactor;
-      const canvasViewBox=`${(640-viewW)/2} ${(440-viewH)/2} ${viewW} ${viewH}`;
+      const canvasViewBox=`${(640-viewW)/2+pan.x} ${(440-viewH)/2+pan.y} ${viewW} ${viewH}`;
+      const compact=viewportWidth<820;
       const ib={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,color:C.gray2,width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0};
 
       return (
@@ -1184,13 +1284,13 @@
               <ArqgenLogo height={20}/>
               <span style={{background:C.purple,color:"#fff",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:20,letterSpacing:"0.04em",lineHeight:1,flexShrink:0}}>Next</span>
             </div>
-            <div style={{flex:1,textAlign:"center",fontSize:12,color:C.gray,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>
+            <div style={{flex:1,textAlign:"center",fontSize:12,color:C.gray,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0,display:compact?"none":"block"}}>
               {mode==="active"?"Estudo · Lote Brooklin 847m²":""}
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-              {mode==="active"&&<button onClick={enterPresentation} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"1px solid rgba(255,255,255,0.12)",color:C.gray2,borderRadius:6,padding:"4px 11px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}><Icon.Present s={12}/> Apresentar</button>}
+              {mode==="active"&&<button onClick={enterPresentation} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"1px solid rgba(255,255,255,0.12)",color:C.gray2,borderRadius:6,padding:"4px 11px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}><Icon.Present s={12}/>{!compact&&" Apresentar"}</button>}
               {mode==="active"&&<button onClick={()=>setExportOpen(true)} style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>}
-              <div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#564FFF,#01AD6E)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>S</div>
+              {!compact&&<div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#564FFF,#01AD6E)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>S</div>}
             </div>
           </div>}
 
@@ -1200,7 +1300,7 @@
             {/* CANVAS (always mounted, visible only in active mode) */}
             <div data-canvas style={{position:"absolute",inset:0,background:C.ink2,cursor:"crosshair",opacity:mode==="active"?1:0,transition:"opacity 0.6s ease 0.2s",pointerEvents:mode==="active"?"auto":"none"}}>
               {/* canvas controls */}
-              {!presenting && <div style={{position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",padding:"0 14px",gap:10}}>
+              {!presenting && <div style={{position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",padding:"0 14px",gap:10,overflowX:"auto",overflowY:"hidden"}}>
                 <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <div style={{width:6,height:6,borderRadius:"50%",background:C.green,flexShrink:0}}/>
                   <select value={version} onChange={e=>switchVersion(e.target.value)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:C.gray2,fontFamily:"'Inter',sans-serif",fontSize:12,borderRadius:5,padding:"2px 6px",cursor:"pointer",outline:"none"}}>
@@ -1213,10 +1313,10 @@
                 >
                   <Icon.Plus s={11} c={towers.length>=6?C.gray:C.green2}/> Torre
                 </button>
-                <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6}}>
-                  <button onClick={()=>setZoom(z=>Math.max(50,z-10))} style={ib}><Icon.ZoomOut/></button>
-                  <button onClick={()=>setZoom(100)} title="Restaurar zoom" style={{background:"none",border:"none",fontSize:11,color:C.gray,minWidth:38,textAlign:"center",cursor:"pointer"}}>{zoom}%</button>
-                  <button onClick={()=>setZoom(z=>Math.min(200,z+10))} style={ib}><Icon.ZoomIn/></button>
+                <div style={{flex:1,display:"flex",justifyContent:"center",alignItems:"center",gap:6,minWidth:118}}>
+                  <button onClick={()=>changeZoom(zoom-10)} style={ib}><Icon.ZoomOut/></button>
+                  <button onClick={()=>{setZoom(100);setPan({x:0,y:0});}} title="Restaurar zoom" style={{background:"none",border:"none",fontSize:11,color:C.gray,minWidth:38,textAlign:"center",cursor:"pointer"}}>{zoom}%</button>
+                  <button onClick={()=>changeZoom(zoom+10)} style={ib}><Icon.ZoomIn/></button>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                   {/* Recuos toggle — 1.1 */}
@@ -1228,7 +1328,7 @@
                   <div style={{display:"flex",background:"rgba(255,255,255,0.05)",borderRadius:6,overflow:"hidden"}}>
                     {["2D","3D"].map(v=><button key={v} onClick={()=>setView(v)} style={{background:view===v?C.green:"transparent",border:"none",color:view===v?"#fff":C.gray,fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:600,padding:"4px 11px",cursor:"pointer",transition:"all 0.15s ease"}}>{v}</button>)}
                   </div>
-                  <button onClick={()=>setComparing(true)} style={{background:comparing?"rgba(86,79,255,0.15)":"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap",transition:"background 0.15s ease"}}>Comparar versões</button>
+                  <button onClick={()=>setComparing(true)} style={{background:comparing?"rgba(86,79,255,0.15)":"none",border:`1px solid ${C.purple}`,color:C.purple,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif",whiteSpace:"nowrap",transition:"background 0.15s ease"}}>{compact?"Comparar":"Comparar versões"}</button>
                 </div>
               </div>}
 
@@ -1237,7 +1337,8 @@
               {presenting && <PresentationHUD m={m} towerCount={towers.length} version={version} onExit={exitPresentation}/>}
 
               {/* SVG */}
-              <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease"}}
+              <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease",cursor:panning.current?"grabbing":zoom>100?"grab":"crosshair"}}
+                onMouseDown={onCanvasDown} onWheel={onWheel}
                 onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
                 onClick={()=>{if(!dragging.current)setSel(null);}}
               >
@@ -1246,7 +1347,7 @@
                     <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
                   </pattern>
                 </defs>
-                <rect width="640" height="440" fill="url(#g)"/>
+                <rect data-pan-bg="true" x="-320" y="-220" width="1280" height="880" fill="url(#g)"/>
                 <polygon points={TERRAIN} fill="rgba(1,173,110,0.055)" stroke="rgba(1,173,110,0.38)" strokeWidth="1.5" strokeDasharray="6,4"/>
                 <text x="315" y="232" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">847 m²</text>
                 <text x="602" y="70" textAnchor="middle" fill={C.gray} fontSize="11" fontFamily="'Inter',sans-serif" opacity="0.7">N ↑</text>
@@ -1298,7 +1399,7 @@
                 {view==="2D" && selTower && <DistanceRuler tower={selTower} towers={towers}/>}
               </svg>
 
-              {!presenting&&selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)} onAdjust={()=>adjustTower(selTower.id)} onRemove={()=>removeTower(selTower.id)}/>; })()}
+              {!presenting&&selTower&&(()=>{ const{px,py}=panelPos(selTower); return <TowerPanel tower={selTower} px={px} py={py} onClose={()=>setSel(null)} onSave={saveTower} onAdjust={()=>adjustTower(selTower.id)} onRemove={()=>removeTower(selTower.id)}/>; })()}
 
               {/* floating chat */}
               {!presenting && <ChatPanel msgs={msgs} typing={typing} input={input} setInput={setInput}
