@@ -2303,6 +2303,33 @@
         }
       },[zoom,pan,towers,showSetbacks]);
 
+      const onUp=useCallback(()=>{
+        if(dragging.current){
+          const{id,orig,tower,latest=orig,historyPushed}=dragging.current;
+          if(!rectInPoly(latest.x,latest.y,tower.w,tower.h,TERRAIN)){
+            setShakeId(id); setTimeout(()=>setShakeId(null),400);
+            if(historyPushed)towerHistoryRef.current=towerHistoryRef.current.slice(0,-1);
+            setTowers(prev=>prev.map(t=>t.id===id?{...t,x:orig.x,y:orig.y}:t));
+          } else if(showSetbacksRef.current&&!(pip(latest.x,latest.y,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y,INSET_TERRAIN)&&pip(latest.x,latest.y+tower.h,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y+tower.h,INSET_TERRAIN))){
+            const sn=nudgeInsidePoly(latest.x,latest.y,tower.w,tower.h,INSET_TERRAIN);
+            setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:sn.x,y:sn.y},t):t));
+          }
+          dragging.current=null;
+        }
+        resizing.current=null;
+        panning.current=null;
+        setLiveId(null);
+      },[]);
+
+      function attachFile(file) {
+        const ext=(file.name.split(".").pop()||"file").toLowerCase();
+        const bytes=isRenderableNumber(file.size,1024*1024*1024)?file.size:0;
+        const size=bytes<1024*1024
+          ? `${Math.max(1,Math.round(bytes/1024))} KB`
+          : safeValue(bytes/(1024*1024),{digits:1,suffix:" MB",max:1024});
+        setAttachedFile({name:file.name,ext,size,meta:"Arquivo do projeto"});
+      }
+
       function contextualReply(text,tower,currentTowers) {
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
         const lower=text.toLowerCase();
