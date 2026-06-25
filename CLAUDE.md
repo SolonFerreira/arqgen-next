@@ -12,8 +12,8 @@ Contexto para continuar o desenvolvimento deste protótipo em uma nova conversa.
 
 **Repo:** `https://github.com/SolonFerreira/arqgen-next` (privado)
 **Como rodar:** `python3 -m http.server 8080` na pasta do projeto → abrir `http://localhost:8080`
-**Deploy:** GitHub Pages via `.github/workflows/pages.yml`, publicado automaticamente após push na `main`
-**URL esperada:** `https://solonferreira.github.io/arqgen-next/`
+**Deploy:** espelho público estático no repositório `SolonFerreira/arqgen-next-demo`
+**URL:** `https://solonferreira.github.io/arqgen-next-demo/`
 
 ---
 
