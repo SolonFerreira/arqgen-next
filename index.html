@@ -984,17 +984,18 @@
     }
 
     /* ── ComparePanel — 2.2 ──────────────────────────────────── */
-    function compareRec(verL, mL, verR, mR) {
+    function compareRec(verL, mL, verR, mR, lim) {
       if (!mL?.valid || !mR?.valid) return null;
+      const caLim=lim?.ca??CA_LIMIT, caWarn=Math.max(caLim*0.83,caLim-2);
       const du = mR.units - mL.units;
       const nameL = scenarioName(verL), nameR = scenarioName(verR);
-      const riskR = mR.ca >= CA_LIMIT, riskL = mL.ca >= CA_LIMIT;
-      const highR = mR.ca >= 10, highL = mL.ca >= 10;
+      const riskR = mR.ca >= caLim, riskL = mL.ca >= caLim;
+      const highR = mR.ca >= caWarn, highL = mL.ca >= caWarn;
       const pct = (a,b) => `${Math.round(Math.abs(a-b)/Math.max(Math.min(a,b),1)*100)}%`;
       if(Math.abs(du)<=2&&Math.abs(mR.ca-mL.ca)<=0.2) return {text:`Configurações equivalentes em unidades e CA. Diferença principal é a distribuição das torres no lote.`,rec:null};
       if(du>5){
         if(riskR&&!riskL) return {text:`${nameR} gera ${du} unidades a mais (+${pct(mR.units,mL.units)}), mas CA ${safeValue(mR.ca,{digits:1})} excede o limite informado. Avançar com ${nameR} exige revisão regulatória.`,rec:verL,label:`Menor risco · ${nameL}`};
-        if(highR&&!highL) return {text:`${nameR} gera ${du} unidades a mais (+${pct(mR.units,mL.units)}), com CA ${safeValue(mR.ca,{digits:1})} próximo ao limite. ${nameL} preserva margem de ${safeValue(CA_LIMIT-mL.ca,{digits:1})}.`,rec:null};
+        if(highR&&!highL) return {text:`${nameR} gera ${du} unidades a mais (+${pct(mR.units,mL.units)}), com CA ${safeValue(mR.ca,{digits:1})} próximo ao limite. ${nameL} preserva margem de ${safeValue(caLim-mL.ca,{digits:1})}.`,rec:null};
         return {text:`${nameR} produz ${du} unidades a mais (+${pct(mR.units,mL.units)}) e CA ${safeValue(mR.ca,{digits:1})} dentro dos parâmetros.`,rec:verR,label:`Mais unidades · ${nameR}`};
       }
       if(du<-5){
@@ -1009,7 +1010,7 @@
 
     const PENDING_ITEMS=["Conferir legislação urbanística","Validar viabilidade econômica","Revisar setores de recuo","Confirmar disponibilidade de vagas"];
 
-    function ComparePanel({versions, currentVersion, onClose, onSwitch}) {
+    function ComparePanel({versions, currentVersion, onClose, onSwitch, limits}) {
       const VERS = ["Versão 01","Versão 02","Versão 03"];
       const [left,  setLeft]  = useState(currentVersion);
       const [right, setRight] = useState(VERS.find(v=>v!==currentVersion)||"Versão 02");
@@ -1109,7 +1110,7 @@
                 );
               })}
             </div>
-            {!deciding&&(()=>{const rec=compareRec(left,mL,right,mR);if(!rec)return null;return(
+            {!deciding&&(()=>{const rec=compareRec(left,mL,right,mR,limits);if(!rec)return null;return(
               <div style={{marginTop:10,background:"rgba(86,79,255,0.08)",border:"1px solid rgba(86,79,255,0.22)",borderRadius:8,padding:"10px 14px"}}>
                 <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
                   <span style={{color:C.purple,fontSize:12,fontFamily:"'Sora',sans-serif",fontWeight:700,flexShrink:0,lineHeight:1.4}}>→</span>
@@ -2102,6 +2103,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                   setMsgs(prev=>[...prev,{id:`decide-${Date.now()}`,role:"copilot-context",time:now,
                     text:`Decisão registrada: ${scenarioName(v)} · ${newM.valid?safeValue(newM.units)+" un · CA "+safeValue(newM.ca,{digits:1}):"indicadores calculados"}${reasonPart}.${pendingPart}`}]);
                 }}
+                limits={limits}
               />}
             </div>
 
