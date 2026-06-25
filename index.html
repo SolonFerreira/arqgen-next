@@ -1035,7 +1035,8 @@
               <g key={t.id}>
                 <rect x={t.x+3} y={t.y+5} width={t.w} height={t.h} rx={4} fill="rgba(0,0,0,0.3)" style={{filter:"blur(4px)"}}/>
                 <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={4} fill="#2d3748" stroke="#526171" strokeWidth={1.5}/>
-                <text x={t.x+t.w/2} y={t.y+t.h/2+5} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="bold" fontFamily="'Sora',sans-serif">{t.id}</text>
+                <text x={t.x+t.w/2} y={t.y+t.h/2+(t.h>32?-1:4)} textAnchor="middle" fill="#fff" fontSize={13} fontWeight="bold" fontFamily="'Sora',sans-serif">{t.id}</text>
+                {t.h>32&&<text x={t.x+t.w/2} y={t.y+t.h/2+12} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={8} fontFamily="'Inter',sans-serif">{safeValue(t.floors)}p</text>}
               </g>
             ))}
           </svg>
