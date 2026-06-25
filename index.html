@@ -538,8 +538,11 @@
       const prevIds=useRef(activeIds);
       useEffect(()=>{
         if(prevIds.current!==activeIds){
+          const newIds=activeInsights.map(i=>i.id).filter(id=>!prevIds.current.includes(id));
+          const newWarnings=activeInsights.filter(i=>newIds.includes(i.id)&&i.type==="warning");
           setDismissed(prev=>prev.filter(id=>activeInsights.some(i=>i.id===id)));
           prevIds.current=activeIds;
+          if(newWarnings.length>0)setVisible(true);
         }
       },[activeIds]);
       useEffect(()=>{const timer=setTimeout(()=>setVisible(true),1800);return()=>clearTimeout(timer);},[]);
