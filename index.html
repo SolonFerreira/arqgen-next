@@ -1518,16 +1518,18 @@
         const now=Date.now();
         if(now-lastCaAlertRef.current<25000)return; // 25s cooldown between alerts
         const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-        if(prev<CA_LIMIT&&m.ca>=CA_LIMIT){
+        const caLim=limits.ca;
+        const caWarnThresh=Math.max(caLim*0.83,caLim-2);
+        if(prev<caLim&&m.ca>=caLim){
           lastCaAlertRef.current=now;
           setMsgs(prev2=>[...prev2,{id:`ca-exc-${now}`,role:"copilot-context",time:nowStr,
-            text:`CA excedeu ${CA_LIMIT} — ${safeValue(m.ca,{digits:1})} calculado. Revisar configuração antes de avançar.`}]);
-        } else if(prev<10&&m.ca>=10){
+            text:`CA excedeu ${caLim} — ${safeValue(m.ca,{digits:1})} calculado. Revisar configuração antes de avançar.`}]);
+        } else if(prev<caWarnThresh&&m.ca>=caWarnThresh){
           lastCaAlertRef.current=now;
           setMsgs(prev2=>[...prev2,{id:`ca-warn-${now}`,role:"copilot-context",time:nowStr,
-            text:`CA em ${safeValue(m.ca,{digits:1})} / ${CA_LIMIT} — margem de ${safeValue(CA_LIMIT-m.ca,{digits:1})} restante. Legislação não validada.`}]);
+            text:`CA em ${safeValue(m.ca,{digits:1})} / ${caLim} — margem de ${safeValue(caLim-m.ca,{digits:1})} restante. Legislação não validada.`}]);
         }
-      },[m?.ca,mode]);
+      },[m?.ca,mode,limits.ca]);
 
       // Undo history (push-before-mutate approach)
       const towerHistoryRef=useRef([sanitizeTowers(INIT_TOWERS)]);
@@ -2089,7 +2091,12 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
 
             {/* CONTEXT SIDE PANEL */}
             {mode==="active"&&!presenting&&!comparing&&(
-              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} onSetLimits={setLimits}/>
+              <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} onSetLimits={newLim=>{
+                  setLimits(newLim);
+                  const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+                  setMsgs(prev=>[...prev,{id:`limits-${Date.now()}`,role:"copilot-context",time:nowStr,
+                    text:`Premissas atualizadas: CA máx ${newLim.ca} · TO máx ${newLim.to}%. Status e barras recalculados. Confirmar com legislação local antes de avançar.`}]);
+                }}/>
             )}
 
             {/* IDLE SCREEN */}
