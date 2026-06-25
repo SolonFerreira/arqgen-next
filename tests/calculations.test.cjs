@@ -125,6 +125,15 @@ test("posição flutuante permanece acessível dentro da viewport",()=>{
     clampFloatingPosition({x:NaN,y:Infinity},{width:200,height:100},{width:800,height:600}),
     {x:8,y:8}
   );
+  assert.deepEqual(
+    clampFloatingPosition(
+      {x:40,y:8},
+      {width:320,height:500},
+      {width:1000,height:700},
+      {top:56,right:8,bottom:8,left:8}
+    ),
+    {x:40,y:56}
+  );
 });
 
 test("funções de transformação não mutam o estado recebido",()=>{

@@ -173,16 +173,21 @@
   }
 
   function clampFloatingPosition(position,panelSize,viewportSize,margin=8){
-    const gap=Math.max(0,finite(margin,8));
+    const fallbackGap=Math.max(0,finite(margin,8));
+    const margins=margin&&typeof margin==="object"?margin:{};
+    const left=Math.max(0,finite(margins.left,fallbackGap));
+    const right=Math.max(0,finite(margins.right,fallbackGap));
+    const top=Math.max(0,finite(margins.top,fallbackGap));
+    const bottom=Math.max(0,finite(margins.bottom,fallbackGap));
     const width=Math.max(0,finite(panelSize?.width));
     const height=Math.max(0,finite(panelSize?.height));
     const viewportWidth=Math.max(0,finite(viewportSize?.width));
     const viewportHeight=Math.max(0,finite(viewportSize?.height));
-    const maxX=Math.max(gap,viewportWidth-width-gap);
-    const maxY=Math.max(gap,viewportHeight-height-gap);
+    const maxX=Math.max(left,viewportWidth-width-right);
+    const maxY=Math.max(top,viewportHeight-height-bottom);
     return {
-      x:clamp(position?.x,gap,maxX,gap),
-      y:clamp(position?.y,gap,maxY,gap),
+      x:clamp(position?.x,left,maxX,left),
+      y:clamp(position?.y,top,maxY,top),
     };
   }
 

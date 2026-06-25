@@ -154,7 +154,25 @@ Detalhes em `IMPLEMENTATION_REVIEW.md`.
 
 **Evidência:** painel e ícone minimizado permaneciam presos ao canto inferior direito e podiam bloquear a área investigada.
 
-**Resultado:** os três estados podem ser arrastados por toda a viewport, preservando posição e permanecendo dentro dos limites visíveis. Detalhes no ciclo 18 de `IMPLEMENTATION_REVIEW.md`.
+**Resultado:** o ciclo 18 introduziu o comportamento, mas a validação real revelou perda do gesto durante rerenders. O ciclo 19 transferiu o acompanhamento para eventos globais da janela; os três estados preservam posição e permanecem dentro dos limites visíveis.
+
+### Concluído — Indicador de norte estável
+
+**Evidência:** o símbolo estava dentro do SVG transformado pelo zoom, crescia junto com o canvas e sobrepunha a letra `N` com a própria haste.
+
+**Resultado:** o ciclo 19 retirou o símbolo do SVG transformável, mas a validação visual ainda mostrou leitura ruim. O ciclo 20 o substituiu por uma rosa dos ventos compacta com `N/S/L/O` e agulhas separadas das letras.
+
+### Concluído — Foco contínuo no chat
+
+**Evidência:** ao digitar, cada atualização de `input` recriava o componente local `InputBar`, desmontava o `<textarea>` e removia seu foco.
+
+**Resultado:** no ciclo 20, cabeçalho e barra de entrada passaram a ser renderizados como subárvores estáveis do `ChatPanel`; a digitação não recria mais o campo.
+
+### Concluído — Copilot acessível após expansão
+
+**Evidência:** depois de reposicionado, o Copilot podia ser expandido com o cabeçalho sob a topbar, que usava uma camada superior. Isso impedia minimizar ou mover o painel novamente.
+
+**Resultado:** no ciclo 21, o painel passou a respeitar uma área segura abaixo da topbar, recalcular sua posição a cada mudança de tamanho, limitar a altura ao espaço disponível e permanecer acima da navegação principal.
 
 ### Concluído — Snapping magnético durante drag
 

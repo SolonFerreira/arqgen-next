@@ -182,6 +182,8 @@ presenting   // bool — modo apresentação/fullscreen ativo
 - [x] Estados de avaliação sem falsa declaração de viabilidade
 - [x] Estratégias nomeadas como identidade principal dos cenários
 - [x] Copilot arrastável em todos os estados, inclusive minimizado
+- [x] Copilot preserva cabeçalho acessível ao mudar de tamanho
+- [x] Rosa dos ventos fixa na viewport, independente de zoom e pan
 
 ---
 

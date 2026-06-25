@@ -772,3 +772,133 @@ O Copilot permanecia fixo no canto inferior direito e podia cobrir exatamente a 
 ### Recomendação para o próximo ciclo
 
 Validar visualmente em navegador quando a superfície estiver disponível, especialmente drag por toque, transição mini → completo e convivência com o painel lateral.
+
+## Ciclo 19 — Correção do arraste e indicador de norte
+
+### Problema e prioridade
+
+A validação real pelo usuário mostrou que o arraste documentado no ciclo 18 não funcionava. O cabeçalho do chat era recriado durante o rerender provocado por `setPosition`, interrompendo a captura local do ponteiro. O indicador de norte também estava dentro do SVG transformável: zoom e pan alteravam sua escala, e a haste atravessava a letra `N`.
+
+### Solução implementada
+
+- o início do gesto continua restrito ao cabeçalho ou ao botão minimizado;
+- movimento, término e cancelamento agora são acompanhados por listeners globais de `pointermove`, `pointerup` e `pointercancel`;
+- o arraste não depende mais de `setPointerCapture` em um elemento que pode ser recriado;
+- o limiar de 3 px e a supressão do clique após arraste foram preservados;
+- o indicador de norte saiu do SVG do terreno;
+- uma sobreposição fixa de 44 px mantém escala constante e separa visualmente o `N`, a seta e a haste.
+
+### Arquivos alterados
+
+- `index.html`;
+- `CLAUDE.md`;
+- `reviews/IMPLEMENTATION_REVIEW.md`;
+- `reviews/NEXT_OPPORTUNITIES.md`.
+
+### Verificações
+
+- `npm test`: 12 testes aprovados;
+- `git diff --check`: aprovado;
+- JSX compilado e JavaScript parseado com Babel Standalone 8.0.2: 194.628 bytes sem erro;
+- inspeção estática confirmou que o indicador antigo foi removido do SVG transformável.
+
+### Limitações e riscos
+
+- a superfície de navegador integrada continuou indisponível para reproduzir o gesto automaticamente;
+- a posição continua apenas em memória e é reiniciada ao recarregar a página;
+- a validação final de sensação do arraste em mouse e toque ainda depende de uso no navegador real.
+
+### Recomendação para o próximo ciclo
+
+Validar o arraste no navegador real nos estados minimizado, médio e completo antes de selecionar uma nova melhoria.
+
+## Ciclo 20 — Foco contínuo no chat e rosa dos ventos
+
+### Problema e prioridade
+
+A validação real revelou duas regressões de uso imediato. O campo do chat perdia foco após cada caractere, impedindo a conversa contínua. O indicador de orientação continuava visualmente ambíguo, com leitura semelhante à haste atravessando o `N`.
+
+### Causa raiz
+
+`Header` e `InputBar` eram componentes definidos dentro de `ChatPanel`. Cada mudança no estado `input` recriava a identidade de `InputBar`; o React desmontava e montava novamente o `<textarea>`, removendo o foco. No indicador, a solução de norte único ainda concentrava letra, seta e haste no mesmo eixo.
+
+### Solução implementada
+
+- `Header` e `InputBar` deixaram de ser componentes locais instáveis;
+- suas subárvores agora são renderizadas diretamente por `renderHeader()` e `renderInputBar()`;
+- o mesmo `<textarea>` permanece montado enquanto o valor controlado muda;
+- o indicador passou a mostrar `N`, `S`, `L` e `O`;
+- as letras ficam nas extremidades e as agulhas ocupam apenas o centro;
+- norte recebe destaque verde, mantendo a hierarquia visual calma.
+
+### Arquivos alterados
+
+- `index.html`;
+- `CLAUDE.md`;
+- `reviews/IMPLEMENTATION_REVIEW.md`;
+- `reviews/NEXT_OPPORTUNITIES.md`.
+
+### Verificações
+
+- `npm test`: 12 testes aprovados;
+- `git diff --check`: aprovado;
+- JSX compilado e JavaScript parseado com Babel Standalone 8.0.2: 195.508 bytes sem erro;
+- busca confirmou a remoção de `<InputBar/>`, `<Header/>` e das declarações locais com identidade de componente.
+
+### Limitações e riscos
+
+- o navegador integrado e o controle local permaneceram indisponíveis para teste automatizado de foco;
+- a validação final do tamanho da rosa dos ventos depende da densidade de pixels e escala do navegador real.
+
+### Recomendação para o próximo ciclo
+
+Recarregar a aplicação e validar digitação contínua, arraste nos três estados e legibilidade da rosa dos ventos antes de iniciar uma nova melhoria.
+
+## Ciclo 21 — Cabeçalho do Copilot sempre acessível
+
+### Problema e prioridade
+
+Ao arrastar o Copilot e depois mudar para o estado completo, o painel podia crescer sob a topbar. Como a topbar usava `z-index: 60` e o chat `z-index: 25`, os controles de minimizar e redimensionar ficavam invisíveis e inacessíveis.
+
+### Princípios constitucionais afetados
+
+- a interface não deve criar becos sem saída;
+- o canvas e o Copilot precisam coexistir sem bloquear o trabalho;
+- controles essenciais devem permanecer previsíveis e acessíveis;
+- mudar de estado não pode retirar controle do usuário.
+
+### Solução implementada
+
+- o clamp de painéis flutuantes passou a aceitar margens independentes por lado;
+- o Copilot usa margem superior de 56 px, preservando a topbar de 48 px mais respiro;
+- a posição é recalculada após mudanças entre minimizado, médio e completo;
+- estados médio e completo limitam a altura a `100vh - 64px`;
+- o Copilot passou para `z-index: 80`, acima da topbar e abaixo de modais;
+- o arraste aplica a mesma área segura em tempo real.
+
+### Arquivos alterados
+
+- `index.html`;
+- `calculations.js`;
+- `tests/calculations.test.cjs`;
+- `CLAUDE.md`;
+- `reviews/IMPLEMENTATION_REVIEW.md`;
+- `reviews/NEXT_OPPORTUNITIES.md`.
+
+### Verificações
+
+- `npm test`: 12 testes aprovados;
+- teste de clamp cobre margem superior assimétrica de 56 px;
+- `git diff --check`: aprovado;
+- JSX compilado e JavaScript parseado com Babel Standalone 8.0.2: 195.658 bytes sem erro;
+- busca confirmou `z-index: 80` e altura segura nos três estados relevantes.
+
+### Limitações e riscos
+
+- o teste visual automatizado continua indisponível nesta sessão;
+- a margem superior assume a topbar atual de 48 px; se sua altura mudar, a constante deve acompanhar;
+- modais continuam corretamente acima do Copilot.
+
+### Recomendação para o próximo ciclo
+
+Validar no navegador a sequência arrastar → expandir → minimizar em posições próximas às quatro bordas.
