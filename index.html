@@ -1840,15 +1840,18 @@
           const oldM=calcMetrics(oldTowers);
           const newM=calcMetrics(newTowers);
           const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+          const decisionNote=decision
+            ?(newVer===decision.strategy?" · Decisão registrada nesta estratégia.":" · Decisão registrada em "+scenarioName(decision.strategy)+".")
+            :"";
           const text=(oldM.valid&&newM.valid)
             ?(()=>{
                 const du=newM.units-oldM.units;
                 const dc=safeValue(Math.abs(newM.ca-oldM.ca),{digits:1});
                 const caDir=newM.ca>oldM.ca?"↑":"↓";
                 const unDir=du>=0?"+":"";
-                return `Estratégia alterada · ${scenarioName(newVer)} · ${safeValue(newM.units)} un (${unDir}${du}) · CA ${safeValue(newM.ca,{digits:1})} ${caDir}${dc} vs ${scenarioName(oldVer)}`;
+                return `Estratégia alterada · ${scenarioName(newVer)} · ${safeValue(newM.units)} un (${unDir}${du}) · CA ${safeValue(newM.ca,{digits:1})} ${caDir}${dc} vs ${scenarioName(oldVer)}${decisionNote}`;
               })()
-            :`Estratégia alterada para ${scenarioName(newVer)}`;
+            :`Estratégia alterada para ${scenarioName(newVer)}${decisionNote}`;
           setMsgs(prev=>[...prev,{id:`switch-${Date.now()}`,role:"copilot-context",time:now,text}]);
         }, 200);
       }
