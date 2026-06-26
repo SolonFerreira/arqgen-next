@@ -3908,6 +3908,8 @@
       const [newKCategory, setNewKCategory] = useState("Premissas");
       const [newKValue, setNewKValue] = useState("");
 
+      const hasUserMsgs = useMemo(() => msgs.some(m => m.role === "user"), [msgs]);
+
       useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, [msgs, typing]);
@@ -4038,13 +4040,13 @@
 
       const suggestionChips = [
         { label: "📈 Fazer estudo de viabilidade", query: "Fazer estudo de viabilidade" },
-        { label: "🔄 Comparar soluções", query: "Comparar soluções" },
+        { label: "🔄 Comparar duas soluções", query: "Comparar duas soluções" },
         { label: "📊 Gerar quantitativos", query: "Gerar quantitativos" },
         { label: "🔌 Converter DWG em RVT", query: "Converter DWG em RVT" },
         { label: "📁 Importar novos arquivos", query: "Importar novos arquivos" },
-        { label: "⚖️ Revisar parâmetros", query: "Revisar parâmetros urbanísticos" },
+        { label: "⚖️ Revisar parâmetros urbanísticos", query: "Revisar parâmetros urbanísticos" },
         { label: "🏗️ Gerar fundações", query: "Gerar fundações" },
-        { label: "📄 Apresentação executiva", query: "Criar apresentação executiva" }
+        { label: "📄 Criar apresentação executiva", query: "Criar apresentação executiva" }
       ];
 
       return (
@@ -4062,7 +4064,7 @@
                 { id: "estudos", label: "Estudos", icon: "📈" },
                 { id: "artefatos", label: "Artefatos", icon: "📊" },
                 { id: "arquivos", label: "Arquivos", icon: "📁" },
-                { id: "historico", label: "Histórico", icon: "🕒" }
+                { id: "historico", label: "Linha do Tempo", icon: "🕒" }
               ].map(item => (
                 <button
                   key={item.id}
@@ -4096,116 +4098,325 @@
             {/* Chat column */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", background: "#0b0d14", position: "relative" }}>
               {/* Header summary */}
-              <div style={{ height: 60, borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(10,13,20,0.8)", backdropFilter: "blur(8px)", zIndex: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: "#fff", fontFamily: "'Sora', sans-serif" }}>🏗️ {enterprise.name}</span>
-                  <span style={{ fontSize: 11, color: C.gray }}>({enterprise.location})</span>
+              <div style={{ height: 50, borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(11,13,20,0.7)", backdropFilter: "blur(12px)", zIndex: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em" }}>{enterprise.name}</span>
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }}></span>
+                  <span style={{ fontSize: 11, color: C.gray2 }}>{enterprise.location.split(",")[0]}</span>
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }}></span>
+                  <span style={{ fontSize: 11, color: C.gray2 }}>{enterprise.area} m²</span>
                 </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <span style={{ fontSize: 11, color: C.gray2, background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: "3px 8px" }}>📐 {enterprise.area} m²</span>
-                  <span style={{ fontSize: 11, color: C.green2, background: "rgba(1,173,110,0.1)", borderRadius: 6, padding: "3px 8px", fontWeight: 600 }}>🕒 Última atividade: Estudo gerado ontem</span>
+                <div>
+                  <span style={{ fontSize: 11, color: C.green2, background: "rgba(1,173,110,0.08)", border: "1px solid rgba(51,224,161,0.15)", borderRadius: 20, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.green2, display: "inline-block" }}></span>
+                    Última atividade: Estudo gerado ontem
+                  </span>
                 </div>
               </div>
 
-              {/* Chat Feed */}
-              <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
-                {msgs.length === 0 ? (
-                  <div style={{ margin: "auto", maxWidth: 500, textAlign: "center", padding: "40px 20px" }}>
-                    <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#564FFF,#01AD6E)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#fff", margin: "0 auto 20px auto", boxShadow: "0 8px 24px rgba(86,79,255,0.25)" }}>🤖</div>
-                    <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Olá, bem-vindo de volta.</h2>
-                    <p style={{ fontSize: 14, color: C.gray2, lineHeight: 1.5, marginBottom: 24 }}>Já conheço este empreendimento. Tenho a implantação de massa na versão v1 ativa. Como posso ajudar você hoje?</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, padding: "16px", textAlign: "left" }}>
-                      <span style={{ fontSize: 10, color: C.gray, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4, display: "block" }}>Resumo da Memória</span>
-                      <span style={{ fontSize: 12, color: C.gray2 }}>📁 **2 arquivos** topográficos/urbanísticos importados.</span>
-                      <span style={{ fontSize: 12, color: C.gray2 }}>📈 **1 estudo de viabilidade** residencial cadastrado.</span>
-                      <span style={{ fontSize: 12, color: C.gray2 }}>📊 **1 planilha de quantitativos** gerada de forma preliminar.</span>
+              {/* Chat Body Area */}
+              {!hasUserMsgs ? (
+                <div style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "40px 24px",
+                  maxWidth: 680,
+                  width: "100%",
+                  margin: "0 auto",
+                  animation: "fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+                }}>
+                  {/* Glowing AI Ring Avatar */}
+                  <div style={{ position: "relative", marginBottom: 24 }}>
+                    <div style={{
+                      position: "absolute",
+                      top: -6, left: -6, right: -6, bottom: -6,
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #564FFF, #01AD6E)",
+                      filter: "blur(8px)",
+                      opacity: 0.5,
+                      animation: "logoBreathe 3s ease-in-out infinite"
+                    }}></div>
+                    <div style={{
+                      width: 60, height: 60,
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #1b2030, #0a0d14)",
+                      border: "1.5px solid rgba(255,255,255,0.15)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 26, color: "#fff",
+                      zIndex: 2, position: "relative",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.3)"
+                    }}>
+                      ✨
                     </div>
                   </div>
-                ) : (
-                  msgs.map(m => (
-                    <div key={m.id} style={{ display: "flex", flexDirection: "column", alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "75%", gap: 6 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: m.role === "user" ? "flex-end" : "flex-start" }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: m.role === "user" ? C.green2 : C.gray }}>{m.role === "user" ? "Você" : "Teodora"}</span>
-                        <span style={{ fontSize: 9, color: C.gray }}>{m.time}</span>
-                      </div>
-                      <div style={{
-                        background: m.role === "user" ? "rgba(1, 173, 110, 0.12)" : "rgba(22, 28, 38, 0.6)",
-                        border: `1px solid ${m.role === "user" ? "rgba(51, 224, 161, 0.25)" : "rgba(255,255,255,0.08)"}`,
-                        borderRadius: m.role === "user" ? "12px 12px 0 12px" : "12px 12px 12px 0",
-                        padding: "12px 16px", fontSize: 13, color: "#eceef4", lineHeight: 1.5, whiteSpace: "pre-wrap"
-                      }}>
-                        {m.text}
 
-                        {/* Custom actions buttons inside bubbles */}
-                        {m.actions && (
-                          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                            {m.actions.map((act, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => {
-                                  if (act.type === "open_canvas") onOpenStudy(act.studyId, act.verId);
-                                  else if (act.type === "open_quantities") onOpenQuantities(act.studyId, act.verId);
-                                  else if (act.type === "open_drawer") setActiveDrawer(act.drawer);
-                                  else if (act.type === "download_report") handleDownloadReport();
-                                }}
-                                style={{
-                                  background: "rgba(1, 173, 110, 0.2)", border: "1px solid rgba(51, 224, 161, 0.4)",
-                                  borderRadius: 6, color: C.green2, fontFamily: "'Inter', sans-serif", fontSize: 11,
-                                  fontWeight: 600, padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4
-                                }}
-                              >
-                                {act.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                  {/* Greeting */}
+                  <h1 style={{
+                    fontFamily: "'Sora', sans-serif",
+                    fontSize: 26,
+                    fontWeight: 800,
+                    color: "#fff",
+                    textAlign: "center",
+                    lineHeight: 1.35,
+                    marginBottom: 20,
+                    letterSpacing: "-0.01em",
+                    background: "linear-gradient(to right, #ffffff, #b4c6e7)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent"
+                  }}>
+                    Bom dia.<br />
+                    Já conheço este empreendimento.<br />
+                    O que você gostaria de fazer hoje?
+                  </h1>
+
+                  {/* Context Memory Pills */}
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12,
+                    width: "100%",
+                    marginBottom: 32
+                  }}>
+                    <div style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
+                    }}>
+                      <span style={{ fontSize: 18 }}>📈</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Já existe um estudo residencial</div>
+                        <div style={{ fontSize: 10, color: C.gray }}>Criado ontem na versão v1</div>
                       </div>
                     </div>
-                  ))
-                )}
-                {typing && (
-                  <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 4, background: "rgba(22, 28, 38, 0.4)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: "8px 14px" }}>
-                    <span style={{ fontSize: 11, color: C.gray }}>Teodora digitando...</span>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
 
-              {/* Chat Input Area */}
-              <div style={{ padding: "20px 24px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(10,13,20,0.9)" }}>
-                <div style={{ display: "flex", gap: 10, position: "relative", marginBottom: 12 }}>
-                  <input
-                    value={localInput}
-                    onChange={e => setLocalInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
-                    placeholder="Descreva o que deseja fazer..."
-                    style={{
-                      flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 10, padding: "12px 16px", color: "#fff", fontSize: 13, outline: "none",
-                      boxShadow: "inset 0 1px 3px rgba(0,0,0,0.2)", transition: "all 0.2s ease"
-                    }}
-                  />
-                  <button onClick={() => handleSend()} style={{ background: C.green, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, padding: "0 20px", cursor: "pointer", fontSize: 13 }}>Enviar</button>
-                </div>
-                {/* Suggestions chips */}
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "auto" }}>
-                  {suggestionChips.map((chip, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleSend(chip.query)}
+                    <div style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
+                    }}>
+                      <span style={{ fontSize: 18 }}>📁</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Há dois arquivos DWG importados</div>
+                        <div style={{ fontSize: 10, color: C.gray }}>Topografia e Legislação ativas</div>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
+                    }}>
+                      <span style={{ fontSize: 18 }}>📊</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Existe um quantitativo gerado</div>
+                        <div style={{ fontSize: 10, color: C.gray }}>Planilha executiva de áreas</div>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
+                    }}>
+                      <span style={{ fontSize: 18 }}>💰</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Ainda não existe orçamento</div>
+                        <div style={{ fontSize: 10, color: C.gray }}>Aguardando sondagem geológica</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Centered Large Chat Input */}
+                  <div style={{
+                    width: "100%",
+                    display: "flex",
+                    gap: 10,
+                    position: "relative",
+                    marginBottom: 24,
+                    background: "rgba(255,255,255,0.02)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 16,
+                    padding: 6,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                    backdropFilter: "blur(8px)"
+                  }}>
+                    <input
+                      value={localInput}
+                      onChange={e => setLocalInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+                      placeholder="Descreva o que deseja fazer..."
                       style={{
-                        background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
-                        borderRadius: 20, padding: "4px 10px", color: C.gray2, fontSize: 11, cursor: "pointer",
-                        whiteSpace: "nowrap", transition: "all 0.15s ease"
+                        flex: 1,
+                        background: "transparent",
+                        border: "none",
+                        padding: "12px 16px",
+                        color: "#fff",
+                        fontSize: 14,
+                        outline: "none"
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
+                    />
+                    <button
+                      onClick={() => handleSend()}
+                      style={{
+                        background: "linear-gradient(135deg, #01AD6E, #33E0A1)",
+                        border: "none",
+                        borderRadius: 12,
+                        color: "#11151d",
+                        fontWeight: 700,
+                        padding: "0 24px",
+                        cursor: "pointer",
+                        fontSize: 13,
+                        transition: "all 0.2s ease"
+                      }}
                     >
-                      {chip.label}
+                      Enviar
                     </button>
-                  ))}
+                  </div>
+
+                  {/* Suggestions Chips */}
+                  <div style={{ width: "100%" }}>
+                    <div style={{ fontSize: 11, color: C.gray, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12, textAlign: "center" }}>
+                      Sugestões de capacidades da plataforma
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                      {suggestionChips.map((chip, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleSend(chip.query)}
+                          style={{
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: 20,
+                            padding: "6px 14px",
+                            color: C.gray2,
+                            fontSize: 12,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            transition: "all 0.15s ease",
+                            fontFamily: "'Inter', sans-serif"
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "#fff"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = C.gray2; }}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* Chat Feed */}
+                  <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
+                    {msgs.map(m => (
+                      <div key={m.id} style={{ display: "flex", flexDirection: "column", alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "75%", gap: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: m.role === "user" ? "flex-end" : "flex-start" }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: m.role === "user" ? C.green2 : C.gray }}>{m.role === "user" ? "Você" : "Teodora"}</span>
+                          <span style={{ fontSize: 9, color: C.gray }}>{m.time}</span>
+                        </div>
+                        <div style={{
+                          background: m.role === "user" ? "rgba(1, 173, 110, 0.12)" : "rgba(22, 28, 38, 0.6)",
+                          border: `1px solid ${m.role === "user" ? "rgba(51, 224, 161, 0.25)" : "rgba(255,255,255,0.08)"}`,
+                          borderRadius: m.role === "user" ? "12px 12px 0 12px" : "12px 12px 12px 0",
+                          padding: "12px 16px", fontSize: 13, color: "#eceef4", lineHeight: 1.5, whiteSpace: "pre-wrap"
+                        }}>
+                          {m.text}
+
+                          {/* Custom actions buttons inside bubbles */}
+                          {m.actions && (
+                            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                              {m.actions.map((act, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    if (act.type === "open_canvas") onOpenStudy(act.studyId, act.verId);
+                                    else if (act.type === "open_quantities") onOpenQuantities(act.studyId, act.verId);
+                                    else if (act.type === "open_drawer") setActiveDrawer(act.drawer);
+                                    else if (act.type === "download_report") handleDownloadReport();
+                                  }}
+                                  style={{
+                                    background: "rgba(1, 173, 110, 0.2)", border: "1px solid rgba(51, 224, 161, 0.4)",
+                                    borderRadius: 6, color: C.green2, fontFamily: "'Inter', sans-serif", fontSize: 11,
+                                    fontWeight: 600, padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                                  }}
+                                >
+                                  {act.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {typing && (
+                      <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 4, background: "rgba(22, 28, 38, 0.4)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: "8px 14px" }}>
+                        <span style={{ fontSize: 11, color: C.gray }}>Teodora digitando...</span>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Chat Input Area at the bottom */}
+                  <div style={{ padding: "20px 24px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(10,13,20,0.9)" }}>
+                    <div style={{ display: "flex", gap: 10, position: "relative", marginBottom: 12 }}>
+                      <input
+                        value={localInput}
+                        onChange={e => setLocalInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+                        placeholder="Descreva o que deseja fazer..."
+                        style={{
+                          flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 10, padding: "12px 16px", color: "#fff", fontSize: 13, outline: "none",
+                          boxShadow: "inset 0 1px 3px rgba(0,0,0,0.2)", transition: "all 0.2s ease"
+                        }}
+                      />
+                      <button onClick={() => handleSend()} style={{ background: C.green, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, padding: "0 20px", cursor: "pointer", fontSize: 13 }}>Enviar</button>
+                    </div>
+                    {/* Suggestions chips */}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "auto" }}>
+                      {suggestionChips.map((chip, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleSend(chip.query)}
+                          style={{
+                            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: 20, padding: "4px 10px", color: C.gray2, fontSize: 11, cursor: "pointer",
+                            whiteSpace: "nowrap", transition: "all 0.15s ease"
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Sliding explore drawer */}
