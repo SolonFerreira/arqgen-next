@@ -4921,6 +4921,7 @@
       const [zoom,        setZoom]        = useState(100);
       const [pan,         setPan]         = useState({x:0,y:0});
       const [viewportWidth,setViewportWidth]=useState(window.innerWidth);
+      const compact = viewportWidth < 768;
       const [version,     setVersion]     = useState("Versão 01");
       const [view,        setView]        = useState("2D");
       const [msgs,        setMsgs]        = useState([]);
