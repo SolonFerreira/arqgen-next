@@ -7225,55 +7225,6 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                       const shadowOffset = 3 + t.floors * 0.45;
                       const shadowBlur = 4 + t.floors * 0.35;
 
-                      const unitsLayout = [];
-                      if (!isMasses && t.w > 26 && t.h > 26) {
-                        const isHorizontal = t.w >= t.h;
-                        const corridorThickness = 3.5;
-                        const unitW = 13;
-                        if (isHorizontal) {
-                          const numUnits = Math.max(1, Math.floor((t.w - 4) / unitW));
-                          const actualUnitW = (t.w - 4) / numUnits;
-                          const unitH = (t.h - corridorThickness - 4) / 2;
-                          for (let col = 0; col < numUnits; col++) {
-                            const ux = t.x + 2 + col * actualUnitW;
-                            const fillTop = (col % 2 === 0) ? "rgba(248, 250, 252, 0.85)" : "rgba(186, 230, 253, 0.85)";
-                            unitsLayout.push(
-                              <rect key={`ut-${col}`} x={ux} y={t.y + 2} width={actualUnitW} height={unitH} fill={fillTop} stroke="#1e293b" strokeWidth="0.6"/>
-                            );
-                            const fillBottom = ((col + 1) % 2 === 0) ? "rgba(248, 250, 252, 0.85)" : "rgba(186, 230, 253, 0.85)";
-                            unitsLayout.push(
-                              <rect key={`ub-${col}`} x={ux} y={t.y + t.h/2 + corridorThickness/2} width={actualUnitW} height={unitH} fill={fillBottom} stroke="#1e293b" strokeWidth="0.6"/>
-                            );
-                          }
-                          unitsLayout.push(
-                            <line key="corr-line" x1={t.x+2} y1={t.y+t.h/2} x2={t.x+t.w-2} y2={t.y+t.h/2} stroke="#1e293b" strokeWidth="0.8" strokeDasharray="2,2"/>
-                          );
-                        } else {
-                          const numUnits = Math.max(1, Math.floor((t.h - 4) / unitW));
-                          const actualUnitH = (t.h - 4) / numUnits;
-                          const unitWVal = (t.w - corridorThickness - 4) / 2;
-                          for (let row = 0; row < numUnits; row++) {
-                            const uy = t.y + 2 + row * actualUnitH;
-                            const fillLeft = (row % 2 === 0) ? "rgba(248, 250, 252, 0.85)" : "rgba(186, 230, 253, 0.85)";
-                            unitsLayout.push(
-                              <rect key={`ul-${row}`} x={t.x + 2} y={uy} width={unitWVal} height={actualUnitH} fill={fillLeft} stroke="#1e293b" strokeWidth="0.6"/>
-                            );
-                            const fillRight = ((row + 1) % 2 === 0) ? "rgba(248, 250, 252, 0.85)" : "rgba(186, 230, 253, 0.85)";
-                            unitsLayout.push(
-                              <rect key={`ur-${row}`} x={t.x + t.w/2 + corridorThickness/2} y={uy} width={unitWVal} height={actualUnitH} fill={fillRight} stroke="#1e293b" strokeWidth="0.6"/>
-                            );
-                          }
-                          unitsLayout.push(
-                            <line key="corr-line" x1={t.x+t.w/2} y1={t.y+2} x2={t.x+t.w/2} y2={t.y+t.h-2} stroke="#1e293b" strokeWidth="0.8" strokeDasharray="2,2"/>
-                          );
-                        }
-                        if (st === "conflict") {
-                          unitsLayout.push(<rect key="warning-overlay" x={t.x} y={t.y} width={t.w} height={t.h} rx={5} fill="rgba(253, 72, 72, 0.35)" style={{pointerEvents: "none"}} />);
-                        } else if (st === "overlap" || st === "setback") {
-                          unitsLayout.push(<rect key="warning-overlay" x={t.x} y={t.y} width={t.w} height={t.h} rx={5} fill="rgba(245, 158, 11, 0.3)" style={{pointerEvents: "none"}} />);
-                        }
-                      }
-
                       return (
                         <g key={t.id} className={isShk?"shake":isSel?"pulse-t":""}
                           style={{cursor:dragging.current?.id===t.id?"grabbing":"grab"}}
@@ -7286,16 +7237,11 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                           <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={5} fill={fill} stroke={stroke} strokeWidth={sw}
                             style={{filter:isSel?"drop-shadow(0 0 10px rgba(51,224,161,0.45))":isHov?"drop-shadow(0 0 5px rgba(100,140,180,0.2))":"none",transition:"fill 0.15s ease,stroke 0.15s ease,filter 0.15s ease"}}
                           />
-                          {unitsLayout}
-                          {t.w > 16 && t.h > 16 && (
-                            <rect x={t.x+3.5} y={t.y+3.5} width={t.w-7} height={t.h-7} rx={3.5} fill="none" stroke="rgba(255,255,255,0.11)" strokeWidth="0.8" />
+                          {st === "conflict" && (
+                            <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={5} fill="rgba(253, 72, 72, 0.35)" style={{pointerEvents: "none"}} />
                           )}
-                          {t.w > 26 && t.h > 26 && (
-                            <g opacity="0.35">
-                              <rect x={t.x+t.w/2-5} y={t.y+t.h/2-5} width={10} height={10} rx={1.5} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.18)" strokeWidth="0.8" />
-                              <line x1={t.x+t.w/2-5} y1={t.y+t.h/2-5} x2={t.x+t.w/2+5} y2={t.y+t.h/2+5} stroke="rgba(255,255,255,0.18)" strokeWidth="0.8" />
-                              <line x1={t.x+t.w/2+5} y1={t.y+t.h/2-5} x2={t.x+t.w/2-5} y2={t.y+t.h/2+5} stroke="rgba(255,255,255,0.18)" strokeWidth="0.8" />
-                            </g>
+                          {(st === "overlap" || st === "setback") && (
+                            <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={5} fill="rgba(245, 158, 11, 0.3)" style={{pointerEvents: "none"}} />
                           )}
                           <g style={{pointerEvents:"none"}}>
                             <rect x={t.x+t.w/2-10} y={t.y+t.h/2-10-(isSel || (!isSel && !isHov && t.h>32) ? 6 : 0)} width={20} height={20} rx={10} fill="rgba(10,13,20,0.85)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8"/>
