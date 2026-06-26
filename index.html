@@ -6391,6 +6391,10 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
         document.body.appendChild(a);a.click();a.remove();
         setTimeout(()=>URL.revokeObjectURL(url),500);
       }
+      const zoomFactor = zoom / 100;
+      const viewW = 640 / zoomFactor;
+      const viewH = 440 / zoomFactor;
+      const canvasViewBox = `${(640 - viewW) / 2} ${(440 - viewH) / 2} ${viewW} ${viewH}`;
 
       return (
         <div ref={appRef} tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){setSel(null);setExportOpen(false);}}}
