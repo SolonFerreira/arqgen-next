@@ -6395,6 +6395,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
       const viewW = 640 / zoomFactor;
       const viewH = 440 / zoomFactor;
       const canvasViewBox = `${(640 - viewW) / 2} ${(440 - viewH) / 2} ${viewW} ${viewH}`;
+      const canvasTowers = towers;
 
       return (
         <div ref={appRef} tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){setSel(null);setExportOpen(false);}}}
