@@ -7677,22 +7677,22 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                   )}
 
                 </div> {/* Close Right Area container */}
-              </div>
 
-              {/* CONTEXT SIDE PANEL (only for Brooklin) */}
-              {activeEnterpriseId === "brooklin" && mode==="active"&&progressionStage==="ready"&&!presenting&&!comparing&&(
-                <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} decision={decision} decisionStale={decisionStale} decisionLog={decisionLog} onAgentAction={prompt=>{setChatSize("full");sendMessage(prompt);}} onSetLimits={newLim=>{
-                    setLimits(newLim);
-                    recordDecisionEvent(`Premissas alteradas: CA máximo ${newLim.ca} e TO máxima ${newLim.to}%.`);
-                    const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-                    setMsgs(prev=>[...prev,{id:`limits-${Date.now()}`,role:"copilot-context",time:nowStr,
-                      text:`Premissas atualizadas: CA máx ${newLim.ca} · TO máx ${newLim.to}%. Status e barras recalculados. Confirmar com legislação local antes de avançar.`}]);
-                  }}
-                  activeSideTab={activeSideTab}
-                  setActiveSideTab={setActiveSideTab}
-                  onShowToast={setToastText}
-                />
-              )}
+                {/* CONTEXT SIDE PANEL (only for Brooklin) */}
+                {activeEnterpriseId === "brooklin" && mode==="active"&&progressionStage==="ready"&&!presenting&&!comparing&&(
+                  <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} decision={decision} decisionStale={decisionStale} decisionLog={decisionLog} onAgentAction={prompt=>{setChatSize("full");sendMessage(prompt);}} onSetLimits={newLim=>{
+                      setLimits(newLim);
+                      recordDecisionEvent(`Premissas alteradas: CA máximo ${newLim.ca} e TO máxima ${newLim.to}%.`);
+                      const nowStr=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+                      setMsgs(prev=>[...prev,{id:`limits-${Date.now()}`,role:"copilot-context",time:nowStr,
+                        text:`Premissas atualizadas: CA máx ${newLim.ca} · TO máx ${newLim.to}%. Status e barras recalculados. Confirmar com legislação local antes de avançar.`}]);
+                    }}
+                    activeSideTab={activeSideTab}
+                    setActiveSideTab={setActiveSideTab}
+                    onShowToast={setToastText}
+                  />
+                )}
+              </div>
 
               {/* IDLE SCREEN (only for Brooklin) */}
               {activeEnterpriseId === "brooklin" && mode==="idle" && <IdleScreen
