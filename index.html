@@ -4922,6 +4922,7 @@
       const [pan,         setPan]         = useState({x:0,y:0});
       const [viewportWidth,setViewportWidth]=useState(window.innerWidth);
       const compact = viewportWidth < 768;
+      const ib = { background: "none", border: "none", cursor: "pointer", color: C.gray, display: "inline-flex", alignItems: "center", padding: "4px" };
       const [version,     setVersion]     = useState("Versão 01");
       const [view,        setView]        = useState("2D");
       const [msgs,        setMsgs]        = useState([]);
