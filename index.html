@@ -48,6 +48,28 @@
 
     .shake   { animation: shake  300ms ease forwards; }
     .pulse-t { animation: pulseT 200ms ease 1; }
+
+    @keyframes orbBreathe {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(51, 224, 161, 0.4), inset 0 0 10px rgba(86, 79, 255, 0.3); }
+      50% { transform: scale(1.08); box-shadow: 0 0 35px rgba(86, 79, 255, 0.6), inset 0 0 20px rgba(51, 224, 161, 0.5); }
+    }
+    .teodora-orb {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #564fff, #01ad6e);
+      animation: orbBreathe 4s ease-in-out infinite;
+      cursor: pointer;
+      position: relative;
+    }
+    .teodora-orb::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      animation: pulseT 2s infinite;
+    }
   </style>
 </head>
 <body>
@@ -3164,7 +3186,7 @@
     /* ── ChatPanel — 3 estados: mini | medium | full ─────────── */
     function ChatPanel({
       msgs, typing, input, setInput, onSend, size, setSize, attachedFile, onAttachFile, onRemoveFile, onAction, onApplyAlt, sel, attentionSignal, onPromptSubmit,
-      questionStep, onboardingAnswers, handleAnswer
+      questionStep, onboardingAnswers, handleAnswer, embedMode = false
     }) {
       const scrollRef=useRef(null);
       const chatFileRef=useRef(null);
@@ -3192,6 +3214,60 @@
         setShowCustomInput(false);
         setCustomInputVal("");
       }, [questionStep]);
+
+      if (embedMode) {
+        return (
+          <div style={{
+            width: "100%",
+            height: "100%",
+            background: "transparent",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden"
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: "16px 18px 12px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              alignItems: "center",
+              gap: 12
+            }}>
+              <div className="teodora-orb" style={{ width: 22, height: 22 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 700, color: "#fff" }}>Teodora Console</div>
+                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, color: C.gray }}>Sua IA de viabilidade imobiliária</div>
+              </div>
+            </div>
+
+            {/* Message log */}
+            <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "12px 14px 4px" }}>
+              {msgs.map((msg, i) => (
+                <Bubble
+                  key={msg.id || i}
+                  msg={msg}
+                  idx={i}
+                  onAttachFile={onAttachFile}
+                  onAction={onAction}
+                  onApplyAlt={onApplyAlt}
+                  onPromptSubmit={onPromptSubmit}
+                />
+              ))}
+              {typing && (
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ background: "rgba(1,173,110,0.1)", border: "1px solid rgba(51,224,161,0.15)", borderRadius: "2px 12px 12px 12px", display: "inline-block" }}>
+                    <TypingDots />
+                  </div>
+                </div>
+              )}
+              {questionStep >= 1 && questionStep <= 5 && renderOnboardingCard()}
+            </div>
+
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
+            {renderInputBar()}
+          </div>
+        );
+      }
 
       function renderOnboardingCard() {
         const qData = getQuestionData(questionStep, onboardingAnswers);
@@ -5276,12 +5352,35 @@
       );
     }
 
+    function detectTabFromText(text) {
+      const lowercase = (text || "").toLowerCase().trim();
+      if (/^\/(desenho|desenhar|viabilidade|estudo|canvas|3d|2d)/.test(lowercase)) return "desenho";
+      if (/^\/(quantitativos|tabela|orçamento|planilha)/.test(lowercase)) return "quantitativos";
+      if (/^\/(legislação|recuos|lei|zoneamento)/.test(lowercase)) return "legislação";
+      if (/^\/(repositório|arquivos|dados)/.test(lowercase)) return "repositório";
+      if (/^\/(cronologia|histórico|decisões)/.test(lowercase)) return "cronologia";
+      if (/^\/(comparar|comparador|alternativas)/.test(lowercase)) return "comparador";
+      if (/^\/(apresentação|slides|apresentar)/.test(lowercase)) return "apresentação";
+
+      // Natural language fallback (without slash)
+      if (/quantit|quantif|planilha|levantamento|orça|orço/.test(lowercase)) return "quantitativos";
+      if (/comparar|comparador|alternativa/.test(lowercase)) return "comparador";
+      if (/legislação|recuo|lei|zoneamento|regra/.test(lowercase)) return "legislação";
+      if (/repositório|arquivo|anex|upload/.test(lowercase)) return "repositório";
+      if (/cronologia|histórico|decisões|passado/.test(lowercase)) return "cronologia";
+      if (/apresentação|slide|relatório/.test(lowercase)) return "apresentação";
+      if (/desenh|desenho|canvas|3d|2d|torre|bloco/.test(lowercase)) return "desenho";
+
+      return null;
+    }
+
     /* ── Main ─────────────────────────────────────────────────── */
     function ArqgenNext() {
       const [enterprises, setEnterprises] = useState(() => INITIAL_ENTERPRISES);
       const [appMode,     setAppMode]     = useState("home"); // "home"|"dashboard"|"canvas"
       const [activeEnterpriseId, setActiveEnterpriseId] = useState(null);
       const [activeStudyId, setActiveStudyId] = useState(null);
+      const [workspaceTab, setWorkspaceTab] = useState("desenho");
       const [dashboardTab, setDashboardTab] = useState("estudos");
       const [activeQuantitiesState, setActiveQuantitiesState] = useState(null);
 
@@ -5363,10 +5462,42 @@
       const currentTerrainPoints = useMemo(() => {
         return parsePoly(activeEnterprise ? activeEnterprise.terrainPoints : TERRAIN);
       }, [activeEnterprise]);
+      const currentInsetTerrain = useMemo(() => {
+        const n = currentTerrainPoints.length;
+        const dynamicSetbacks = currentTerrainPoints.map((_, i) => {
+          if (i === 0 || i === n - 1) return 5;
+          if (i === 3 || i === 4) return 3;
+          return 1.5;
+        }).map(v => v * M_TO_SVG);
+        return insetPoly(currentTerrainPoints, dynamicSetbacks);
+      }, [currentTerrainPoints]);
 
       const calcMetrics = useCallback((towersList) => {
         return calculateMetrics(towersList, currentLotArea, currentTerrainPoints);
       }, [currentLotArea, currentTerrainPoints]);
+
+      // Auto-initialize active study for non-Brooklin projects to enter GenerativeWorkspace
+      useEffect(() => {
+        if (appMode !== "home" && activeEnterpriseId !== "brooklin" && activeEnterprise) {
+          if (!activeStudyId) {
+            const firstStudy = activeEnterprise.estudos[0];
+            if (firstStudy) {
+              setActiveStudyId(firstStudy.id);
+              setVersion(firstStudy.activeVersionId || "v1");
+              const initialTowers = firstStudy.versions[firstStudy.activeVersionId] || [];
+              setTowers(sanitizeTowers(initialTowers));
+              setMsgs(activeEnterprise.msgs || []);
+              if (initialTowers.length === 0) {
+                setMode("idle");
+                setProgressionStage("idle");
+              } else {
+                setMode("active");
+                setProgressionStage("ready");
+              }
+            }
+          }
+        }
+      }, [appMode, activeEnterpriseId, activeEnterprise, activeStudyId]);
 
       // State synchronizers
       useEffect(() => {
@@ -5393,7 +5524,7 @@
       }, [activeEnterpriseId]);
 
       useEffect(() => {
-        if (appMode !== "canvas" || !activeEnterpriseId || !activeStudyId || !version) return;
+        if ((appMode !== "canvas" && appMode !== "dashboard") || !activeEnterpriseId || !activeStudyId || !version) return;
         setEnterprises(prev => prev.map(ent => {
           if (ent.id !== activeEnterpriseId) return ent;
           return {
@@ -5414,7 +5545,7 @@
       }, [towers, version, appMode, activeEnterpriseId, activeStudyId]);
 
       useEffect(() => {
-        if (appMode !== "canvas" || !activeEnterpriseId) return;
+        if ((appMode !== "canvas" && appMode !== "dashboard") || !activeEnterpriseId) return;
         setEnterprises(prev => prev.map(ent => {
           if (ent.id !== activeEnterpriseId) return ent;
           return { ...ent, msgs };
@@ -5552,6 +5683,7 @@
       // Proactive copilot alert when CA crosses warning thresholds during editing
       const prevCaRef=useRef(null);
       const lastCaAlertRef=useRef(0);
+      const lastProactiveAlertRef=useRef({});
       useEffect(()=>{
         if(mode!=="active"||!m?.valid)return;
         const prev=prevCaRef.current;
@@ -5572,6 +5704,71 @@
             text:`CA em ${safeValue(m.ca,{digits:1})} / ${caLim} — margem de ${safeValue(caLim-m.ca,{digits:1})} restante. Legislação não validada.`}]);
         }
       },[m?.ca,mode,limits.ca]);
+
+      // Proactive alerts for setbacks, overlaps, and subutilization
+      useEffect(() => {
+        if (mode !== "active" || !m?.valid) return;
+        const now = Date.now();
+        const nowStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+        // 1. Check setback violations
+        const setbackViolators = towers.filter(t => towerState(t) === "setback");
+        if (setbackViolators.length > 0) {
+          const key = `setback-${setbackViolators.map(t => t.id).join(",")}`;
+          if (!lastProactiveAlertRef.current[key] || now - lastProactiveAlertRef.current[key] > 40000) {
+            lastProactiveAlertRef.current[key] = now;
+            const lostArea = Math.round(setbackViolators.reduce((acc, t) => acc + (t.w * t.h / SVG_PER_M2) * t.floors, 0) * 0.15);
+            setMsgs(prev => [
+              ...prev,
+              {
+                id: `proactive-setback-${now}`,
+                role: "copilot-context",
+                time: nowStr,
+                text: `⚠️ **Alerta de Recuo**: Percebi que a ${setbackViolators.map(t => `Torre ${t.id}`).join(" e ")} invade os limites de recuo legal. Isso pode acarretar na perda de aproximadamente **${lostArea}m²** de potencial de área vendável ou invalidação do projeto.`
+              }
+            ]);
+          }
+        }
+
+        // 2. Check overlap violations
+        const overlapViolators = towers.filter(t => towerState(t) === "overlap");
+        if (overlapViolators.length > 0) {
+          const key = `overlap-${overlapViolators.map(t => t.id).join(",")}`;
+          if (!lastProactiveAlertRef.current[key] || now - lastProactiveAlertRef.current[key] > 40000) {
+            lastProactiveAlertRef.current[key] = now;
+            setMsgs(prev => [
+              ...prev,
+              {
+                id: `proactive-overlap-${now}`,
+                role: "copilot-context",
+                time: nowStr,
+                text: `⚡ **Conflito de Ocupação**: As torres ${overlapViolators.map(t => t.id).join(" e ")} estão sobrepostas. Recomendo reposicioná-las para liberar ventilação natural e ajustar a taxa de ocupação real.`
+              }
+            ]);
+          }
+        }
+
+        // 3. Check low CA utilization
+        const caRatio = m.ca / limits.ca;
+        if (caRatio < 0.6 && towers.length > 0) {
+          const key = "low-ca";
+          if (!lastProactiveAlertRef.current[key] || now - lastProactiveAlertRef.current[key] > 60000) {
+            lastProactiveAlertRef.current[key] = now;
+            const LOT_AREA_VAL = activeEnterprise ? activeEnterprise.area : LOT;
+            const potentialVgvGain = Math.round((limits.ca - m.ca) * (limits.to / 100) * LOT_AREA_VAL * 14500 * 0.75);
+            const formattedGain = potentialVgvGain > 0 ? "R$ " + formatNumber(potentialVgvGain) : "--";
+            setMsgs(prev => [
+              ...prev,
+              {
+                id: `proactive-low-ca-${now}`,
+                role: "copilot-context",
+                time: nowStr,
+                text: `💡 **Otimização de Potencial**: Identifiquei que o CA atual (${safeValue(m.ca,{digits:1})}) utiliza apenas **${Math.round(caRatio*100)}%** do limite permitido (${limits.ca}). Adicionar pavimentos ou otimizar a volumetria pode destravar até **${formattedGain}** de VGV adicional.`
+              }
+            ]);
+          }
+        }
+      }, [towers, limits.ca, limits.to, m?.ca, m?.valid, mode, showSetbacks, activeEnterprise]);
 
       // Undo history (push-before-mutate approach)
       const towerHistoryRef=useRef([]);
@@ -5670,7 +5867,7 @@
           const{id,ox,oy,tower,orig}=drag; const p=svgPt(e);
           let nx=p.x-ox,ny=p.y-oy;
           if(showSetbacksRef.current){
-            const sn=nudgeInsidePoly(nx,ny,tower.w,tower.h,INSET_TERRAIN);
+            const sn=nudgeInsidePoly(nx,ny,tower.w,tower.h,currentInsetTerrain);
             const dist=Math.hypot(sn.x-nx,sn.y-ny);
             if(dist>0&&dist<10){nx=sn.x;ny=sn.y;}
           }
@@ -5698,17 +5895,18 @@
           }
           setTowers(prev=>prev.map(t=>t.id===id?next:t));
         }
-      },[zoom,pan,towers,showSetbacks]);
+      },[zoom,pan,towers,showSetbacks,currentInsetTerrain]);
 
       const onUp=useCallback(()=>{
         if(dragging.current){
           const{id,orig,tower,latest=orig,historyPushed}=dragging.current;
-          if(!rectInPoly(latest.x,latest.y,tower.w,tower.h,TERRAIN)){
+          const currentTerrainStr = activeEnterprise ? activeEnterprise.terrainPoints : TERRAIN;
+          if(!rectInPoly(latest.x,latest.y,tower.w,tower.h,currentTerrainStr)){
             setShakeId(id); setTimeout(()=>setShakeId(null),400);
             if(historyPushed)towerHistoryRef.current=towerHistoryRef.current.slice(0,-1);
             setTowers(prev=>prev.map(t=>t.id===id?{...t,x:orig.x,y:orig.y}:t));
-          } else if(showSetbacksRef.current&&!(pip(latest.x,latest.y,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y,INSET_TERRAIN)&&pip(latest.x,latest.y+tower.h,INSET_TERRAIN)&&pip(latest.x+tower.w,latest.y+tower.h,INSET_TERRAIN))){
-            const sn=nudgeInsidePoly(latest.x,latest.y,tower.w,tower.h,INSET_TERRAIN);
+          } else if(showSetbacksRef.current&&!(pip(latest.x,latest.y,currentInsetTerrain)&&pip(latest.x+tower.w,latest.y,currentInsetTerrain)&&pip(latest.x,latest.y+tower.h,currentInsetTerrain)&&pip(latest.x+tower.w,latest.y+tower.h,currentInsetTerrain))){
+            const sn=nudgeInsidePoly(latest.x,latest.y,tower.w,tower.h,currentInsetTerrain);
             setTowers(prev=>prev.map(t=>t.id===id?sanitizeTower({...t,x:sn.x,y:sn.y},t):t));
           }
           dragging.current=null;
@@ -5716,7 +5914,7 @@
         resizing.current=null;
         panning.current=null;
         setLiveId(null);
-      },[]);
+      },[activeEnterprise, currentInsetTerrain]);
 
       function attachFile(file) {
         const ext=(file.name.split(".").pop()||"file").toLowerCase();
@@ -6097,6 +6295,13 @@ Vou:
         if(!msg && !attachedFile)return;
         const now=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
         
+        if (activeEnterpriseId !== "brooklin") {
+          const detectedTab = detectTabFromText(msg);
+          if (detectedTab) {
+            setWorkspaceTab(detectedTab);
+          }
+        }
+        
         if (questionStep >= 1 && questionStep <= 5) {
           setInput("");
           setAttachedFile(null);
@@ -6184,12 +6389,19 @@ Qual delas você gostaria de explorar?`,
           recordDecisionEvent("Teodora gerou 3 alternativas e recomendou uma estratégia segundo o objetivo informado.");
         }
 
+        if (activeEnterpriseId !== "brooklin") {
+          const detectedTab = detectTabFromText(thinkingQuery);
+          if (detectedTab) {
+            setWorkspaceTab(detectedTab);
+          }
+        }
+
         const isQuantities = /quantit|quantif|planilha|levantamento|orça|orço/.test((thinkingQuery || "").toLowerCase());
         if (isQuantities) {
           setActiveSideTab("quantities");
           recordDecisionEvent(`Gerados quantitativos preliminares para “${scenarioName(version)}”.`);
         }
-      }, [thinkingQuery, thinkingSelected, thinkingTowers, thinkingFromIdle, version]);
+      }, [thinkingQuery, thinkingSelected, thinkingTowers, thinkingFromIdle, version, activeEnterpriseId, setWorkspaceTab]);
 
       function applyChatAction(message) {
         const action=message.action;
@@ -6394,7 +6606,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
       const zoomFactor = zoom / 100;
       const viewW = 640 / zoomFactor;
       const viewH = 440 / zoomFactor;
-      const canvasViewBox = `${(640 - viewW) / 2} ${(440 - viewH) / 2} ${viewW} ${viewH}`;
+      const canvasViewBox = `${(640 - viewW) / 2 + pan.x} ${(440 - viewH) / 2 + pan.y} ${viewW} ${viewH}`;
       const canvasTowers = towers;
       const selTower = towers.find(t => t.id === sel) || null;
 
@@ -6407,8 +6619,27 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
               enterprises={enterprises}
               onSelectEnterprise={id => {
                 setActiveEnterpriseId(id);
-                setAppMode("dashboard");
-                setDashboardTab("estudos");
+                if (id === "brooklin") {
+                  setAppMode("dashboard");
+                  setDashboardTab("estudos");
+                } else {
+                  setAppMode("canvas");
+                  const ent = enterprises.find(e => e.id === id);
+                  const firstStudy = ent?.estudos[0];
+                  if (firstStudy) {
+                    setActiveStudyId(firstStudy.id);
+                    setVersion(firstStudy.activeVersionId || "v1");
+                    setTowers(sanitizeTowers(firstStudy.versions[firstStudy.activeVersionId] || []));
+                    setMsgs(ent.msgs || []);
+                    if ((firstStudy.versions[firstStudy.activeVersionId] || []).length === 0) {
+                      setMode("idle");
+                      setProgressionStage("idle");
+                    } else {
+                      setMode("active");
+                      setProgressionStage("ready");
+                    }
+                  }
+                }
               }}
               onCreateEnterprise={newEnt => {
                 const newId = newEnt.name.toLowerCase().replaceAll(" ", "-");
@@ -6450,8 +6681,13 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 };
                 setEnterprises(prev => [...prev, newObj]);
                 setActiveEnterpriseId(newId);
-                setAppMode("dashboard");
-                setDashboardTab("estudos");
+                setAppMode("canvas");
+                setActiveStudyId("viabilidade");
+                setVersion("v1");
+                setTowers([]);
+                setMode("idle");
+                setProgressionStage("idle");
+                setMsgs(newObj.msgs);
               }}
             />
           )}
@@ -6637,35 +6873,159 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
           {appMode === "canvas" && (
             <>
               {/* TOPBAR */}
-              {!presenting && <div style={{height:48,flexShrink:0,background:"rgba(17,21,29,0.9)",backdropFilter:"blur(10px)",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",padding:"0 18px",gap:16,position:"relative",zIndex:60}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                  <button onClick={() => { setAppMode("dashboard"); }} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, padding: "4px 10px", cursor: "pointer", marginRight: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                    <span>◀</span> Dashboard
-                  </button>
-                  <ArqgenLogo height={20}/>
-                  <span style={{background:C.purple,color:"#fff",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:20,letterSpacing:"0.04em",lineHeight:1,flexShrink:0}}>Next v2.0</span>
-                </div>
-                <div style={{flex:1,textAlign:"center",fontSize:12,color:C.gray,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0,display:compact?"none":"block"}}>
-                  <span onClick={() => { setAppMode("dashboard"); }} style={{ cursor: "pointer", color: C.gray2, marginRight: 6 }}>
-                    🏗️ {activeEnterprise?.name}
-                  </span>
-                  <span style={{ color: "rgba(255,255,255,0.2)", marginRight: 6 }}>/</span>
-                  <span style={{ color: "#fff", fontWeight: 600 }}>
-                    {activeEnterprise?.estudos.find(s => s.id === activeStudyId)?.name || "Estudo"} ({version})
-                  </span>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-                  {mode==="active"&&<button onClick={enterPresentation} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"1px solid rgba(255,255,255,0.12)",color:C.gray2,borderRadius:6,padding:"4px 11px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}><Icon.Present s={12}/>{!compact&&" Apresentar"}</button>}
-                  {mode==="active"&&<button onClick={()=>setExportOpen(true)} style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>}
-                  {!compact&&<div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#564FFF,#01AD6E)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>S</div>}
-                </div>
-              </div>}
+              {!presenting && (
+                activeEnterpriseId !== "brooklin" ? (
+                  <div style={{
+                    height: 52,
+                    background: "rgba(17,21,29,0.92)",
+                    backdropFilter: "blur(12px)",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 18px",
+                    gap: 16,
+                    zIndex: 60,
+                    flexShrink: 0
+                  }}>
+                    {/* Back / Logo */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                      <button onClick={() => { setAppMode("home"); }} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                        <span>◀</span> Home
+                      </button>
+                      <ArqgenLogo height={18}/>
+                      <span style={{ background: "linear-gradient(135deg, #564fff, #01ad6e)", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, letterSpacing: "0.04em" }}>AI-NATIVE</span>
+                    </div>
+
+                    {/* Center Title */}
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, paddingLeft: 12, borderLeft: "1px solid rgba(255,255,255,0.1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: compact ? "none" : "flex" }}>
+                      <span style={{ color: "#fff", fontWeight: 600, fontSize: 12 }}>{activeEnterprise?.name}</span>
+                      <span style={{ color: C.gray, margin: "0 4px", fontSize: 12 }}>/</span>
+                      <span style={{ color: C.gray2, fontSize: 12 }}>{activeEnterprise?.estudos.find(s => s.id === activeStudyId)?.name || "Estudo"}</span>
+                    </div>
+
+                    {/* Tab Selectors */}
+                    <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: 3, gap: 2 }}>
+                      {[
+                        { id: "desenho", label: "Desenho", icon: "🎨" },
+                        { id: "quantitativos", label: "Quantitativos", icon: "📊" },
+                        { id: "legislação", label: "Legislação", icon: "⚖️" },
+                        { id: "repositório", label: "Repositório", icon: "📁" },
+                        { id: "cronologia", label: "Cronologia", icon: "⏳" },
+                        { id: "comparador", label: "Comparador", icon: "⚔️" },
+                        { id: "apresentação", label: "Apresentação", icon: "🖥️" }
+                      ].map(tab => {
+                        const isTabActive = workspaceTab === tab.id;
+                        return (
+                          <button key={tab.id} onClick={() => setWorkspaceTab(tab.id)} style={{
+                            background: isTabActive ? "rgba(255,255,255,0.06)" : "transparent",
+                            border: isTabActive ? "1px solid rgba(255,255,255,0.08)" : "1px solid transparent",
+                            borderRadius: 6,
+                            color: isTabActive ? C.green2 : C.gray2,
+                            fontFamily: "'Inter',sans-serif",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "4px 10px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            transition: "all 0.15s ease"
+                          }}
+                            onMouseEnter={e => {
+                              if (!isTabActive) e.currentTarget.style.color = "#fff";
+                            }}
+                            onMouseLeave={e => {
+                              if (!isTabActive) e.currentTarget.style.color = C.gray2;
+                            }}>
+                            <span>{tab.icon}</span>
+                            <span style={{ display: compact ? "none" : "inline" }}>{tab.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{height:48,flexShrink:0,background:"rgba(17,21,29,0.9)",backdropFilter:"blur(10px)",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",padding:"0 18px",gap:16,position:"relative",zIndex:60}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                      <button onClick={() => { setAppMode("dashboard"); }} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, padding: "4px 10px", cursor: "pointer", marginRight: 8, display: "flex", alignItems: "center", gap: 4 }}>
+                        <span>◀</span> Dashboard
+                      </button>
+                      <ArqgenLogo height={20}/>
+                      <span style={{background:C.purple,color:"#fff",fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:20,letterSpacing:"0.04em",lineHeight:1,flexShrink:0}}>Next v2.0</span>
+                    </div>
+                    <div style={{flex:1,textAlign:"center",fontSize:12,color:C.gray,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0,display:compact?"none":"block"}}>
+                      <span onClick={() => { setAppMode("dashboard"); }} style={{ cursor: "pointer", color: C.gray2, marginRight: 6 }}>
+                        🏗️ {activeEnterprise?.name}
+                      </span>
+                      <span style={{ color: "rgba(255,255,255,0.2)", marginRight: 6 }}>/</span>
+                      <span style={{ color: "#fff", fontWeight: 600 }}>
+                        {activeEnterprise?.estudos.find(s => s.id === activeStudyId)?.name || "Estudo"} ({version})
+                      </span>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                      {mode==="active"&&<button onClick={enterPresentation} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"1px solid rgba(255,255,255,0.12)",color:C.gray2,borderRadius:6,padding:"4px 11px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}><Icon.Present s={12}/>{!compact&&" Apresentar"}</button>}
+                      {mode==="active"&&<button onClick={()=>setExportOpen(true)} style={{background:"none",border:`1px solid ${C.green}`,color:C.green,borderRadius:6,padding:"4px 13px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>Exportar</button>}
+                      {!compact&&<div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#564FFF,#01AD6E)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Sora',sans-serif",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>S</div>}
+                    </div>
+                  </div>
+                )
+              )}
 
               {/* BODY */}
               <div style={{flex:1,position:"relative",overflow:"hidden",display:"flex"}}>
+                {activeEnterpriseId !== "brooklin" && (
+                  <div style={{
+                    width: "30%",
+                    minWidth: "320px",
+                    maxWidth: "450px",
+                    borderRight: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(22, 28, 38, 0.4)",
+                    backdropFilter: "blur(14px)",
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    position: "relative"
+                  }}>
+                    <ChatPanel
+                      msgs={msgs} typing={typing} input={input} setInput={setInput}
+                      onSend={() => sendMessage()} size={chatSize} setSize={setChatSize}
+                      attachedFile={attachedFile} onAttachFile={attachFile}
+                      onRemoveFile={() => setAttachedFile(null)}
+                      onAction={applyChatAction}
+                      onApplyAlt={applyAlt}
+                      sel={sel}
+                      attentionSignal={teodoraAttention}
+                      onPromptSubmit={prompt => { sendMessage(prompt); }}
+                      questionStep={questionStep}
+                      onboardingAnswers={onboardingAnswers}
+                      handleAnswer={handleAnswer}
+                      embedMode={true}
+                    />
+                  </div>
+                )}
 
-                {/* CANVAS (always mounted, visible only in active mode) */}
-                <div data-canvas style={{flex:1,position:"relative",background:C.ink2,cursor:"crosshair",opacity:mode==="active"?1:0,transition:"opacity 0.6s ease 0.2s",pointerEvents:mode==="active"?"auto":"none",overflow:"hidden"}}>
+                {/* Right Area container for tabs/canvas */}
+                <div style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  height: "100%",
+                  position: "relative",
+                  overflow: "hidden"
+                }}>
+
+                  {/* CANVAS (always mounted, visible only in active mode) */}
+                  <div data-canvas style={{
+                    flex:1,
+                    position:"relative",
+                    background:C.ink2,
+                    cursor:"crosshair",
+                    opacity:mode==="active"?1:0,
+                    transition:"opacity 0.6s ease 0.2s",
+                    pointerEvents:mode==="active"?"auto":"none",
+                    overflow:"hidden",
+                    display: (activeEnterpriseId !== "brooklin" && workspaceTab !== "desenho") ? "none" : "block"
+                  }}>
                   {/* canvas controls */}
                   {!presenting && <div style={{position:"absolute",top:0,left:0,right:0,height:42,zIndex:10,background:"rgba(17,21,29,0.82)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.05)",display:"flex",alignItems:"center",padding:"0 14px",gap:10,overflowX:"auto",overflowY:"hidden"}}>
                     <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
@@ -6732,7 +7092,7 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                   {mode==="active"&&<NorthIndicator presenting={presenting}/>}
 
                   {/* SVG */}
-                  <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease",cursor:panning.current?"grabbing":zoom>100?"grab":"crosshair"}}
+                  <svg ref={svgRef} width="100%" height="100%" viewBox={canvasViewBox} style={{position:"absolute",top:0,left:0,userSelect:"none",opacity:transitioning?0:1,transition:"opacity 0.2s ease",cursor:panning.current?"grabbing":(zoom>100?"grab":"crosshair")}}
                     onMouseDown={onCanvasDown} onWheel={onWheel}
                     onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
                     onClick={()=>{if(!dragging.current)setSel(null);}}
@@ -6768,9 +7128,15 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                     </g>
 
                     {/* Red dashed setback line */}
-                    {view === "2D" && (progressionStage !== "idle" && progressionStage !== "terrain") && (
-                      <polygon points={insetPoly(currentTerrainPoints, SETBACK_METERS.map(v => v * M_TO_SVG)).map(p => p.map(v => v.toFixed(1)).join(",")).join(" ")} fill="none" stroke="rgba(239, 68, 68, 0.45)" strokeWidth="0.8" strokeDasharray="3,3"/>
-                    )}
+                    {view === "2D" && (progressionStage !== "idle" && progressionStage !== "terrain") && (() => {
+                      const dynamicSetbacks = currentTerrainPoints.map((_, i) => {
+                        const n = currentTerrainPoints.length;
+                        if (i === 0 || i === n - 1) return 5;
+                        if (i === 3 || i === 4) return 3;
+                        return 1.5;
+                      }).map(v => v * M_TO_SVG);
+                      return <polygon points={insetPoly(currentTerrainPoints, dynamicSetbacks).map(p => p.map(v => v.toFixed(1)).join(",")).join(" ")} fill="none" stroke="rgba(239, 68, 68, 0.45)" strokeWidth="0.8" strokeDasharray="3,3"/>;
+                    })()}
 
                     {showSetbacks && view === "2D" && (progressionStage !== "idle" && progressionStage !== "terrain" && progressionStage !== "envelope") && <SetbackOverlay terrainPoints={currentTerrainPoints}/>}
 
@@ -7047,10 +7413,328 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                   calcMetrics={calcMetrics}
                   terrainPoints={activeEnterprise?.terrainPoints}
                 />}
+                  {/* OTHER TABS (Quantitativos, Legislação, etc.) for non-Brooklin */}
+                  {activeEnterpriseId !== "brooklin" && (
+                    <div style={{
+                      flex: 1,
+                      display: workspaceTab === "desenho" ? "none" : "flex",
+                      flexDirection: "column",
+                      height: "100%",
+                      width: "100%",
+                      overflow: "hidden"
+                    }}>
+                      {mode === "idle" ? (
+                        <IdleScreen
+                          onSend={sendMessage} leaving={leaving}
+                          attachedFile={attachedFile} onAttachFile={attachFile}
+                          onRemoveFile={()=>setAttachedFile(null)}
+                        />
+                      ) : (
+                        (() => {
+                          switch (workspaceTab) {
+                            case "quantitativos":
+                              return (
+                                <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", background: "#0b0d14", display: "flex", flexDirection: "column" }}>
+                                  <QuantitiesPanel
+                                    m={calcMetrics(towers)}
+                                    towers={towers}
+                                    version={version}
+                                    limits={limits}
+                                    onShowToast={setToastText}
+                                    onBackToLote={() => setWorkspaceTab("desenho")}
+                                  />
+                                </div>
+                              );
+                            case "legislação":
+                              return (
+                                <div style={{ flex: 1, padding: "28px 32px", overflowY: "auto", background: "#0b0d14", color: "#fff", fontFamily: "'Inter',sans-serif" }}>
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 16 }}>
+                                    <div>
+                                      <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Legislação & Parâmetros Urbanísticos</h2>
+                                      <p style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>Controle e validação das regras legais aplicadas ao lote ativo</p>
+                                    </div>
+                                    <span style={{ background: "rgba(1,173,110,0.12)", border: "1px solid rgba(51,224,161,0.3)", borderRadius: 12, padding: "4px 12px", fontSize: 11, fontWeight: 600, color: C.green2 }}>
+                                      Zona de Centralidade (ZC)
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 20 }}>
+                                      <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: C.gray2, textTransform: "uppercase", letterSpacing: "0.06em" }}>Editor de Parâmetros</h3>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                        <div>
+                                          <label style={{ fontSize: 12, color: C.gray, display: "block", marginBottom: 6 }}>Coeficiente de Aproveitamento Máximo (CA)</label>
+                                          <input type="number" step="0.1" value={limits.ca} onChange={e => {
+                                            const val = parseFloat(e.target.value) || 0;
+                                            setLimits(prev => ({ ...prev, ca: val }));
+                                          }} style={{ width: "100%", background: "rgba(17,21,29,0.6)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fff", fontSize: 13, padding: "8px 12px", outline: "none" }} />
+                                        </div>
+
+                                        <div>
+                                          <label style={{ fontSize: 12, color: C.gray, display: "block", marginBottom: 6 }}>Taxa de Ocupação Máxima (TO %)</label>
+                                          <input type="number" step="1" value={limits.to} onChange={e => {
+                                            const val = parseFloat(e.target.value) || 0;
+                                            setLimits(prev => ({ ...prev, to: val }));
+                                          }} style={{ width: "100%", background: "rgba(17,21,29,0.6)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fff", fontSize: 13, padding: "8px 12px", outline: "none" }} />
+                                        </div>
+
+                                        <button onClick={() => {
+                                          recordDecisionEvent(`Parâmetros legais ajustados manualmente: CA Máximo ${limits.ca}, TO Máxima ${limits.to}%.`);
+                                          setToastText("Parâmetros atualizados e salvos com sucesso.");
+                                        }} style={{ background: C.green, border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, padding: "10px 16px", cursor: "pointer", transition: "background 0.2s" }}
+                                          onMouseEnter={e => e.currentTarget.style.background = C.green2}
+                                          onMouseLeave={e => e.currentTarget.style.background = C.green}>
+                                          Aplicar Diretrizes Urbanísticas
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 20 }}>
+                                      <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: C.gray2, textTransform: "uppercase", letterSpacing: "0.06em" }}>Validação em Tempo Real</h3>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: 10 }}>
+                                          <span style={{ fontSize: 12, color: C.gray }}>Aproveitamento (CA do Projeto)</span>
+                                          <span style={{ fontSize: 13, fontWeight: 700, color: (m && m.ca > limits.ca) ? C.red : C.green2 }}>
+                                            {m && m.ca} / {limits.ca}
+                                          </span>
+                                        </div>
+
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: 10 }}>
+                                          <span style={{ fontSize: 12, color: C.gray }}>Ocupação do Solo (TO do Projeto)</span>
+                                          <span style={{ fontSize: 13, fontWeight: 700, color: (m && m.occ > limits.to) ? C.red : C.green2 }}>
+                                            {m && m.occ}% / {limits.to}%
+                                          </span>
+                                        </div>
+
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: 10 }}>
+                                          <span style={{ fontSize: 12, color: C.gray }}>Recuo Frontal</span>
+                                          <span style={{ fontSize: 13, fontWeight: 600, color: C.gray2 }}>5.0 m</span>
+                                        </div>
+
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", paddingBottom: 10 }}>
+                                          <span style={{ fontSize: 12, color: C.gray }}>Recuos Laterais e Fundo</span>
+                                          <span style={{ fontSize: 13, fontWeight: 600, color: C.gray2 }}>3.0 m / 1.5 m</span>
+                                        </div>
+
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, background: (m && m.valid) ? "rgba(51,224,161,0.08)" : "rgba(253,72,72,0.08)", border: `1px solid ${(m && m.valid) ? "rgba(51,224,161,0.2)" : "rgba(253,72,72,0.25)"}`, borderRadius: 8, padding: 12, marginTop: 8 }}>
+                                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: (m && m.valid) ? C.green2 : C.red }} />
+                                          <span style={{ fontSize: 11, color: (m && m.valid) ? C.green2 : C.red, fontWeight: 600 }}>
+                                            {(m && m.valid) ? "Projeto em conformidade com as regras urbanísticas básicas do lote." : "Estudo excede limites construtivos permitidos."}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            case "repositório":
+                              return (
+                                <div style={{ flex: 1, padding: "28px 32px", overflowY: "auto", background: "#0b0d14", color: "#fff", fontFamily: "'Inter',sans-serif" }}>
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 16 }}>
+                                    <div>
+                                      <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Repositório de Arquivos & Ingestão</h2>
+                                      <p style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>Arquivos técnicos, topográficos, e contextuais do empreendimento</p>
+                                    </div>
+                                  </div>
+
+                                  <div 
+                                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                                    onDrop={e => {
+                                      e.preventDefault(); e.stopPropagation();
+                                      const file = e.dataTransfer.files[0];
+                                      if (file) {
+                                        attachFile(file);
+                                        setToastText(`Arquivo ${file.name} recebido.`);
+                                      }
+                                    }}
+                                    style={{ border: "2px dashed rgba(255,255,255,0.15)", borderRadius: 12, padding: "32px 24px", textAlign: "center", background: "rgba(255,255,255,0.01)", cursor: "pointer", marginBottom: 24, transition: "border-color 0.2s" }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = C.green2}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"}
+                                    onClick={() => {
+                                      const inputEl = document.createElement("input");
+                                      inputEl.type = "file";
+                                      inputEl.accept = ".dwg,.ifc,.dxf,.kmz,.rvt,.nwc";
+                                      inputEl.onchange = e => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                          attachFile(file);
+                                          setToastText(`Arquivo ${file.name} anexado.`);
+                                        }
+                                      };
+                                      inputEl.click();
+                                    }}
+                                  >
+                                    <div style={{ fontSize: 24, marginBottom: 8 }}>📁</div>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.gray2 }}>Arraste arquivos técnicos ou clique para fazer upload</div>
+                                    <div style={{ fontSize: 10, color: C.gray, marginTop: 4 }}>Suporta DWG, IFC, DXF, KMZ, RVT, NWC</div>
+                                  </div>
+
+                                  <h3 style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.gray, marginBottom: 12 }}>Arquivos Ativos</h3>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {activeEnterprise?.dados.map((file, idx) => (
+                                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8, padding: "12px 16px" }}>
+                                        <div style={{ fontSize: 18 }}>📄</div>
+                                        <div style={{ flex: 1 }}>
+                                          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray2 }}>{file.name}</div>
+                                          <div style={{ fontSize: 10, color: C.gray, marginTop: 2 }}>{file.source} · {file.date}</div>
+                                        </div>
+                                        <span style={{ fontSize: 11, color: C.gray }}>{file.size}</span>
+                                        <button onClick={() => {
+                                          setEnterprises(prev => prev.map(ent => {
+                                            if (ent.id !== activeEnterpriseId) return ent;
+                                            return { ...ent, dados: ent.dados.filter((_, i) => i !== idx) };
+                                          }));
+                                          setToastText(`Arquivo ${file.name} removido.`);
+                                        }} style={{ background: "transparent", border: "none", color: C.gray, cursor: "pointer", fontSize: 14 }}>×</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            case "cronologia":
+                              return (
+                                <div style={{ flex: 1, padding: "28px 32px", overflowY: "auto", background: "#0b0d14", color: "#fff", fontFamily: "'Inter',sans-serif" }}>
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 16 }}>
+                                    <div>
+                                      <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Cronologia de Decisões & Auditoria</h2>
+                                      <p style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>Histórico completo das modelagens, premissas urbanísticas, e simulações do lote</p>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ position: "relative", paddingLeft: 24, borderLeft: "2px solid rgba(255,255,255,0.06)", marginLeft: 8 }}>
+                                    {activeEnterprise?.historico.slice().reverse().map((item, idx) => (
+                                      <div key={item.id || idx} style={{ position: "relative", marginBottom: 24 }}>
+                                        <div style={{ position: "absolute", left: -30, top: 4, width: 10, height: 10, borderRadius: "50%", background: item.user === "Teodora" ? C.green2 : C.purple, border: `2px solid ${C.ink2}`, boxShadow: `0 0 8px ${item.user === "Teodora" ? C.green2 : C.purple}` }} />
+                                        <div style={{ fontSize: 11, color: C.gray, display: "flex", alignItems: "center", gap: 8 }}>
+                                          <span style={{ fontWeight: 700, color: item.user === "Teodora" ? C.green2 : C.purple }}>{item.user}</span>
+                                          <span>·</span>
+                                          <span>{item.date}</span>
+                                        </div>
+                                        <div style={{ fontSize: 12, color: C.gray2, marginTop: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 8, padding: 12, lineHeight: 1.45 }}>
+                                          {item.text}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            case "comparador":
+                              return (
+                                <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#0b0d14" }}>
+                                  <ComparePanel
+                                    versions={{...versions,[version]:towers}}
+                                    currentVersion={version}
+                                    onClose={() => setWorkspaceTab("desenho")}
+                                    onPreview={v => {
+                                      switchVersion(v);
+                                      setWorkspaceTab("desenho");
+                                      setToastText(`Estratégia “${scenarioName(v)}” ativa no canvas.`);
+                                    }}
+                                    onSwitch={(v, meta = {}) => {
+                                      const newM = calcMetrics(versions[v] || []);
+                                      const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                                      switchVersion(v);
+                                      setDecision({ strategy: v, time: now, units: newM.valid ? newM.units : null, ca: newM.valid ? newM.ca : null, limits: { ...limits }, reason: meta.reason || null, pending: meta.pending || [] });
+                                      recordDecisionEvent(`Decisão registrada: avançar com “${scenarioName(v)}”${meta.reason ? ` — ${meta.reason}` : ""}.`);
+                                      const reasonPart = meta.reason ? ` · "${meta.reason}"` : "";
+                                      const pendingPart = meta.pending && meta.pending.length > 0 ? ` · Pendências: ${meta.pending.join(", ")}.` : " Sem pendências registradas.";
+                                      setMsgs(prev => [...prev, {
+                                        id: `decide-${Date.now()}`, role: "copilot-context", time: now,
+                                        text: `Decisão registrada: ${scenarioName(v)} · ${newM.valid ? safeValue(newM.units) + " un · CA " + safeValue(newM.ca, { digits: 1 }) : "indicadores calculados"}${reasonPart}.${pendingPart}`
+                                      }]);
+                                      setToastText(`Decisão registrada para ${scenarioName(v)}.`);
+                                      setWorkspaceTab("desenho");
+                                    }}
+                                    limits={limits}
+                                    calcMetrics={calcMetrics}
+                                    terrainPoints={activeEnterprise?.terrainPoints}
+                                  />
+                                </div>
+                              );
+                            case "apresentação":
+                              const privArea = (m && m.area || 0) * 0.75;
+                              const estVgv = privArea * 14500;
+                              const formattedVgv = estVgv > 0 ? "R$ " + formatNumber(estVgv) : "--";
+
+                              return (
+                                <div style={{ flex: 1, padding: "28px 32px", overflowY: "auto", background: "#0b0d14", color: "#fff", fontFamily: "'Inter',sans-serif" }}>
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 16 }}>
+                                    <div>
+                                      <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Apresentação Executiva de Viabilidade</h2>
+                                      <p style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>Suporte e relatórios para tomada de decisões executivas</p>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 12 }}>
+                                      <button onClick={downloadReport} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, padding: "8px 16px", cursor: "pointer" }}>
+                                        📥 Baixar Relatório HTML
+                                      </button>
+                                      <button onClick={enterPresentation} style={{ background: C.green, border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, padding: "8px 16px", cursor: "pointer" }}>
+                                        📺 Apresentar em Tela Cheia
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 20 }}>
+                                      <div style={{ fontSize: 10, color: C.green2, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Slide 1</div>
+                                      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Visão Geral do Lote</h3>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Lote</span><span style={{ fontSize: 12, fontWeight: 600 }}>{activeEnterprise?.name}</span></div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Localização</span><span style={{ fontSize: 12, fontWeight: 600 }}>{activeEnterprise?.location}</span></div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Área do Lote</span><span style={{ fontSize: 12, fontWeight: 600 }}>{activeEnterprise?.area} m²</span></div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 20 }}>
+                                      <div style={{ fontSize: 10, color: C.green2, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Slide 2</div>
+                                      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Indicadores Construtivos</h3>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Coeficiente de Aproveitamento</span><span style={{ fontSize: 12, fontWeight: 600 }}>{m && m.ca} / {limits.ca}</span></div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Taxa de Ocupação</span><span style={{ fontSize: 12, fontWeight: 600 }}>{m && m.occ}% / {limits.to}%</span></div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Total de Unidades</span><span style={{ fontSize: 12, fontWeight: 600 }}>{m && m.units} un</span></div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 20 }}>
+                                      <div style={{ fontSize: 10, color: C.green2, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Slide 3</div>
+                                      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Estudo de Viabilidade Financeira (ZC)</h3>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Valor do m² (Estimado)</span><span style={{ fontSize: 12, fontWeight: 600 }}>R$ 14.500 / m²</span></div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>Área Privativa Estimada (75%)</span><span style={{ fontSize: 12, fontWeight: 600 }}>{m && formatNumber(privArea)} m²</span></div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: C.gray }}>VGV Estimado</span><span style={{ fontSize: 12, fontWeight: 700, color: C.green2 }}>{formattedVgv}</span></div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 20 }}>
+                                      <div style={{ fontSize: 10, color: C.green2, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Slide 4</div>
+                                      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Pendências Técnicas</h3>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        {decision && decision.pending && decision.pending.length > 0 ? (
+                                          decision.pending.map((p, i) => (
+                                            <div key={i} style={{ display: "flex", gap: 8, fontSize: 12, color: C.gray2 }}>
+                                              <span>⚠️</span> <span>{p}</span>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <div style={{ fontSize: 12, color: C.gray }}>Sem pendências registradas para a estratégia ativa.</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            default:
+                              return null;
+                          }
+                        })()
+                      )}
+                    </div>
+                  )}
+
+                </div> {/* Close Right Area container */}
               </div>
 
-              {/* CONTEXT SIDE PANEL */}
-              {mode==="active"&&progressionStage==="ready"&&!presenting&&!comparing&&(
+              {/* CONTEXT SIDE PANEL (only for Brooklin) */}
+              {activeEnterpriseId === "brooklin" && mode==="active"&&progressionStage==="ready"&&!presenting&&!comparing&&(
                 <ContextPanel m={m} towers={towers} version={version} sel={sel} onSelect={setSel} onSave={saveTower} onAdjust={adjustTower} onRemove={removeTower} onAddTower={addTower} limits={limits} decision={decision} decisionStale={decisionStale} decisionLog={decisionLog} onAgentAction={prompt=>{setChatSize("full");sendMessage(prompt);}} onSetLimits={newLim=>{
                     setLimits(newLim);
                     recordDecisionEvent(`Premissas alteradas: CA máximo ${newLim.ca} e TO máxima ${newLim.to}%.`);
@@ -7064,8 +7748,8 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
                 />
               )}
 
-              {/* IDLE SCREEN */}
-              {mode==="idle" && <IdleScreen
+              {/* IDLE SCREEN (only for Brooklin) */}
+              {activeEnterpriseId === "brooklin" && mode==="idle" && <IdleScreen
                 onSend={sendMessage} leaving={leaving}
                 attachedFile={attachedFile} onAttachFile={attachFile}
                 onRemoveFile={()=>setAttachedFile(null)}
@@ -7082,8 +7766,8 @@ ${intent?`<div class="strategy"><div class="label">Estratégia</div><div class="
             </>
           )}
 
-          {/* persistent global chat */}
-          {appMode !== "home" && !presenting && (
+          {/* persistent global chat (only for Brooklin) */}
+          {appMode !== "home" && activeEnterpriseId === "brooklin" && !presenting && (
             <ChatPanel msgs={msgs} typing={typing} input={input} setInput={setInput}
               onSend={()=>sendMessage()} size={chatSize} setSize={setChatSize}
               attachedFile={attachedFile} onAttachFile={attachFile}
